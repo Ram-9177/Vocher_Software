@@ -1,0 +1,19 @@
+# OS Metadata
+.DS_Store
+Thumbs.db
+
+# IDE / Editor Configs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local Development / Temp Files
+*.log
+*~
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Node (in case package manager is introduced later)
+node_modules/
