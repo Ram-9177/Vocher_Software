@@ -7,6 +7,7 @@ function showPage(page){
 function applyRoleUI(){
   const admin = isAdmin(); qsa('.admin-only').forEach(el=>el.style.display=admin?'':'none');
   if($('userBadge')) $('userBadge').textContent = `${state.user.username} · ${admin?'Admin':'User'}`;
+  if($('vCollege')) { $('vCollege').disabled = !admin; if(!admin) $('vCollege').value = state.user.college || 'smg'; }
   if(!admin && document.querySelector('.page.active')?.classList.contains('admin-only')) showPage('myVouchers');
 }
 function populateHeads(){
