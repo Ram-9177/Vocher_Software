@@ -1,0 +1,11 @@
+name = "st-marys-voucher-system"
+compatibility_date = "2026-07-04"
+pages_build_output_dir = "."
+
+[[d1_databases]]
+binding = "DB"
+database_name = "st-marys-vouchers"
+database_id = "PASTE_YOUR_D1_DATABASE_ID_HERE"
+
+[vars]
+SMV_SETUP_KEY = "CHANGE_THIS_LONG_RANDOM_SETUP_KEY"
