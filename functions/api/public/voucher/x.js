@@ -17,7 +17,7 @@ export async function onRequestPost(context) {
     if (action === 'listVouchers') return listVouchers(env.DB, session.user);
     if (action === 'saveVoucher') return saveVoucher(env.DB, session.user, body.voucher, ip);
     if (action === 'deleteVoucher') return adminOnly(session.user, () => deleteVoucher(env.DB, session.user, body.id, ip));
-    if (action === 'listHeads') return listHeads(env.DB);
+    if (action === 'listHeads') return listHeads(env.DB, session.user);
     if (action === 'addHead') return addHead(env.DB, session.user, body, ip);
     if (action === 'listUsers') return adminOnly(session.user, () => listUsers(env.DB));
     if (action === 'createUser') return adminOnly(session.user, () => createUser(env.DB, session.user, body, ip));
@@ -38,6 +38,7 @@ function now() { return new Date().toISOString(); }
 function clean(v, max = 2000) { return String(v || '').trim().replace(/\s+/g, ' ').slice(0, max); }
 function norm(v) { return clean(v, 250).toLowerCase(); }
 function amount(v) { return Math.round(Number(v || 0)); }
+function allowedCollege(user, requested) { return user.role === 'admin' ? clean(requested || user.college || 'smg', 20) : clean(user.college || 'smg', 20); }
 
 async function ensureSchema(DB) {
   await DB.batch([
@@ -106,7 +107,7 @@ async function saveVoucher(DB, user, v, ip) {
   const type = clean(v.type, 20);
   if (!['debit','onaccount','credit'].includes(type)) bad('Invalid voucher type');
   const row = {
-    college: clean(v.college || user.college || 'smg', 20), type, date: clean(v.date, 20), head: clean(v.head, 250), ac_name: clean(v.ac_name, 250), received_from: clean(v.received_from, 250), paid_to: clean(v.paid_to, 250), towards: clean(v.towards, 500), amount: amount(v.amount), amt_words: clean(v.amt_words, 500), mode: clean(v.mode, 50), cheque: clean(v.cheque, 120), prep_by: clean(v.prep_by, 120), checked_by: clean(v.checked_by, 120), remarks: clean(v.remarks, 500)
+    college: allowedCollege(user, v.college), type, date: clean(v.date, 20), head: clean(v.head, 250), ac_name: clean(v.ac_name, 250), received_from: clean(v.received_from, 250), paid_to: clean(v.paid_to, 250), towards: clean(v.towards, 500), amount: amount(v.amount), amt_words: clean(v.amt_words, 500), mode: clean(v.mode, 50), cheque: clean(v.cheque, 120), prep_by: clean(v.prep_by, 120), checked_by: clean(v.checked_by, 120), remarks: clean(v.remarks, 500)
   };
   if (!row.date || !row.head || !row.towards || !row.amount) bad('Date, head, towards and amount are required');
   if (id) {
@@ -132,20 +133,26 @@ async function deleteVoucher(DB, user, id, ip) {
   return json({ ok:true });
 }
 
-async function listHeads(DB) { const r = await DB.prepare('SELECT * FROM account_heads WHERE active=1 ORDER BY name').all(); return json({ heads:r.results || [] }); }
+async function listHeads(DB, user) {
+  const q = user.role === 'admin' ? DB.prepare('SELECT * FROM account_heads WHERE active=1 ORDER BY name') : DB.prepare('SELECT * FROM account_heads WHERE active=1 AND college=? ORDER BY name').bind(user.college || 'smg');
+  const r = await q.all();
+  return json({ heads:r.results || [] });
+}
 async function addHead(DB, user, body, ip) {
   const name = clean(body.name, 250); if (!name) bad('Head name required');
   const type = ['debit','onaccount','credit','common'].includes(body.type) ? body.type : 'common';
-  const college = clean(body.college || user.college || 'smg', 20);
+  const college = allowedCollege(user, body.college);
   await DB.prepare('INSERT OR IGNORE INTO account_heads(name,name_norm,type,college,created_by,created_at,active) VALUES(?,?,?,?,?,?,1)').bind(name, norm(name), type, college, user.username, now()).run();
   await audit(DB, user.username, 'add_account_head', 'account_head', name, JSON.stringify({ type, college }), ip);
-  return listHeads(DB);
+  return listHeads(DB, user);
 }
 
 async function listUsers(DB) { const r = await DB.prepare('SELECT username,role,status,college,created_at,updated_at,last_login FROM users ORDER BY username').all(); return json({ users:r.results || [] }); }
 async function createUser(DB, actor, body, ip) {
   const username = norm(body.username); if (!/^[a-z0-9._-]{3,32}$/.test(username)) bad('Username must be 3-32 letters/numbers');
   const password = String(body.password || ''); if (password.length < 6) bad('Password must be at least 6 characters');
+  const existing = await DB.prepare('SELECT username FROM users WHERE username=?').bind(username).first();
+  if (existing) bad('Username already exists', 409);
   const role = body.role === 'admin' ? 'admin' : 'user';
   const college = clean(body.college || 'smg', 20);
   const hp = await hashPassword(password);
