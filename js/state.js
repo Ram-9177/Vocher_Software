@@ -1,0 +1,15 @@
+'use strict';
+const API_URL = '/api/public/voucher/x';
+const TYPE_ORDER = ['debit','onaccount','credit'];
+const TYPE_LABEL = {debit:'Debit', onaccount:'On Account', credit:'Credit'};
+const DEFAULT_HEADS = ['Building Maintenance','Garden Maintenance','Aquarium Maintenance','Staff Welfare Account','Guest Lecture Account','Workshop Account','Training & Placements Account','Transportation Account','Bank Deposits Account','Salary Account','Repairs & Maintenance','Hostel Mess Maintenance','Furniture Maintenance','Electricity Bill','Vehicle Maintenance','Electrical Expenses','Xerox Machine Maintenance','Transfer Account','Library Maintenance Account','Sports Maintenance Account','Function Celebration Account','Printing & Stationery Account','Office Maintenance Account','Professional Tax','Postage & Telegram','Admission & Promotion Account','On Account','Marketing','Advertisement','Loan Account','Audit Expenses Account','Diesel Account','Bank Charges Account','Courier Expenses','Telephone Expenses','Legal Expenses','Internet Expenses','Lab Maintenance','Conveyance Expenses','Computer Maintenance','Donation Account'];
+const state = { token: localStorage.getItem('smv_token') || '', user:null, vouchers:[], heads:[], users:[], audits:[], currentType:'debit', filters:{from:'',to:'',type:'',head:'__all_heads__',mode:'',user:'',search:'',view:'table'}, syncTimer:null };
+const $ = id => document.getElementById(id);
+const qsa = s => Array.from(document.querySelectorAll(s));
+const isAdmin = () => state.user && state.user.role === 'admin';
+const norm = v => String(v || '').trim().replace(/\s+/g,' ').toLowerCase();
+const safe = v => String(v ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+const todayISO = () => new Date().toISOString().slice(0,10);
+const dmy = iso => !iso ? '' : iso.split('-').reverse().join('-');
+const amountInt = n => Math.round(Number(n || 0));
+const money = n => '₹' + amountInt(n).toLocaleString('en-IN');
