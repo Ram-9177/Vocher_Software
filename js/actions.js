@@ -15,11 +15,117 @@ async function deleteVoucher(id){ if(!isAdmin())return; if(!confirm('Delete this
 function openPrint(id){ const v=state.vouchers.find(x=>Number(x.id)===Number(id)); if(!v)return; $('printArea').innerHTML=printHtml(v); $('printModal').classList.remove('hidden'); }
 function printHtml(v){ const title=(TYPE_LABEL[v.type]||'Voucher')+' Voucher'; return `<div class="voucher-print"><div class="voucher-head"><h2>ST. MARY'S VOUCHER SYSTEM</h2><div>${safe(title.toUpperCase())}</div></div><div class="voucher-meta"><div><b>Date:</b> ${safe(dmy(v.date))}</div><div><b>No:</b> ${safe(v.voucher_no||v.id)}</div></div><div class="print-row"><b>Head</b><span>${safe(v.head)}</span></div><div class="print-row"><b>Party</b><span>${safe(v.paid_to||v.received_from||v.ac_name||'—')}</span></div><div class="print-row"><b>Towards</b><span>${safe(v.towards)}</span></div><div class="print-row"><b>Amount</b><span><b>${money(v.amount)}</b></span></div><div class="print-row"><b>In Words</b><span>${safe(v.amt_words||numberToWords(v.amount))}</span></div><div class="print-row"><b>Mode / Ref</b><span>${safe(v.mode||'')} ${safe(v.cheque||'')}</span></div><div class="sign-row"><div>Prepared By<br><br>____________</div><div>Receiver / Depositor<br><br>____________</div></div></div>`; }
 function doPrint(){ const html=$('printArea').innerHTML; const w=window.open('', '_blank'); w.document.write(`<!doctype html><html><head><title>Voucher</title><link rel="stylesheet" href="style.css"></head><body class="print-document">${html}<script>setTimeout(()=>print(),300)<\/script></body></html>`); w.document.close(); }
-function exportRows(rows,name){ if(typeof XLSX==='undefined')return toast('Excel library not loaded.','err'); const data=rows.map(v=>({Date:dmy(v.date),'Voucher No':v.voucher_no||v.id,Type:TYPE_LABEL[v.type],Party:v.paid_to||v.received_from||v.ac_name||'',Head:v.head,Towards:v.towards,Mode:v.mode,Amount:amountInt(v.amount),'Created By':v.created_by})); const ws=XLSX.utils.json_to_sheet(data); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Vouchers'); XLSX.writeFile(wb,name+'.xlsx'); }
-function exportFiltered(){ exportRows(filteredVouchers(),'Filtered_Vouchers_'+todayISO()); }
+
+function typeLabel(t){ return TYPE_LABEL[t] || t || ''; }
+function exportDate(){ return new Date().toLocaleDateString('en-IN').replaceAll('/','-'); }
+function rangeLine(){ const from=state.filters.from?dmy(state.filters.from):'…'; const to=state.filters.to?dmy(state.filters.to):'…'; return (state.filters.from||state.filters.to) ? `Date Range: ${from} to ${to}` : 'Date Range: All'; }
+function voucherExportRows(rows){ return rows.map((v,i)=>({
+  'S.No': i+1,
+  'Date': dmy(v.date),
+  'Voucher No': v.voucher_no || v.id,
+  'Voucher Type': typeLabel(v.type),
+  'Account Name / Credit A/c': v.ac_name || '',
+  'Account Head / Debit A/c': v.head || '',
+  'Received From': v.received_from || '',
+  'Paid To': v.paid_to || '',
+  'Towards (Purpose)': v.towards || '',
+  'Amount (Rs.)': amountInt(v.amount),
+  'Amount in Words': v.amt_words || numberToWords(v.amount),
+  'Payment Mode': v.mode || '',
+  'Cheque / Ref No.': v.cheque || '',
+  'Prepared By': v.prep_by || '',
+  'Checked By': v.checked_by || '',
+  'Remarks': v.remarks || '',
+  'Created By': v.created_by || '',
+  'Created At': v.created_at ? new Date(v.created_at).toLocaleString('en-IN') : ''
+})); }
+function applyOldVoucherSheetFormat(ws){
+  ws['!cols']=[{wch:5},{wch:12},{wch:18},{wch:14},{wch:24},{wch:28},{wch:22},{wch:22},{wch:42},{wch:14},{wch:40},{wch:14},{wch:18},{wch:18},{wch:18},{wch:28},{wch:13},{wch:22}];
+  ws['!freeze']={xSplit:0,ySplit:1};
+  if(!ws['!ref'])return;
+  const range=XLSX.utils.decode_range(ws['!ref']);
+  for(let R=1;R<=range.e.r;R++){ const addr=XLSX.utils.encode_cell({r:R,c:9}); if(ws[addr]) ws[addr].z='#,##0'; }
+}
+function addSummarySheet(wb,rows,title='Voucher Export'){
+  const total=rows.reduce((s,v)=>s+amountInt(v.amount),0);
+  const counts={Credit:0,Debit:0,'On Account':0}, amounts={Credit:0,Debit:0,'On Account':0};
+  rows.forEach(v=>{ const k=typeLabel(v.type); counts[k]=(counts[k]||0)+1; amounts[k]=(amounts[k]||0)+amountInt(v.amount); });
+  const sumData=[
+    ["ST. MARY'S GROUP OF INSTITUTIONS GUNTUR FOR WOMEN",'', ''],
+    [title+' — '+exportDate(),'', ''],
+    [rangeLine(),'', ''],
+    ['', '', ''],
+    ['SUMMARY','',''],
+    ['Total Vouchers',rows.length,''],
+    ['Total Amount (Rs.)',total,''],
+    ['', '', ''],
+    ['Voucher Type','Count','Total Amount (Rs.)'],
+    ['Debit',counts.Debit||0,amounts.Debit||0],
+    ['On Account',counts['On Account']||0,amounts['On Account']||0],
+    ['Credit',counts.Credit||0,amounts.Credit||0],
+    ['', '', ''],
+    ['Grand Total',rows.length,total]
+  ];
+  const ws2=XLSX.utils.aoa_to_sheet(sumData); ws2['!cols']=[{wch:42},{wch:14},{wch:20}];
+  ['B7','C10','C11','C12','C14'].forEach(a=>{ if(ws2[a]) ws2[a].z='#,##0'; });
+  XLSX.utils.book_append_sheet(wb,ws2,'Summary');
+}
+function exportRows(rows,name){
+  if(typeof XLSX==='undefined')return toast('Excel library not loaded.','err');
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.json_to_sheet(voucherExportRows(rows));
+  applyOldVoucherSheetFormat(ws);
+  XLSX.utils.book_append_sheet(wb,ws,'Vouchers');
+  addSummarySheet(wb,rows,'Voucher Export');
+  XLSX.writeFile(wb,name+'.xlsx');
+}
+function exportFiltered(){ exportRows(filteredVouchers(),'StMarys_Filtered_Vouchers_'+todayISO()); }
 function exportMine(){ exportRows(state.vouchers.filter(v=>v.created_by===state.user.username),'My_Vouchers_'+todayISO()); }
-function exportLedger(){ const rows=filteredVouchers(), out=[]; Object.entries(groupByHead(rows)).forEach(([head,items])=>{ out.push({Date:'Head: '+head}); items.forEach(v=>out.push({Date:dmy(v.date),Type:TYPE_LABEL[v.type],Party:v.paid_to||v.received_from||v.ac_name||'',Towards:v.towards,Amount:amountInt(v.amount)})); out.push({Date:'Head Total',Amount:items.reduce((s,v)=>s+amountInt(v.amount),0)}); }); const ws=XLSX.utils.json_to_sheet(out); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Ledger'); XLSX.writeFile(wb,'Ledger_Report_'+todayISO()+'.xlsx'); }
-function exportCashBook(){ const rows=filteredVouchers(), receipts=rows.filter(v=>v.type==='credit'), payments=rows.filter(v=>v.type!=='credit'), n=Math.max(receipts.length,payments.length), aoa=[['Receipts','','','Payments','',''],['Particulars','Head','Amount','Particulars','Head','Amount']]; for(let i=0;i<n;i++){const r=receipts[i],p=payments[i]; aoa.push([r?(r.received_from||r.ac_name||'')+' t/w '+r.towards:'',r?.head||'',r?amountInt(r.amount):'',p?(p.paid_to||'')+' t/w '+p.towards:'',p?.head||'',p?amountInt(p.amount):'']);} aoa.push(['Total','',receipts.reduce((s,v)=>s+amountInt(v.amount),0),'Total','',payments.reduce((s,v)=>s+amountInt(v.amount),0)]); const ws=XLSX.utils.aoa_to_sheet(aoa); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Cash Book'); XLSX.writeFile(wb,'CashBook_'+todayISO()+'.xlsx'); }
+function exportLedger(){
+  if(typeof XLSX==='undefined')return toast('Excel library not loaded.','err');
+  const rows=filteredVouchers(); const wb=XLSX.utils.book_new();
+  const aoa=[]; let grand=0;
+  Object.entries(groupByHead(rows)).forEach(([head,items])=>{
+    const ht=items.reduce((s,v)=>s+amountInt(v.amount),0); grand+=ht;
+    aoa.push(['Head: '+head,'','','','Head Total',ht]);
+    aoa.push(['Date','Voucher Type','Party','Towards','Mode','Amount']);
+    items.forEach(v=>aoa.push([dmy(v.date),typeLabel(v.type),v.paid_to||v.received_from||v.ac_name||'',v.towards||'',v.mode||'',amountInt(v.amount)]));
+    aoa.push(['','','','','','']);
+  });
+  aoa.push(['Grand Total','','','','',grand]);
+  const ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=[{wch:16},{wch:16},{wch:28},{wch:45},{wch:14},{wch:14}];
+  if(ws['!ref']){ const r=XLSX.utils.decode_range(ws['!ref']); for(let R=0;R<=r.e.r;R++){ const a=XLSX.utils.encode_cell({r:R,c:5}); if(ws[a]) ws[a].z='#,##0'; }}
+  XLSX.utils.book_append_sheet(wb,ws,'Ledger');
+  addSummarySheet(wb,rows,'Ledger Report');
+  XLSX.writeFile(wb,'Ledger_Report_'+todayISO()+'.xlsx');
+}
+function exportCashBook(){
+  if(typeof XLSX==='undefined')return toast('Excel library not loaded.','err');
+  const rows=filteredVouchers(); if(!rows.length)return toast('No vouchers to export.','warn');
+  const wb=XLSX.utils.book_new();
+  const colleges={smg:"St. Mary's Group Of Institutions Guntur For Women",smwec:"St. Mary's Women's Engineering College"};
+  Object.entries(colleges).forEach(([key,label])=>{
+    const sub=rows.filter(v=>(v.college||'smg')===key); if(!sub.length)return;
+    const receipts=sub.filter(v=>v.type==='credit'), payments=sub.filter(v=>v.type==='debit'||v.type==='onaccount');
+    const n=Math.max(receipts.length,payments.length,1); let rCash=0,rBank=0,pCash=0,pBank=0;
+    const isCash=v=>String(v.mode||'Cash').toLowerCase()==='cash';
+    const aoa=[[label+' Cash Book','','','','','',''],['Particulars','Amount','Amount','Head Account','Particulars','Amount','Amount']];
+    for(let i=0;i<n;i++){
+      const r=receipts[i],p=payments[i]; const ra=r?amountInt(r.amount):0, pa=p?amountInt(p.amount):0;
+      if(r){ if(isCash(r)) rCash+=ra; else rBank+=ra; } if(p){ if(isCash(p)) pCash+=pa; else pBank+=pa; }
+      aoa.push([
+        r?((r.received_from||r.ac_name||'')+' t/w '+(r.towards||'')):'', r&&isCash(r)?ra:'', r&&!isCash(r)?ra:'',
+        p?(p.head||''):(r?(r.head||''):''),
+        p?((p.paid_to||'')+' t/w '+(p.towards||'')):'', p&&isCash(p)?pa:'', p&&!isCash(p)?pa:''
+      ]);
+    }
+    aoa.push(['Total',rCash,rBank,'','Total',pCash,pBank]);
+    const ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=[{wch:38},{wch:12},{wch:12},{wch:22},{wch:44},{wch:12},{wch:12}]; ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:6}}]; ws['!freeze']={xSplit:0,ySplit:2};
+    if(ws['!ref']){ const rg=XLSX.utils.decode_range(ws['!ref']); for(let R=2;R<=rg.e.r;R++){ [1,2,5,6].forEach(C=>{ const a=XLSX.utils.encode_cell({r:R,c:C}); if(ws[a]) ws[a].z='#,##0'; }); }}
+    XLSX.utils.book_append_sheet(wb,ws,label.replace(/[\\/?*\[\]:]/g,' ').slice(0,31));
+  });
+  XLSX.writeFile(wb,'CashBook_Filtered_'+todayISO()+'.xlsx');
+}
 async function createUser(ev){ ev.preventDefault(); await api('createUser',{username:$('newUsername').value,password:$('newPassword').value,role:$('newRole').value,college:$('newCollege').value}); toast('User created.','ok'); $('userForm').reset(); const j=await api('listUsers'); state.users=j.users||[]; renderUsers(); }
 async function toggleUser(username,status){ if(!confirm(`Set ${username} as ${status}?`))return; await api('setUserStatus',{username,status}); const j=await api('listUsers'); state.users=j.users||[]; renderUsers(); }
 async function resetUserPassword(username){ const password=prompt('Enter new password for '+username); if(!password)return; await api('resetPassword',{username,password}); toast('Password reset.','ok'); }
