@@ -58,6 +58,7 @@
       return null;
     }
   }
+  window.getCurrentUser = getCurrentUser;
 
   function hasPermission(user, perm) {
     if (!user) return false;
@@ -66,6 +67,7 @@
     const perms = user.permissions.split(',').map(p => p.trim());
     return perms.includes(perm);
   }
+  window.hasPermission = hasPermission;
 
   async function api(action,payload){
     const body=Object.assign({},payload||{},{action:action,token:tok()});
