@@ -1,3 +1,8 @@
 name = "st-marys-voucher-system"
 compatibility_date = "2026-07-04"
 pages_build_output_dir = "."
+
+[[d1_databases]]
+binding = "DB"
+database_name = "st-marys-vouchers"
+database_id = "6116f690-dbbb-47a0-8276-0213f7ed0903"
