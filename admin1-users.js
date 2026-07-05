@@ -98,5 +98,6 @@
   window.resetUserLive=async function(username){const p=prompt('New password for '+username+':');if(!p)return;try{await api('resetPassword',{username:username,password:p});_toast('Password reset for '+username,'ok');}catch(e){alert(e.message||'Password reset failed');}};
   window.toggleUserLive=async function(username,status){if(!confirm('Set '+username+' as '+status+'?'))return;try{await api('setUserStatus',{username:username,status:status});await renderUsersLive();}catch(e){alert(e.message||'Status update failed');}};
 
-  document.addEventListener('DOMContentLoaded',function(){hideAuth();installAdminUsers();});
+  function boot(){hideAuth();installAdminUsers();}
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
 })();
