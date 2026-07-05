@@ -14,6 +14,13 @@
     if(!r.ok||j.error)throw new Error(j.error||('HTTP '+r.status));
     return j;
   }
+  async function collegeApi(action,payload){
+    const body=Object.assign({},payload||{},{action:action,token:tok()});
+    const r=await fetch('/api/public/colleges/x',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+    const j=await r.json().catch(function(){return{error:'Invalid server response'};});
+    if(!r.ok||j.error)throw new Error(j.error||('HTTP '+r.status));
+    return j;
+  }
 
   function hideAuth(){
     const tab=document.getElementById('TAB_LOGIN');
@@ -62,7 +69,7 @@
   };
 
   const oldShow=window.show;
-  window.show=function(id){if(typeof oldShow==='function')oldShow(id);if(id==='users'){installAdminUsers();renderUsersLive();}};
+  window.show=function(id){if(typeof oldShow==='function')oldShow(id);if(id==='users'){installAdminUsers();renderUsersLive();renderCollegesLive();}};
 
   function installAdminUsers(){
     if(CU&&CU!=='admin1')return;
@@ -75,10 +82,42 @@
     const mc=document.querySelector('.mc');
     if(mc&&!document.getElementById('sec-users')){
       const sec=document.createElement('div');sec.className='sec';sec.id='sec-users';
-      sec.innerHTML='<div class="ph"><h1>User Management</h1><p>admin1 creates users and controls access</p></div><div class="card"><div class="ch"><span class="ct">Admin Key</span></div><div class="fr"><div class="fi"><label>New Admin Key</label><input id="LIVE_ADMIN_KEY" type="password" placeholder="Minimum 6 characters"></div><div class="fi"><label>Confirm Key</label><input id="LIVE_ADMIN_KEY2" type="password" placeholder="Repeat key"></div></div><div class="bg-btn"><button class="btn bp" onclick="changeAdminKeyLive()">Update Admin Key</button></div></div><div class="card"><div class="ch"><span class="ct">Create User</span></div><div class="fr t"><div class="fi"><label>Username</label><input id="LIVE_NEW_USER" placeholder="user2 / cashier / staff1"></div><div class="fi"><label>Password</label><input id="LIVE_NEW_PASS" type="password" placeholder="Minimum 6 characters"></div><div class="fi"><label>College</label><select id="LIVE_NEW_COLLEGE"><option value="smg">SMG</option><option value="smwec">SMWEC</option></select></div></div><div class="bg-btn"><button class="btn bp" onclick="createUserLive()">Create User</button><button class="btn bs" onclick="renderUsersLive()">↺ Refresh Users</button></div></div><div class="card"><div class="ch"><span class="ct">Users</span></div><div class="twrap"><table><thead><tr><th>Username</th><th>Role</th><th>Status</th><th>College</th><th>Last Login</th><th>Actions</th></tr></thead><tbody id="LIVE_USERS_BODY"></tbody></table></div></div>';
+      sec.innerHTML='<div class="ph"><h1>User Management</h1><p>admin1 creates users, colleges and controls access</p></div><div class="card"><div class="ch"><span class="ct">Admin Key</span></div><div class="fr"><div class="fi"><label>New Admin Key</label><input id="LIVE_ADMIN_KEY" type="password" placeholder="Minimum 6 characters"></div><div class="fi"><label>Confirm Key</label><input id="LIVE_ADMIN_KEY2" type="password" placeholder="Repeat key"></div></div><div class="bg-btn"><button class="btn bp" onclick="changeAdminKeyLive()">Update Admin Key</button></div></div><div class="card"><div class="ch"><span class="ct">College Management</span></div><div class="fr t"><div class="fi"><label>College Name</label><input id="LIVE_COLLEGE_NAME" placeholder="College full name"></div><div class="fi"><label>Short Code</label><input id="LIVE_COLLEGE_CODE" placeholder="ex: smpharmacy"></div><div class="fi"><label>Location</label><input id="LIVE_COLLEGE_LOCATION" placeholder="City / campus"></div></div><div class="bg-btn"><button class="btn bp" onclick="createCollegeLive()">Create College</button><button class="btn bs" onclick="renderCollegesLive()">↺ Refresh Colleges</button></div><div class="twrap" style="margin-top:10px"><table><thead><tr><th>Code</th><th>College</th><th>Location</th><th>Status</th><th>Action</th></tr></thead><tbody id="LIVE_COLLEGES_BODY"></tbody></table></div></div><div class="card"><div class="ch"><span class="ct">Create User</span></div><div class="fr t"><div class="fi"><label>Username</label><input id="LIVE_NEW_USER" placeholder="user2 / cashier / staff1"></div><div class="fi"><label>Password</label><input id="LIVE_NEW_PASS" type="password" placeholder="Minimum 6 characters"></div><div class="fi"><label>College</label><select id="LIVE_NEW_COLLEGE"><option value="smg">SMG</option><option value="smwec">SMWEC</option></select></div></div><div class="bg-btn"><button class="btn bp" onclick="createUserLive()">Create User</button><button class="btn bs" onclick="renderUsersLive()">↺ Refresh Users</button></div></div><div class="card"><div class="ch"><span class="ct">Users</span></div><div class="twrap"><table><thead><tr><th>Username</th><th>Role</th><th>Status</th><th>College</th><th>Last Login</th><th>Actions</th></tr></thead><tbody id="LIVE_USERS_BODY"></tbody></table></div></div>';
       mc.appendChild(sec);
     }
   }
+
+  function fillCollegeSelect(colleges){
+    const sel=document.getElementById('LIVE_NEW_COLLEGE');if(!sel)return;
+    const current=sel.value||'smg';
+    sel.innerHTML=(colleges||[]).filter(function(c){return c.status!=='inactive';}).map(function(c){return '<option value="'+esc(c.code)+'">'+esc(String(c.code||'').toUpperCase())+'</option>';}).join('');
+    if(Array.from(sel.options).some(function(o){return o.value===current;}))sel.value=current;
+  }
+  window.renderCollegesLive=async function(){
+    const body=document.getElementById('LIVE_COLLEGES_BODY');if(!body)return;
+    body.innerHTML='<tr><td colspan="5">Loading...</td></tr>';
+    try{
+      const j=await collegeApi('listColleges',{});const colleges=Array.isArray(j.colleges)?j.colleges:[];fillCollegeSelect(colleges);
+      body.innerHTML=colleges.map(function(c){
+        const code=esc(c.code), status=String(c.status||'active'), next=status==='active'?'inactive':'active';
+        const action=code==='smg'?'<span style="font-size:11px;color:var(--G600)">Main</span>':'<button class="btn '+(status==='active'?'br':'bp')+' bsm" onclick="toggleCollegeLive(\''+code+'\',\''+next+'\')">'+(status==='active'?'Disable':'Activate')+'</button>';
+        return '<tr><td><strong>'+code.toUpperCase()+'</strong></td><td>'+esc(c.name||'')+'</td><td>'+esc(c.location||'')+'</td><td><span class="badge '+(status==='active'?'bj':'br')+'">'+esc(status)+'</span></td><td>'+action+'</td></tr>';
+      }).join('')||'<tr><td colspan="5">No colleges found</td></tr>';
+    }catch(e){body.innerHTML='<tr><td colspan="5">'+esc(e.message||'Unable to load colleges')+'</td></tr>';}
+  };
+  window.createCollegeLive=async function(){
+    const name=document.getElementById('LIVE_COLLEGE_NAME').value.trim();
+    const code=document.getElementById('LIVE_COLLEGE_CODE').value.trim().toLowerCase();
+    const location=document.getElementById('LIVE_COLLEGE_LOCATION').value.trim();
+    if(!name||!code){alert('Enter college name and short code.');return;}
+    try{await collegeApi('createCollege',{name:name,code:code,location:location});_toast('College created: '+code,'ok');document.getElementById('LIVE_COLLEGE_NAME').value='';document.getElementById('LIVE_COLLEGE_CODE').value='';document.getElementById('LIVE_COLLEGE_LOCATION').value='';await renderCollegesLive();}
+    catch(e){alert(e.message||'Create college failed');}
+  };
+  window.toggleCollegeLive=async function(code,status){
+    if(!confirm('Set '+code.toUpperCase()+' as '+status+'?'))return;
+    try{await collegeApi('setCollegeStatus',{code:code,status:status});await renderCollegesLive();}
+    catch(e){alert(e.message||'College status update failed');}
+  };
 
   window.renderUsersLive=async function(){
     const body=document.getElementById('LIVE_USERS_BODY');if(!body)return;
@@ -112,6 +151,6 @@
   window.resetUserLive=async function(username){const p=prompt('New password for '+username+':');if(!p)return;try{await api('resetPassword',{username:username,password:p});_toast('Password reset for '+username,'ok');}catch(e){alert(e.message||'Password reset failed');}};
   window.toggleUserLive=async function(username,status){if(!confirm('Set '+username+' as '+status+'?'))return;try{await api('setUserStatus',{username:username,status:status});await renderUsersLive();}catch(e){alert(e.message||'Status update failed');}};
 
-  function boot(){hideAuth();installAdminUsers();setTimeout(hideAuth,200);setTimeout(installAdminUsers,500);}
+  function boot(){hideAuth();installAdminUsers();setTimeout(hideAuth,200);setTimeout(function(){installAdminUsers();renderCollegesLive();},500);}
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
 })();
