@@ -1,6 +1,8 @@
 (function(){
   'use strict';
 
+  try { import('./' + 'admin1-users' + '.js').catch(function(){}); } catch(e) {}
+
   window.saveV = async function(){
     const dateISO = getVal('f_date');
     if(!dateISO){ alert('Please pick a date.'); return; }
