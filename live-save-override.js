@@ -1,7 +1,15 @@
 (function(){
   'use strict';
 
-  try { import('./' + 'admin1-users' + '.js').catch(function(){}); } catch(e) {}
+  try {
+    if(!document.querySelector('script[data-smv-user-layer="1"]')){
+      var us = document.createElement('script');
+      us.src = 'admin1-users.js';
+      us.async = false;
+      us.setAttribute('data-smv-user-layer','1');
+      document.head.appendChild(us);
+    }
+  } catch(e) {}
 
   window.saveV = async function(){
     const dateISO = getVal('f_date');
