@@ -45,11 +45,20 @@ function norm(v){return clean(v,80).toLowerCase().replace(/[^a-z0-9_-]/g,'');}
 function uiUsername(name){const u=String(name||'').toLowerCase();if(u==='admin')return'admin1';if(u==='user2')return'admin2';if(u==='user3')return'admin3';return u;}
 function cookieToken(request,bodyToken){if(bodyToken)return String(bodyToken);const c=request.headers.get('cookie')||'';const m=c.match(/(?:^|;\s*)SMV_SESSION=([^;]+)/);return m?decodeURIComponent(m[1]):'';}
 
+function parsePerms(user) {
+  if (user.username === 'admin') return ['*'];
+  let permsStr = user.permissions || '';
+  if (!permsStr) {
+    permsStr = user.role === 'admin' ? 
+      'view_dashboard,view_analytics,create_voucher,view_own_vouchers,view_all_vouchers,edit_voucher,print_voucher,export_excel,cash_book,link_excel,printer_setup,account_heads,create_users,reset_passwords,block_users' :
+      'create_voucher,view_own_vouchers,print_voucher';
+  }
+  return permsStr.split(',').map(p => p.trim()).filter(Boolean);
+}
+
 function hasPermission(user, perm) {
   if (user.username === 'admin') return true;
-  if (!user.permissions) return false;
-  const perms = user.permissions.split(',').map(p => p.trim()).filter(Boolean);
-  return perms.includes(perm);
+  return parsePerms(user).includes(perm);
 }
 
 async function ensureSchema(DB){

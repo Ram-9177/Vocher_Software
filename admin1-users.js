@@ -153,7 +153,7 @@
     const user = getCurrentUser();
     if (!user) return;
     const isMainAdmin = user.username === 'admin' || user.username === 'admin1';
-    const hasUserMgmt = isMainAdmin || hasPermission(user, 'create_users') || hasPermission(user, 'manage_permissions');
+    const hasUserMgmt = isMainAdmin || hasPermission(user, 'create_users') || hasPermission(user, 'create_admin') || hasPermission(user, 'manage_permissions') || hasPermission(user, 'reset_passwords') || hasPermission(user, 'block_users') || hasPermission(user, 'manage_colleges');
     if (!hasUserMgmt) return;
 
     const nav=document.getElementById('A1NAV');
@@ -326,6 +326,11 @@
       window.LIVE_USERS_LIST = users;
       populateEditUserSelect(users);
 
+      const currentUser = getCurrentUser();
+      const canReset = currentUser && (currentUser.username === 'admin' || currentUser.username === 'admin1' || hasPermission(currentUser, 'reset_passwords'));
+      const canBlock = currentUser && (currentUser.username === 'admin' || currentUser.username === 'admin1' || hasPermission(currentUser, 'block_users'));
+      const canEditPerms = currentUser && (currentUser.username === 'admin' || currentUser.username === 'admin1' || hasPermission(currentUser, 'manage_permissions'));
+
       body.innerHTML=users.map(function(u){
         const name=esc(u.username);
         const isMainAdmin = name === 'admin1' || name === 'admin';
@@ -337,8 +342,16 @@
         const collegeAccess = isMainAdmin ? 'All' : esc(String(u.college_access || '').toUpperCase() || 'None');
         const permsSummary = isMainAdmin ? 'All' : (u.permissions ? esc(u.permissions.split(',').join(', ')) : 'None');
         const lastLogin = u.last_login ? new Date(u.last_login).toLocaleString('en-IN') : '—';
-        const actions = isMainAdmin ? '<span style="font-size:11px;color:var(--G600)">Main admin</span>' :
-          '<button class="btn bs bsm" onclick="resetUserLive(\''+name+'\')">Reset</button><button class="btn '+(status==='active'?'br':'bp')+' bsm" onclick="toggleUserLive(\''+name+'\',\''+next+'\')">'+(status==='active'?'Block':'Activate')+'</button>';
+        
+        let acts = '';
+        if (isMainAdmin) {
+          acts = '<span style="font-size:11px;color:var(--G600)">Main admin</span>';
+        } else {
+          if (canReset) acts += '<button class="btn bs bsm" onclick="resetUserLive(\''+name+'\')">Reset</button>';
+          if (canBlock) acts += '<button class="btn '+(status==='active'?'br':'bp')+' bsm" style="margin-left:5px" onclick="toggleUserLive(\''+name+'\',\''+next+'\')">'+(status==='active'?'Block':'Activate')+'</button>';
+          if (canEditPerms) acts += '<button class="btn bp bsm" style="margin-left:5px" onclick="document.getElementById(\'LIVE_EDIT_USER\').value=\''+name+'\';loadUserToEdit(\''+name+'\');document.getElementById(\'CARD_EDIT_PERMS\').scrollIntoView();">Edit</button>';
+        }
+        const actions = acts;
 
         return '<tr>' +
           '<td><strong>'+name+'</strong></td>' +
@@ -425,6 +438,16 @@
       niVouchers.style.display = has('view_all_vouchers') ? 'flex' : 'none';
     }
 
+    const niMyVouchers = document.getElementById('ni-myvouchers');
+    if (niMyVouchers) {
+      niMyVouchers.style.display = has('view_own_vouchers') ? 'flex' : 'none';
+    }
+
+    const niAnalytics = document.getElementById('ni-analytics');
+    if (niAnalytics) {
+      niAnalytics.style.display = has('view_analytics') ? 'flex' : 'none';
+    }
+
     const niExport = document.getElementById('ni-export');
     if (niExport) {
       niExport.style.display = has('export_excel') ? 'flex' : 'none';
@@ -450,14 +473,14 @@
       cardAdminKey.style.display = has('change_admin_key') ? 'block' : 'none';
     }
 
-    const hasUserMgmt = has('create_users') || has('manage_permissions');
+    const hasUserMgmt = has('create_users') || has('create_admin') || has('manage_permissions') || has('reset_passwords') || has('block_users') || has('manage_colleges');
     const niUsers = document.getElementById('ni-users');
     if (niUsers) {
       niUsers.style.display = hasUserMgmt ? 'flex' : 'none';
     }
     const cardCreateUser = document.getElementById('CARD_CREATE_USER');
     if (cardCreateUser) {
-      cardCreateUser.style.display = has('create_users') ? 'block' : 'none';
+      cardCreateUser.style.display = (has('create_users') || has('create_admin')) ? 'block' : 'none';
     }
     const cardEditPerms = document.getElementById('CARD_EDIT_PERMS');
     if (cardEditPerms) {
@@ -476,6 +499,10 @@
     }
     if (!has('edit_voucher')) {
       css += 'button[onclick^="editV("] { display: none !important; }\n';
+    }
+    if (!has('account_heads')) {
+      css += '#AC_HEAD_ADD_FORM, .ac-head-add-form { display: none !important; }\n';
+      css += 'button[onclick="showAddHead()"] { display: none !important; }\n';
     }
     styleEl.textContent = css;
 

@@ -121,8 +121,13 @@ async function handle(context) {
     return await createUser(env.DB, user, body, ip);
   }
   if (action === 'updateUserPermissions') {
-    if (!isAdmin1 && !hasPermission(user, 'manage_permissions')) {
-      throwError('Access denied. Missing manage_permissions permission.', 403);
+    if (!isAdmin1) {
+      if (!hasPermission(user, 'manage_permissions')) {
+        throwError('Access denied. Missing manage_permissions permission.', 403);
+      }
+      if (body.role === 'admin' && !hasPermission(user, 'create_admin')) {
+        throwError('Access denied. Missing create_admin permission to promote to admin.', 403);
+      }
     }
     return await updateUserPermissions(env.DB, user, body, ip);
   }
@@ -171,11 +176,34 @@ function amount(v) { return Math.round(Number(v || 0)); }
 function actualUsername(name) { const u = norm(name); if (u === 'admin' || u === 'admin1') return 'admin'; if (u === 'admin2') return 'user2'; if (u === 'admin3') return 'user3'; return u; }
 function uiUsername(name) { const u = norm(name); if (u === 'admin') return 'admin1'; if (u === 'user2') return 'admin2'; if (u === 'user3') return 'admin3'; return u; }
 
-function hasPermission(user, perm) {
+function parsePerms(user) {
+  if (user.username === 'admin') return ['*'];
+  let permsStr = user.permissions || '';
+  if (!permsStr) {
+    permsStr = user.role === 'admin' ? 
+      'view_dashboard,view_analytics,create_voucher,view_own_vouchers,view_all_vouchers,edit_voucher,print_voucher,export_excel,cash_book,link_excel,printer_setup,account_heads,create_users,reset_passwords,block_users' :
+      'create_voucher,view_own_vouchers,print_voucher';
+  }
+  return permsStr.split(',').map(p => p.trim()).filter(Boolean);
+}
+function parseCollegeAccess(user) {
+  if (user.username === 'admin') return ['*'];
+  let accessStr = user.college_access || '';
+  if (!accessStr) accessStr = user.college || 'smg';
+  return accessStr.split(',').map(c => c.trim().toLowerCase()).filter(Boolean);
+}
+function hasPerm(user, perm) {
   if (user.username === 'admin') return true;
-  if (!user.permissions) return false;
-  const perms = user.permissions.split(',').map(p => p.trim()).filter(Boolean);
-  return perms.includes(perm);
+  return parsePerms(user).includes(perm);
+}
+function hasPermission(user, perm) { return hasPerm(user, perm); }
+function need(user, permission) {
+  if (!hasPerm(user, permission)) throwError('Access denied. Missing ' + permission, 403);
+}
+function needAny(user, permissions) {
+  if (user.username === 'admin') return;
+  const perms = parsePerms(user);
+  if (!permissions.some(p => perms.includes(p))) throwError('Access denied. Missing required permissions.', 403);
 }
 
 function publicUser(u) {
@@ -199,21 +227,13 @@ function publicUser(u) {
 
 function allowedCollege(user, requested) {
   const req = clean(requested || user.college || 'smg', 20);
-  if (user.username === 'admin') {
-    return req;
-  }
-  const collegeAccessStr = user.college_access || '';
-  if (!collegeAccessStr) {
+  if (user.username === 'admin') return req;
+  const allowed = parseCollegeAccess(user);
+  if (!allowed.length) {
     const primary = clean(user.college || 'smg', 20);
-    if (req !== primary) {
-      throwError('Access denied. College not allowed.', 403);
-    }
-    return primary;
+    return req !== primary ? primary : req;
   }
-  const allowed = collegeAccessStr.split(',').map(c => c.trim().toLowerCase());
-  if (!allowed.includes(req)) {
-    throwError('Access denied. College not allowed.', 403);
-  }
+  if (!allowed.includes(req)) return allowed[0];
   return req;
 }
 
@@ -315,8 +335,16 @@ async function createUser(DB,actor,body,ip){
   
   const role = body.role === 'admin' ? 'admin' : 'user';
   const fullName = clean(body.fullName || body.full_name || '', 200);
-  const collegeAccess = clean(body.collegeAccess || body.college_access || '', 1000);
-  const permissions = clean(body.permissions || '', 2000);
+  
+  let collegeAccess = clean(body.collegeAccess || body.college_access || '', 1000);
+  if (!collegeAccess) collegeAccess = college;
+  
+  let permissions = clean(body.permissions || '', 2000);
+  if (!permissions) {
+    permissions = role === 'admin' ? 
+      'view_dashboard,view_analytics,create_voucher,view_own_vouchers,view_all_vouchers,edit_voucher,print_voucher,export_excel,cash_book,link_excel,printer_setup,account_heads,create_users,reset_passwords,block_users' :
+      'create_voucher,view_own_vouchers,print_voucher';
+  }
 
   await DB.prepare('INSERT INTO users(username,password_salt,password_hash,role,status,college,full_name,permissions,college_access,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind(username,hp.salt,hp.hash,role,'active',college,fullName,permissions,collegeAccess,now(),now()).run();
   await audit(DB,actor.username,'create_user','user',username,JSON.stringify({role:role,college:college}),ip);
@@ -327,10 +355,13 @@ async function updateUserPermissions(DB,actor,body,ip){
   const username=actualUsername(body.username);
   if(!username)throwError('Username required',400);
   if(username==='admin')throwError('admin1 cannot be permission-reduced or modified.',400);
-  const target=await DB.prepare('SELECT username FROM users WHERE username=?').bind(username).first();
+  const target=await DB.prepare('SELECT username, role FROM users WHERE username=?').bind(username).first();
   if(!target)throwError('User not found',404);
   
   const role=body.role==='admin'?'admin':'user';
+  if (role === 'admin' && target.role !== 'admin' && actor.username !== 'admin' && !hasPermission(actor, 'create_admin')) {
+    throwError('Access denied. Missing create_admin permission to promote to admin.', 403);
+  }
   const fullName=clean(body.fullName||body.full_name||'',200);
   const college=clean(body.college||'smg',20);
   const collegeAccess=clean(body.collegeAccess||body.college_access||'',1000);
