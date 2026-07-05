@@ -228,8 +228,9 @@
         <button class="btn bs bsm" type="button" onclick="document.getElementById('MSD').value='';renderMyVT()">Clear Date</button>
         <select id="MFT2" onchange="renderMyVT()">
           <option value="">All Types</option>
-          <option value="credit">Credit</option><option value="debit">Debit</option>
-          <option value="onaccount">On Account</option>
+          <option value="debit">Debit</option>
+          <option value="onaccount">On- Account</option>
+          <option value="credit">Credit</option>
         </select>
         <select id="MFH" onchange="renderMyVT()"><option value="">All Heads</option></select>
         <button class="btn bg bsm" onclick="doExcelMine()">📥 Export My Excel</button>
@@ -246,17 +247,17 @@
     <div class="sec" id="sec-create">
       <div class="ph" style="margin-bottom:.8rem"><h1 style="font-size:20px">New Voucher</h1><p>Select voucher type and fill in details</p></div>
       <div class="vtg">
-        <div class="vtc sel" onclick="selVT(this,'credit')" data-t="credit">
-          <div class="vi" style="background:#f0f0f0">🧾</div>
-          <h3>Credit Voucher</h3><p>St. Mary's — money received</p>
-        </div>
-        <div class="vtc" onclick="selVT(this,'debit')" data-t="debit">
+        <div class="vtc sel" onclick="selVT(this,'debit')" data-t="debit">
           <div class="vi" style="background:#FFF8E8">💳</div>
           <h3>Debit Voucher</h3><p>St. Mary's — payment made</p>
         </div>
         <div class="vtc" onclick="selVT(this,'onaccount')" data-t="onaccount">
           <div class="vi" style="background:#f0f0f0">🔄</div>
-          <h3>On Account Voucher</h3><p>St. Mary's — account transaction</p>
+          <h3>On- Account Voucher</h3><p>St. Mary's — account transaction</p>
+        </div>
+        <div class="vtc" onclick="selVT(this,'credit')" data-t="credit">
+          <div class="vi" style="background:#f0f0f0">🧾</div>
+          <h3>Credit Voucher</h3><p>St. Mary's — money received</p>
         </div>
       </div>
       <div class="card">
@@ -279,7 +280,7 @@
             <div class="fi"><label>Credit A/c (Account Name)</label>
               <input type="text" id="fc_acname" placeholder="Enter account name"></div>
             <div class="fi"><label>Account Head</label>
-              <input type="text" id="fc_head" placeholder="Enter account head" list="DL_HEADS"></div>
+              <input type="text" id="fc_head" placeholder="Enter account head" list="DL_HEADS" onblur="if(typeof checkNewHead==='function') checkNewHead(this)"></div>
             <div class="fi"><label>Amount (Rs.) *</label>
               <input type="number" id="fc_amt" placeholder="e.g. 5000" oninput="autoWords('fc_amt','fc_words')"></div>
           </div>
@@ -304,7 +305,7 @@
         <div id="R_debit" style="display:none">
           <div class="fr t">
             <div class="fi"><label>Debit A/c</label>
-              <input type="text" id="fd_head" placeholder="Enter account head" list="DL_HEADS"></div>
+              <input type="text" id="fd_head" placeholder="Enter account head" list="DL_HEADS" onblur="if(typeof checkNewHead==='function') checkNewHead(this)"></div>
             <div class="fi"><label>Paid To *</label>
               <input type="text" id="fd_paidto" placeholder="Name of receiver"></div>
             <div class="fi"><label>Amount (Rs.) *</label>
@@ -329,7 +330,7 @@
         <div id="R_onaccount" style="display:none">
           <div class="fr t">
             <div class="fi"><label>Debit A/c</label>
-              <input type="text" id="fo_head" placeholder="Enter account head" list="DL_HEADS"></div>
+              <input type="text" id="fo_head" placeholder="Enter account head" list="DL_HEADS" onblur="if(typeof checkNewHead==='function') checkNewHead(this)"></div>
             <div class="fi"><label>Paid To *</label>
               <input type="text" id="fo_paidto" placeholder="Name of receiver"></div>
             <div class="fi"><label>Amount (Rs.) *</label>
@@ -373,22 +374,29 @@
     <div class="sec" id="sec-vouchers">
       <div class="ph"><h1>All Vouchers</h1><p>Search, filter, view, print and manage vouchers</p></div>
       <div class="sb2">
-        <input type="text" id="SQ" placeholder="Search party, head, purpose..." oninput="renderVT()">
-        <input type="date" id="SDF" onchange="renderVT()" style="padding:8px 12px;border:1.5px solid var(--G200);border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;background:var(--W);color:var(--T)" title="From date">
-        <input type="date" id="SDT" onchange="renderVT()" style="padding:8px 12px;border:1.5px solid var(--G200);border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;background:var(--W);color:var(--T)" title="To date">
-        <button class="btn bs bsm" type="button" onclick="document.getElementById('SDF').value='';document.getElementById('SDT').value='';renderVT()">Clear Dates</button>
-        <select id="FT2" onchange="renderVT()">
-          <option value="">All Types</option>
-          <option value="credit">Credit</option><option value="debit">Debit</option>
-          <option value="onaccount">On Account</option>
+        <input type="text" id="SQ" placeholder="Search party, head, purpose...">
+        <select id="FC">
+          <option value="">All Institutes</option>
+          <option value="smg">St. Mary's Group of Institutions Guntur (Chebrolu)</option>
+          <option value="smwec">St. Mary's Women's Engineering College, Budampadu</option>
         </select>
-        <select id="FH" onchange="renderVT()"><option value="">All Heads</option></select>
-        <button class="btn bg bsm" onclick="doExcel()">📥 Export Excel (Filtered)</button>
-        <button class="btn bp bsm" onclick="doCashBook()">📒 Cash Book (All Institutions)</button>
+        <input type="date" id="SDF" style="padding:8px 12px;border:1.5px solid var(--G200);border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;background:var(--W);color:var(--T)" title="From date">
+        <input type="date" id="SDT" style="padding:8px 12px;border:1.5px solid var(--G200);border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;background:var(--W);color:var(--T)" title="To date">
+        <button class="btn bs bsm" type="button" onclick="document.getElementById('SDF').value='';document.getElementById('SDT').value='';document.getElementById('FC').value='';document.getElementById('SQ').value='';document.getElementById('FT2').value='';document.getElementById('FH').value='';renderVT()">Clear Filters</button>
+        <select id="FT2">
+          <option value="">All Types</option>
+          <option value="debit">Debit</option>
+          <option value="onaccount">On- Account</option>
+          <option value="credit">Credit</option>
+        </select>
+        <select id="FH"><option value="">All Heads</option></select>
+        <button class="btn bp bsm" onclick="renderVT()">Submit</button>
+        <button class="btn bg bsm" onclick="doExcel()">📥 Export Excel</button>
+        <button class="btn bp bsm" onclick="doCashBook()">📒 Cash Book</button>
       </div>
       <div class="twrap">
         <table><thead><tr>
-          <th>Date</th><th>Type</th><th>Party/Account</th><th>Head</th><th>Cash Mode</th><th>Amount</th><th>By</th><th>Actions</th>
+          <th>Date</th><th>Type</th><th>Party/Account</th><th>Head</th><th>Location</th><th>Cash Mode</th><th>Amount</th><th>Entered By</th><th>Timestamp</th><th>Actions</th>
         </tr></thead>
         <tbody id="VTB"></tbody></table>
       </div>

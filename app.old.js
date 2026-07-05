@@ -43,7 +43,7 @@ async function _hashPassword(pw){
 }
 // =============================================
 let VS=[];
-let CU=null,CVT='credit',editId=null;
+let CU=null,CVT='debit',editId=null;
 
 // === EXCEL FILE LINKING (File System Access API) ===
 let XLHandle=null, XLName=null;
@@ -121,12 +121,12 @@ async function autoSaveLinkedExcel(){
   try{
     if(typeof XLSX==='undefined'){_toast('Excel lib not ready','err');return false;}
     // Build the same workbook as doExcel but write to handle
-    const typeLabel=t=>t==='credit'?'Credit':t==='debit'?'Debit':'On Account';
+    const typeLabel=t=>t==='credit'?'Credit':t==='debit'?'Debit':'On- Account';
     const rows=VS.map((v,i)=>({
       'S.No':i+1,'Date':v.date||'','Voucher Type':typeLabel(v.type),
       'Account Name / Credit A/c':v.acName||'','Account Head / Debit A/c':v.head||'',
       'Received From':v.receivedFrom||'','Paid To':v.paidTo||'',
-      'Towards (Purpose)':v.towards||'','Amount (Rs.)':Number(v.amount)||0,
+      'Towards (Purpose)':v.towards||'','Amount (Rs.)':Math.round(Number(v.amount)||0),
       'Amount in Words':v.amtWords||'','Payment Mode':v.mode||'',
       'Cheque / Ref No.':v.cheque||'','Checked By':v.checkedBy||'',
       'Remarks':v.remarks||'','Created By':v.createdBy||'',
@@ -137,16 +137,16 @@ async function autoSaveLinkedExcel(){
     const wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb,ws,'Vouchers');
     const total=VS.reduce((s,v)=>s+(Number(v.amount)||0),0);
-    const counts={Credit:0,Debit:0,'On Account':0},amounts={Credit:0,Debit:0,'On Account':0};
+    const counts={Debit:0,'On- Account':0,Credit:0},amounts={Debit:0,'On- Account':0,Credit:0};
     VS.forEach(v=>{const k=typeLabel(v.type);counts[k]=(counts[k]||0)+1;amounts[k]=(amounts[k]||0)+(Number(v.amount)||0);});
     const sumData=[
       ["ST. MARY'S GROUP OF INSTITUTIONS GUNTUR FOR WOMEN","",""],
       ["Voucher Export — "+today(),"",""],["","",""],["SUMMARY","",""],
       ["Total Vouchers",VS.length,""],["Total Amount (Rs.)",total,""],["","",""],
       ["Voucher Type","Count","Total Amount (Rs.)"],
-      ["Credit",counts['Credit'],amounts['Credit']],
       ["Debit",counts['Debit'],amounts['Debit']],
-      ["On Account",counts['On Account'],amounts['On Account']],
+      ["On- Account",counts['On- Account'],amounts['On- Account']],
+      ["Credit",counts['Credit'],amounts['Credit']],
       ["","",""],["Grand Total",VS.length,total]
     ];
     const ws2=XLSX.utils.aoa_to_sheet(sumData);
@@ -443,7 +443,7 @@ function show(id){
 function selVT(el,t){
   document.querySelectorAll('.vtc').forEach(c=>c.classList.remove('sel'));
   el.classList.add('sel');CVT=t;
-  const labels={credit:'Credit Voucher',debit:'Debit Voucher',onaccount:'On Account Voucher'};
+  const labels={credit:'Credit Voucher',debit:'Debit Voucher',onaccount:'On- Account Voucher'};
   document.getElementById('FT').textContent=labels[t];
   ['R_credit','R_debit','R_onaccount'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('R_'+t).style.display='';
@@ -528,11 +528,11 @@ function renderMyDash(){
   const sg=document.getElementById('MSG');if(!sg)return;
   sg.innerHTML=`
     <div class="sc"><div class="lbl">My Vouchers</div><div class="val">${tot}</div><div class="sub">All time</div></div>
-    <div class="sc"><div class="lbl">My Total Amount</div><div class="val">₹${(totAmt/1000).toFixed(1)}K</div><div class="sub">All vouchers</div></div>
+    <div class="sc"><div class="lbl">My Total Amount</div><div class="val">₹${Math.round(totAmt)}</div><div class="sub">All vouchers</div></div>
     <div class="sc"><div class="lbl">Today</div><div class="val">${tod}</div><div class="sub">My vouchers today</div></div>
-    <div class="sc"><div class="lbl">Credit</div><div class="val">${myVS.filter(v=>v.type==='credit').length}</div><div class="sub">Received</div></div>
     <div class="sc"><div class="lbl">Debit</div><div class="val">${myVS.filter(v=>v.type==='debit').length}</div><div class="sub">Payments</div></div>
-    <div class="sc"><div class="lbl">On Account</div><div class="val">${myVS.filter(v=>v.type==='onaccount').length}</div><div class="sub">Transactions</div></div>`;
+    <div class="sc"><div class="lbl">On- Account</div><div class="val">${myVS.filter(v=>v.type==='onaccount').length}</div><div class="sub">Transactions</div></div>
+    <div class="sc"><div class="lbl">Credit</div><div class="val">${myVS.filter(v=>v.type==='credit').length}</div><div class="sub">Received</div></div>`;
   const rec=[...myVS].reverse().slice(0,10);
   const bc={credit:'bc',debit:'bd',onaccount:'bo'};
   const rb=document.getElementById('MRB');if(!rb)return;
@@ -542,7 +542,7 @@ function renderMyDash(){
     <td>${v.party||v.paidTo||v.receivedFrom||'–'}</td>
     <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
     <td>${v.mode||'Cash'}</td>
-    <td style="font-weight:600">₹${v.amount.toFixed(2)}</td>
+    <td style="font-weight:600">₹${Math.round(v.amount)}</td>
     <td><button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))">🖨</button></td>
   </tr>`).join('');
 }
@@ -567,7 +567,7 @@ function renderMyVT(){
     <td>${v.party||v.paidTo||v.receivedFrom||'–'}</td>
     <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
     <td>${v.mode||'Cash'}</td>
-    <td style="font-weight:600">₹${v.amount.toFixed(2)}</td>
+    <td style="font-weight:600">₹${Math.round(v.amount)}</td>
     <td><div style="display:flex;gap:4px">
       <button class="btn bp bsm" onclick="quickPrint(${v.id})" title="Direct Print">🖨</button>
       <button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="Preview">👁</button>
@@ -592,7 +592,7 @@ function doExcelMine(){
     const rows=myVS.map(v=>({
       'Date':v.date,'Type':v.type,
       'Party/Account':v.party||v.paidTo||v.receivedFrom||'',
-      'Head':v.head||'','Towards':v.towards||'','Amount':v.amount,
+      'Head':v.head||'','Towards':v.towards||'','Amount':Math.round(v.amount),
       'Mode':v.mode||'','Prepared By':v.prepBy||'','Checked By':v.checkedBy||''
     }));
     const ws=XLSX.utils.json_to_sheet(rows);
@@ -715,7 +715,7 @@ function buildPrint(v){
      <div style="padding:6px 8px;display:flex;flex-direction:column;justify-content:flex-start;min-height:55px">
       <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
         <span style="font-size:12.5pt;font-weight:900;letter-spacing:2px;font-family:Arial Black,Arial,sans-serif;flex-shrink:0">RS.</span>
-        <div style="border:2px solid #111;flex:1;min-height:34px;display:flex;align-items:center;justify-content:center;font-size:11pt;font-weight:900;padding:2px 6px;font-family:Arial,sans-serif">${v.amount?v.amount.toFixed(2):''}</div>
+        <div style="border:2px solid #111;flex:1;min-height:34px;display:flex;align-items:center;justify-content:center;font-size:11pt;font-weight:900;padding:2px 6px;font-family:Arial,sans-serif">${v.amount?Math.round(v.amount):''}</div>
       </div>
     </div>
     <div style="padding:5px 8px;display:flex;flex-direction:column;justify-content:flex-end;min-height:55px">
@@ -745,7 +745,7 @@ function previewV(){
   openPM(v);
 }
 function openPM(v){
-  const labels={credit:'CREDIT VOUCHER',debit:'DEBIT VOUCHER',onaccount:'ON ACCOUNT VOUCHER'};
+  const labels={credit:'CREDIT VOUCHER',debit:'DEBIT VOUCHER',onaccount:'ON- ACCOUNT VOUCHER'};
   document.getElementById('PMT').textContent=(v.date||'Preview')+' – '+labels[v.type];
   const _pa=document.getElementById('PA'); _pa.dataset.vid=String(v.id); _pa.innerHTML=buildPrint(v);
   document.getElementById('PM').classList.remove('h');
@@ -1086,11 +1086,11 @@ function renderDash(){
   const tot=VS.length,totAmt=VS.reduce((s,v)=>s+v.amount,0),tod=VS.filter(v=>v.date===today()).length;
   document.getElementById('SG').innerHTML=`
     <div class="sc"><div class="lbl">Total Vouchers</div><div class="val">${tot}</div><div class="sub">All time</div></div>
-    <div class="sc"><div class="lbl">Total Amount</div><div class="val">₹${(totAmt/1000).toFixed(1)}K</div><div class="sub">All vouchers</div></div>
+    <div class="sc"><div class="lbl">Total Amount</div><div class="val">₹${Math.round(totAmt)}</div><div class="sub">All vouchers</div></div>
     <div class="sc"><div class="lbl">Today</div><div class="val">${tod}</div><div class="sub">Vouchers today</div></div>
-    <div class="sc"><div class="lbl">Credit</div><div class="val">${VS.filter(v=>v.type==='credit').length}</div><div class="sub">Received</div></div>
     <div class="sc"><div class="lbl">Debit</div><div class="val">${VS.filter(v=>v.type==='debit').length}</div><div class="sub">Payments</div></div>
-    <div class="sc"><div class="lbl">On Account</div><div class="val">${VS.filter(v=>v.type==='onaccount').length}</div><div class="sub">Transactions</div></div>`;
+    <div class="sc"><div class="lbl">On- Account</div><div class="val">${VS.filter(v=>v.type==='onaccount').length}</div><div class="sub">Transactions</div></div>
+    <div class="sc"><div class="lbl">Credit</div><div class="val">${VS.filter(v=>v.type==='credit').length}</div><div class="sub">Received</div></div>`;
   const rec=[...VS].reverse().slice(0,10);
   const bc={credit:'bc',debit:'bd',onaccount:'bo'};
   document.getElementById('RB').innerHTML=rec.map(v=>`<tr>
@@ -1099,7 +1099,7 @@ function renderDash(){
     <td>${v.party||v.paidTo||v.receivedFrom||'–'}</td>
     <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
     <td>${v.mode||'Cash'}</td>
-    <td style="font-weight:600">₹${v.amount.toFixed(2)}</td>
+    <td style="font-weight:600">₹${Math.round(v.amount)}</td>
     <td><button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))">🖨</button></td>
   </tr>`).join('');
 }
@@ -1109,6 +1109,7 @@ function getFilteredVS(){
   const qEl=document.getElementById('SQ');const q=qEl?qEl.value.toLowerCase():'';
   const ftEl=document.getElementById('FT2');const ft=ftEl?ftEl.value:'';
   const fhEl=document.getElementById('FH');const fh=fhEl?fhEl.value:'';
+  const fcEl=document.getElementById('FC');const fc=fcEl?fcEl.value:'';
   const sdfEl=document.getElementById('SDF'),sdf=sdfEl?sdfEl.value:'';
   const sdtEl=document.getElementById('SDT'),sdt=sdtEl?sdtEl.value:'';
   return VS.filter(v=>{
@@ -1122,27 +1123,73 @@ function getFilteredVS(){
         if(sdt&&iso>sdt)dMatch=false;
       }else dMatch=false;
     }
-    return sq&&(!ft||v.type===ft)&&(!fh||v.head===fh)&&dMatch;
+    return sq&&(!ft||v.type===ft)&&(!fh||v.head===fh)&&(!fc||v.college===fc)&&dMatch;
   });
 }
 function renderVT(){
   const f=getFilteredVS().reverse();
   const bc={credit:'bc',debit:'bd',onaccount:'bo'};
-  document.getElementById('VTB').innerHTML=f.map(v=>`<tr>
+  
+  if (f.length === 0) {
+    document.getElementById('VTB').innerHTML = '<tr><td colspan="10" style="text-align:center;">No vouchers found.</td></tr>';
+    document.getElementById('VC').textContent=`Showing 0 of ${VS.length} vouchers`;
+    return;
+  }
+
+  // Group by head
+  const groups = {};
+  let grandTotal = 0;
+  f.forEach(v => {
+    const h = v.head || 'Uncategorized';
+    if (!groups[h]) groups[h] = [];
+    groups[h].push(v);
+    grandTotal += Math.round(Number(v.amount) || 0);
+  });
+
+  let html = '';
+  const sortedHeads = Object.keys(groups).sort();
+  
+  sortedHeads.forEach(head => {
+    html += `<tr><td colspan="10" style="background:#f4f4f4;font-weight:bold;font-size:14px;color:#333;padding:10px;">💳 Head: ${head}</td></tr>`;
+    let subTotal = 0;
+    
+    groups[head].forEach(v => {
+      subTotal += Math.round(Number(v.amount) || 0);
+      const colName = v.college ? v.college.toUpperCase() : 'SMG';
+      const ts = v.createdAt ? new Date(v.createdAt).toLocaleString('en-IN') : '';
+      html += `<tr>
     <td><strong>${v.date}</strong></td>
     <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
     <td>${v.party||v.paidTo||v.receivedFrom||'–'}</td>
     <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
+    <td><span style="font-size:10px;background:#eef;padding:2px 4px;border-radius:3px;font-weight:600;color:#333;">${colName}</span></td>
     <td>${v.mode||'Cash'}</td>
-    <td style="font-weight:600">₹${v.amount.toFixed(2)}</td>
-    <td>${v.createdBy||'–'}</td>
+    <td style="font-weight:600">₹${Math.round(v.amount)}</td>
+    <td style="font-size:11px">${v.createdBy||'–'}</td>
+    <td style="font-size:10px;color:#666">${ts}</td>
     <td><div style="display:flex;gap:4px">
       <button class="btn bp bsm" onclick="quickPrint(${v.id})" title="Direct Print">🖨</button>
       <button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="Preview">👁</button>
       <button class="btn bs bsm" onclick="editV(${v.id})">✏️</button>
       <button class="btn br bsm" onclick="delV(${v.id})">🗑</button>
     </div></td>
-  </tr>`).join('');
+  </tr>`;
+    });
+    
+    html += `<tr>
+      <td colspan="6" style="text-align:right;font-weight:bold;color:#555;">Total for ${head}:</td>
+      <td style="font-weight:bold;color:#333;">₹${subTotal}</td>
+      <td colspan="3"></td>
+    </tr>`;
+  });
+  
+  html += `<tr>
+    <td colspan="6" style="text-align:right;font-weight:900;font-size:15px;color:#000;padding-top:12px;">GRAND TOTAL:</td>
+    <td style="font-weight:900;font-size:15px;color:#7B1D2E;padding-top:12px;">₹${grandTotal}</td>
+    <td colspan="3"></td>
+  </tr>`;
+
+  document.getElementById('VTB').innerHTML = html;
   document.getElementById('VC').textContent=`Showing ${f.length} of ${VS.length} vouchers`;
 }
 function delV(id){if(!confirm('Delete this voucher?'))return;VS=VS.filter(v=>v.id!==id);_deleteVoucherFromCloud(id);renderVT();}
@@ -1193,12 +1240,12 @@ function renderAnalytics(){
   document.getElementById('HC').innerHTML=sorted.map(([h,a])=>`
     <div class="bar-row">
       <div class="bar-lbl" title="${h}">${h.length>18?h.substring(0,18)+'…':h}</div>
-      <div class="bar-trk"><div class="bar-fill" style="width:${Math.round(a/mx*100)}%;background:#7B1D2E">₹${(a/1000).toFixed(1)}K</div></div>
+      <div class="bar-trk"><div class="bar-fill" style="width:${Math.round(a/mx*100)}%;background:#7B1D2E">₹${Math.round(a)}</div></div>
     </div>`).join('')||'<p style="color:#9A9488;font-size:12px">No data yet</p>';
-  const types={credit:0,debit:0,onaccount:0};
+  const types={debit:0,onaccount:0,credit:0};
   VS.forEach(v=>types[v.type]=(types[v.type]||0)+1);
-  const tot=VS.length||1,cols=['#1B4F9E','#7A3800','#880E4F'],lbs=['Credit','Debit','On Acct'];
-  const tvals=Object.values(types);let cum=0;
+  const tot=VS.length||1,cols=['#7A3800','#880E4F','#1B4F9E'],lbs=['Debit','On- Acct','Credit'];
+  const tvals=[types.debit,types.onaccount,types.credit];let cum=0;
   const segs=tvals.map((val,i)=>{const p=val/tot*100;const s=`<circle cx="55" cy="55" r="38" fill="none" stroke="${cols[i]}" stroke-width="20" stroke-dasharray="${p*2.39} ${(100-p)*2.39}" stroke-dashoffset="${-cum*2.39+59.8}" transform="rotate(-90 55 55)"/>`;cum+=p;return s;});
   document.getElementById('TC').innerHTML=`<div class="dw"><svg width="110" height="110" viewBox="0 0 110 110"><circle cx="55" cy="55" r="38" fill="none" stroke="#eee" stroke-width="20"/>${segs.join('')}<text x="55" y="60" text-anchor="middle" font-size="14" font-weight="700" fill="#7B1D2E">${VS.length}</text></svg><div class="ll">${lbs.map((l,i)=>`<div style="display:flex;align-items:center;gap:6px"><div class="ld" style="background:${cols[i]}"></div><span>${l}: ${tvals[i]}</span></div>`).join('')}</div></div>`;
   const months={};VS.forEach(v=>{let m='?';if(v.date&&v.date.length>=7){const p=v.date.split('-');if(p.length===3)m=p[2]+'-'+p[1];else m=v.date.substring(0,7);}months[m]=(months[m]||0)+1;});
@@ -1221,7 +1268,7 @@ function doExcel(silent=false){
 
     const EXPVS = (typeof getFilteredVS==='function') ? getFilteredVS() : VS;
     if(!EXPVS.length){if(!silent) alert('No vouchers match the current filter to export.');return;}
-    const typeLabel=t=>t==='credit'?'Credit':t==='debit'?'Debit':'On Account';
+    const typeLabel=t=>t==='credit'?'Credit':t==='debit'?'Debit':'On- Account';
 
     const rows=EXPVS.map((v,i)=>({
       'S.No': i+1,
@@ -1232,7 +1279,7 @@ function doExcel(silent=false){
       'Received From': v.receivedFrom||'',
       'Paid To': v.paidTo||'',
       'Towards (Purpose)': v.towards||'',
-      'Amount (Rs.)': Number(v.amount)||0,
+      'Amount (Rs.)': Math.round(Number(v.amount)||0),
       'Amount in Words': v.amtWords||'',
       'Payment Mode': v.mode||'',
       'Cheque / Ref No.': v.cheque||'',
@@ -1295,8 +1342,8 @@ function doExcel(silent=false){
 
     // ── Summary sheet ──
     const total = EXPVS.reduce((s,v)=>s+(Number(v.amount)||0), 0);
-    const counts = {Credit:0,Debit:0,'On Account':0};
-    const amounts= {Credit:0,Debit:0,'On Account':0};
+    const counts = {Debit:0,'On- Account':0,Credit:0};
+    const amounts= {Debit:0,'On- Account':0,Credit:0};
     EXPVS.forEach(v=>{
       const k=typeLabel(v.type);
       counts[k]=(counts[k]||0)+1;
@@ -1315,9 +1362,9 @@ function doExcel(silent=false){
       ["Total Amount (Rs.)",total,""],
       ["","",""],
       ["Voucher Type","Count","Total Amount (Rs.)"],
-      ["Credit",counts['Credit'],amounts['Credit']],
       ["Debit",counts['Debit'],amounts['Debit']],
-      ["On Account",counts['On Account'],amounts['On Account']],
+      ["On- Account",counts['On- Account'],amounts['On- Account']],
+      ["Credit",counts['Credit'],amounts['Credit']],
       ["","",""],
       ["Grand Total",EXPVS.length,total]
     ];
@@ -1344,7 +1391,8 @@ function doExcel(silent=false){
 function doCashBook(){
   try{
     if(typeof XLSX==='undefined'){alert('Excel library not ready. Please try again.');return;}
-    if(!VS.length){alert('No vouchers to export.');return;}
+    const EXPVS = (typeof getFilteredVS==='function') ? getFilteredVS() : VS;
+    if(!EXPVS.length){alert('No vouchers match the current filter to export.');return;}
 
     const wb = XLSX.utils.book_new();
     const insts = (typeof COLLEGES==='object' && COLLEGES) ? COLLEGES : {smg:{label:"St. Mary's Group"}};
@@ -1354,9 +1402,15 @@ function doCashBook(){
     const thinBlk = {style:'thin',color:{rgb:'000000'}};
     const allBorder = {top:thinBlk,bottom:thinBlk,left:thinBlk,right:thinBlk};
 
-    instKeys.forEach(key=>{
+    const fcEl = document.getElementById('FC');
+    const selectedInst = fcEl ? fcEl.value : '';
+    const instKeysToProcess = selectedInst ? [selectedInst] : instKeys;
+
+    instKeysToProcess.forEach(key=>{
       const instLabel = (insts[key] && insts[key].label) ? insts[key].label : key;
-      const sub = VS.filter(v => (v.college||'smg') === key);
+      const sub = EXPVS.filter(v => (v.college||'smg') === key);
+      
+      if(!sub.length) return;
 
       // Split into receipts (credit) and payments (debit + onaccount)
       const receipts = sub.filter(v=>v.type==='credit');
@@ -1382,8 +1436,8 @@ function doCashBook(){
       const isCash = v => ((v.mode||'Cash').toLowerCase()==='cash');
       for(let i=0;i<nRows;i++){
         const r = receipts[i], p = payments[i];
-        const rAmtNum = r ? (Number(r.amount)||0) : 0;
-        const pAmtNum = p ? (Number(p.amount)||0) : 0;
+        const rAmtNum = r ? Math.round(Number(r.amount)||0) : 0;
+        const pAmtNum = p ? Math.round(Number(p.amount)||0) : 0;
         const rCash = r && isCash(r) ? rAmtNum : '';
         const rBank = r && !isCash(r) ? rAmtNum : '';
         const pCash = p && isCash(p) ? pAmtNum : '';

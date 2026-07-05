@@ -34,6 +34,36 @@
     } catch(e) {}
   };
 
+  window.checkNewHead = async function(el) {
+    if(!el) return;
+    const headVal = el.value.trim();
+    if (!headVal || !window.HEADS || window.HEADS.includes(headVal)) return;
+
+    const user = window.getCurrentUser ? window.getCurrentUser() : null;
+    const isMainAdmin = user && (user.username === 'admin' || user.username === 'admin1');
+    const hasPerm = isMainAdmin || (window.hasPermission && window.hasPermission(user, 'account_heads'));
+    
+    if (hasPerm) {
+      if (confirm(`"${headVal}" is a new Account Head. Do you want to add it to the dropdown for future use?`)) {
+        try {
+          const col = document.getElementById('f_college') ? document.getElementById('f_college').value : 'smg';
+          if(typeof window._api === 'function'){
+            await window._api('addHead', { name: headVal, type: 'common', college: col });
+          }
+          window.HEADS.push(headVal);
+          if (typeof populateHeads === 'function') populateHeads();
+          if (typeof populateMyHeads === 'function') populateMyHeads();
+          if (typeof _toast === 'function') _toast('Account Head added!', 'ok');
+        } catch(e) {
+          console.error('Failed to add head', e);
+          if (typeof _toast === 'function') _toast('Failed to add Account Head: ' + (e.message||''), 'err');
+        }
+      } else {
+        window.HEADS.push(headVal);
+      }
+    }
+  };
+
   window.saveV = async function(){
     const dateISO = getVal('f_date');
     if(!dateISO){ alert('Please pick a date.'); return; }
@@ -82,28 +112,6 @@
       v.cheque = getVal('fo_ref');
       v.party = v.paidTo;
       if(!v.paidTo || !v.towards || !v.amount){ alert('Fill Paid To, Towards and Amount.'); return; }
-    }
-
-    const headVal = v.head;
-    if (headVal && window.HEADS && !window.HEADS.includes(headVal)) {
-      const user = window.getCurrentUser ? window.getCurrentUser() : null;
-      const isMainAdmin = user && (user.username === 'admin' || user.username === 'admin1');
-      const hasPerm = isMainAdmin || (window.hasPermission && window.hasPermission(user, 'account_heads'));
-      
-      if (hasPerm) {
-        if (confirm(`"${headVal}" is a new Account Head. Do you want to add it to the dropdown for future use?`)) {
-          try {
-            await window._api('addHead', { name: headVal, type: 'common', college: v.college });
-            window.HEADS.push(headVal);
-            if (typeof populateHeads === 'function') populateHeads();
-            if (typeof populateMyHeads === 'function') populateMyHeads();
-            if (typeof _toast === 'function') _toast('Account Head added!', 'ok');
-          } catch(e) {
-            console.error('Failed to add head', e);
-            if (typeof _toast === 'function') _toast('Failed to add Account Head: ' + (e.message||''), 'err');
-          }
-        }
-      }
     }
 
     const saveBtn = document.querySelector('.bp');
