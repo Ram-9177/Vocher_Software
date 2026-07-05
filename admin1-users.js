@@ -16,14 +16,16 @@
   }
 
   function hideAuth(){
+    const tab=document.getElementById('TAB_LOGIN');
+    if(tab&&tab.parentElement)tab.parentElement.style.display='none';
     ['TAB_SIGNUP','TAB_RESET','PANEL_SIGNUP','PANEL_RESET'].forEach(function(id){const el=document.getElementById(id);if(el)el.style.display='none';});
-    const t=document.getElementById('TAB_LOGIN');if(t){t.style.flex='1';t.style.width='100%';t.textContent='Sign In';}
+    const panel=document.getElementById('PANEL_LOGIN');if(panel)panel.style.display='block';
     const lu=document.getElementById('LU');if(lu)lu.placeholder='admin1 / user2 / user3 / staff username';
     const lh=document.getElementById('LH');if(lh){lh.textContent='Users are created by admin1 only.';lh.style.display='block';}
   }
 
-  window.doSignup=function(){alert('Public Sign Up is disabled. admin1 will create users from User Management.');switchAuthTab('login');};
-  window.doResetPassword=function(){alert('Credential reset is available only inside admin1 User Management.');switchAuthTab('login');};
+  window.doSignup=function(){alert('Public Sign Up is disabled. admin1 will create users from User Management.');switchAuthTab('login');hideAuth();};
+  window.doResetPassword=function(){alert('Credential reset is available only inside admin1 User Management.');switchAuthTab('login');hideAuth();};
 
   window.doLogin=async function(){
     const typed=document.getElementById('LU').value.trim().toLowerCase();
@@ -50,18 +52,20 @@
     document.getElementById('UB').textContent=a.label;
     HOME_COLLEGE=CURRENT_COLLEGE||college;
     updateCollegeSwitchPill();
-    installAdminUsers();
     await _loadVouchersFromCloud();
     setupRole();initApp();_updateXLPill();
+    installAdminUsers();
+    setTimeout(installAdminUsers,250);
     const cs=document.getElementById('f_college');if(cs){cs.value=CURRENT_COLLEGE||'smg';cs.disabled=true;}
     try{sessionStorage.setItem('smv_sess_user',CU);sessionStorage.setItem('smv_sess_college',CURRENT_COLLEGE||'smg');sessionStorage.setItem('smv_sess_home',HOME_COLLEGE||CURRENT_COLLEGE||'smg');}catch(e){}
     _startLiveSync();
   };
 
   const oldShow=window.show;
-  window.show=function(id){if(typeof oldShow==='function')oldShow(id);if(id==='users')renderUsersLive();};
+  window.show=function(id){if(typeof oldShow==='function')oldShow(id);if(id==='users'){installAdminUsers();renderUsersLive();}};
 
   function installAdminUsers(){
+    if(CU&&CU!=='admin1')return;
     const nav=document.getElementById('A1NAV');
     if(nav&&!document.getElementById('ni-users')){
       const btn=document.createElement('button');btn.className='ni';btn.id='ni-users';btn.onclick=function(){show('users');};
@@ -108,6 +112,6 @@
   window.resetUserLive=async function(username){const p=prompt('New password for '+username+':');if(!p)return;try{await api('resetPassword',{username:username,password:p});_toast('Password reset for '+username,'ok');}catch(e){alert(e.message||'Password reset failed');}};
   window.toggleUserLive=async function(username,status){if(!confirm('Set '+username+' as '+status+'?'))return;try{await api('setUserStatus',{username:username,status:status});await renderUsersLive();}catch(e){alert(e.message||'Status update failed');}};
 
-  function boot(){hideAuth();installAdminUsers();}
+  function boot(){hideAuth();installAdminUsers();setTimeout(hideAuth,200);setTimeout(installAdminUsers,500);}
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
 })();
