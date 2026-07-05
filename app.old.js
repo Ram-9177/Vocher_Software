@@ -126,7 +126,9 @@ async function autoSaveLinkedExcel(){
       'S.No':i+1,'Date':v.date||'','Voucher Type':typeLabel(v.type),
       'Account Name / Credit A/c':v.acName||'','Account Head / Debit A/c':v.head||'',
       'Received From':v.receivedFrom||'','Paid To':v.paidTo||'',
-      'Towards (Purpose)':v.towards||'','Amount (Rs.)':Math.round(Number(v.amount)||0),
+      'Towards (Purpose)':v.towards||'',
+      'Block':v.block||'',
+      'Amount (Rs.)':Math.round(Number(v.amount)||0),
       'Amount in Words':v.amtWords||'','Payment Mode':v.mode||'',
       'Cheque / Ref No.':v.cheque||'','Checked By':v.checkedBy||'',
       'Remarks':v.remarks||'','Created By':v.createdBy||'',
@@ -508,9 +510,9 @@ function saveV(){
 }
 function resetF(){
   { const sel=document.getElementById('f_college'); if(sel){ sel.value=CURRENT_COLLEGE||'smg'; sel.disabled=true; } }
-  ['fc_acname','fc_from','fc_words','fc_towards','fc_cheque',
-   'fd_paidto','fd_towards','fd_words','fd_cheque',
-   'fo_paidto','fo_towards','fo_words','fo_ref',
+  ['fc_acname','fc_from','fc_words','fc_towards','fc_block','fc_cheque',
+   'fd_paidto','fd_towards','fd_block','fd_words','fd_cheque',
+   'fo_paidto','fo_towards','fo_block','fo_words','fo_ref',
    'fj_paidto','fj_towards','fj_words','fj_cheque',
    'f_prep','f_chk','f_rem'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   ['fc_amt','fd_amt','fo_amt','fj_amt'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -592,7 +594,7 @@ function doExcelMine(){
     const rows=myVS.map(v=>({
       'Date':v.date,'Type':v.type,
       'Party/Account':v.party||v.paidTo||v.receivedFrom||'',
-      'Head':v.head||'','Towards':v.towards||'','Amount':Math.round(v.amount),
+      'Head':v.head||'','Towards':v.towards||'','Block':v.block||'','Amount':Math.round(v.amount),
       'Mode':v.mode||'','Prepared By':v.prepBy||'','Checked By':v.checkedBy||''
     }));
     const ws=XLSX.utils.json_to_sheet(rows);
@@ -671,11 +673,13 @@ function buildPrint(v){
     FIELDS += ROW('Received from', v.receivedFrom||'');
     FIELDS += ROW('Rupees', v.amtWords||'');
     FIELDS += ROWT('Towards', v.towards||'');
+    FIELDS += ROW('Block', v.block||'');
   } else {
     FIELDS += ROW('Debit A/c', v.head||'');
     FIELDS += ROW('Paid to', v.paidTo||'');
     FIELDS += ROW('Rupees', v.amtWords||'');
     FIELDS += ROWT('Towards', v.towards||'');
+    FIELDS += ROW('Block', v.block||'');
   }
   if(v.remarks) FIELDS += ROW('Remarks', v.remarks);
 
@@ -1208,6 +1212,7 @@ function editV(id){
     document.getElementById('fc_head').value=v.head||'';
     document.getElementById('fc_from').value=v.receivedFrom||'';
     document.getElementById('fc_towards').value=v.towards||'';
+    document.getElementById('fc_block').value=v.block||'';
     document.getElementById('fc_amt').value=v.amount||'';
     document.getElementById('fc_words').value=v.amtWords||'';
     document.getElementById('fc_mode').value=v.mode||'Cash';
@@ -1216,6 +1221,7 @@ function editV(id){
     document.getElementById('fd_head').value=v.head||'';
     document.getElementById('fd_paidto').value=v.paidTo||'';
     document.getElementById('fd_towards').value=v.towards||'';
+    document.getElementById('fd_block').value=v.block||'';
     document.getElementById('fd_amt').value=v.amount||'';
     document.getElementById('fd_words').value=v.amtWords||'';
     document.getElementById('fd_mode').value=v.mode||'Cash';
@@ -1224,6 +1230,7 @@ function editV(id){
     document.getElementById('fo_head').value=v.head||'';
     document.getElementById('fo_paidto').value=v.paidTo||'';
     document.getElementById('fo_towards').value=v.towards||'';
+    document.getElementById('fo_block').value=v.block||'';
     document.getElementById('fo_amt').value=v.amount||'';
     document.getElementById('fo_words').value=v.amtWords||'';
     document.getElementById('fo_mode').value=v.mode||'Cash';
@@ -1279,6 +1286,7 @@ function doExcel(silent=false){
       'Received From': v.receivedFrom||'',
       'Paid To': v.paidTo||'',
       'Towards (Purpose)': v.towards||'',
+      'Block': v.block||'',
       'Amount (Rs.)': Math.round(Number(v.amount)||0),
       'Amount in Words': v.amtWords||'',
       'Payment Mode': v.mode||'',

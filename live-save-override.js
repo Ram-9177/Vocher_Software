@@ -86,6 +86,7 @@
       v.head = getVal('fc_head');
       v.receivedFrom = getVal('fc_from');
       v.towards = getVal('fc_towards');
+      v.block = getVal('fc_block');
       v.amount = parseFloat(document.getElementById('fc_amt').value) || 0;
       v.amtWords = getVal('fc_words');
       v.mode = getVal('fc_mode');
@@ -96,6 +97,7 @@
       v.head = getVal('fd_head');
       v.paidTo = getVal('fd_paidto');
       v.towards = getVal('fd_towards');
+      v.block = getVal('fd_block');
       v.amount = parseFloat(document.getElementById('fd_amt').value) || 0;
       v.amtWords = getVal('fd_words');
       v.mode = getVal('fd_mode');
@@ -106,6 +108,7 @@
       v.head = getVal('fo_head');
       v.paidTo = getVal('fo_paidto');
       v.towards = getVal('fo_towards');
+      v.block = getVal('fo_block');
       v.amount = parseFloat(document.getElementById('fo_amt').value) || 0;
       v.amtWords = getVal('fo_words');
       v.mode = getVal('fo_mode');
