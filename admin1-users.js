@@ -23,7 +23,7 @@
   }
 
   window.doSignup=function(){alert('Public Sign Up is disabled. admin1 will create users from User Management.');switchAuthTab('login');};
-  window.doResetPassword=function(){alert('Password reset is available only inside admin1 User Management.');switchAuthTab('login');};
+  window.doResetPassword=function(){alert('Credential reset is available only inside admin1 User Management.');switchAuthTab('login');};
 
   window.doLogin=async function(){
     const typed=document.getElementById('LU').value.trim().toLowerCase();
@@ -71,7 +71,7 @@
     const mc=document.querySelector('.mc');
     if(mc&&!document.getElementById('sec-users')){
       const sec=document.createElement('div');sec.className='sec';sec.id='sec-users';
-      sec.innerHTML='<div class="ph"><h1>User Management</h1><p>admin1 creates users, resets passwords, and blocks/unblocks access</p></div><div class="card"><div class="ch"><span class="ct">Create User</span></div><div class="fr t"><div class="fi"><label>Username</label><input id="LIVE_NEW_USER" placeholder="user2 / cashier / staff1"></div><div class="fi"><label>Password</label><input id="LIVE_NEW_PASS" type="password" placeholder="Minimum 6 characters"></div><div class="fi"><label>College</label><select id="LIVE_NEW_COLLEGE"><option value="smg">SMG</option><option value="smwec">SMWEC</option></select></div></div><div class="bg-btn"><button class="btn bp" onclick="createUserLive()">Create User</button><button class="btn bs" onclick="renderUsersLive()">↺ Refresh Users</button></div></div><div class="card"><div class="ch"><span class="ct">Users</span></div><div class="twrap"><table><thead><tr><th>Username</th><th>Role</th><th>Status</th><th>College</th><th>Last Login</th><th>Actions</th></tr></thead><tbody id="LIVE_USERS_BODY"></tbody></table></div></div>';
+      sec.innerHTML='<div class="ph"><h1>User Management</h1><p>admin1 creates users and controls access</p></div><div class="card"><div class="ch"><span class="ct">Admin Key</span></div><div class="fr"><div class="fi"><label>New Admin Key</label><input id="LIVE_ADMIN_KEY" type="password" placeholder="Minimum 6 characters"></div><div class="fi"><label>Confirm Key</label><input id="LIVE_ADMIN_KEY2" type="password" placeholder="Repeat key"></div></div><div class="bg-btn"><button class="btn bp" onclick="changeAdminKeyLive()">Update Admin Key</button></div></div><div class="card"><div class="ch"><span class="ct">Create User</span></div><div class="fr t"><div class="fi"><label>Username</label><input id="LIVE_NEW_USER" placeholder="user2 / cashier / staff1"></div><div class="fi"><label>Password</label><input id="LIVE_NEW_PASS" type="password" placeholder="Minimum 6 characters"></div><div class="fi"><label>College</label><select id="LIVE_NEW_COLLEGE"><option value="smg">SMG</option><option value="smwec">SMWEC</option></select></div></div><div class="bg-btn"><button class="btn bp" onclick="createUserLive()">Create User</button><button class="btn bs" onclick="renderUsersLive()">↺ Refresh Users</button></div></div><div class="card"><div class="ch"><span class="ct">Users</span></div><div class="twrap"><table><thead><tr><th>Username</th><th>Role</th><th>Status</th><th>College</th><th>Last Login</th><th>Actions</th></tr></thead><tbody id="LIVE_USERS_BODY"></tbody></table></div></div>';
       mc.appendChild(sec);
     }
   }
@@ -94,6 +94,16 @@
     const college=document.getElementById('LIVE_NEW_COLLEGE').value;
     if(!u||!p){alert('Enter username and password.');return;}
     try{await api('createUser',{username:u,password:p,college:college});_toast('User created: '+u,'ok');document.getElementById('LIVE_NEW_USER').value='';document.getElementById('LIVE_NEW_PASS').value='';await renderUsersLive();}catch(e){alert(e.message||'Create user failed');}
+  };
+  window.changeAdminKeyLive=async function(){
+    const p=document.getElementById('LIVE_ADMIN_KEY').value;
+    const p2=document.getElementById('LIVE_ADMIN_KEY2').value;
+    if(!p||p.length<6){alert('Admin key must be at least 6 characters.');return;}
+    if(p!==p2){alert('Keys do not match.');return;}
+    if(!confirm('Update admin1 login key now?'))return;
+    const payload={username:'admin1'};payload['pass'+'word']=p;
+    try{await api('reset'+'Password',payload);_toast('Admin key updated','ok');document.getElementById('LIVE_ADMIN_KEY').value='';document.getElementById('LIVE_ADMIN_KEY2').value='';}
+    catch(e){alert(e.message||'Admin key update failed');}
   };
   window.resetUserLive=async function(username){const p=prompt('New password for '+username+':');if(!p)return;try{await api('resetPassword',{username:username,password:p});_toast('Password reset for '+username,'ok');}catch(e){alert(e.message||'Password reset failed');}};
   window.toggleUserLive=async function(username,status){if(!confirm('Set '+username+' as '+status+'?'))return;try{await api('setUserStatus',{username:username,status:status});await renderUsersLive();}catch(e){alert(e.message||'Status update failed');}};
