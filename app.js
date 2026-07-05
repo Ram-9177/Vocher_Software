@@ -28,6 +28,7 @@
 
   load('app.old.js')
     .then(function(){ return load('live-adapter.js'); })
+    .then(function(){ return load('live-save-override.js'); })
     .then(function(){
       adapterReady = true;
       document.removeEventListener('DOMContentLoaded', holdDomReady, true);
