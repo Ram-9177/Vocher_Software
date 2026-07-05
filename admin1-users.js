@@ -445,6 +445,11 @@
       cardCollege.style.display = has('manage_colleges') ? 'block' : 'none';
     }
 
+    const cardAdminKey = document.getElementById('CARD_ADMIN_KEY');
+    if (cardAdminKey) {
+      cardAdminKey.style.display = has('change_admin_key') ? 'block' : 'none';
+    }
+
     const hasUserMgmt = has('create_users') || has('manage_permissions');
     const niUsers = document.getElementById('ni-users');
     if (niUsers) {
