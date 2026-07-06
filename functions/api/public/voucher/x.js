@@ -99,6 +99,13 @@ async function handle(context) {
     }
     return await addHead(env.DB, user, body, ip);
   }
+  if (action === 'listBlocks') return await listBlocks(env.DB, user, body);
+  if (action === 'addBlock') {
+    if (!isAdmin1 && !hasPermission(user, 'account_heads')) {
+      throwError('Access denied. Missing block permission.', 403);
+    }
+    return await addBlock(env.DB, user, body, ip);
+  }
   if (action === 'listUsers') {
     if (!isAdmin1 && !hasPermission(user, 'create_users') && !hasPermission(user, 'manage_permissions')) {
       throwError('Access denied. Missing permissions.', 403);
@@ -248,6 +255,7 @@ async function ensureSchema(DB) {
   await DB.prepare("CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY,username TEXT NOT NULL,expires_at TEXT NOT NULL,created_at TEXT NOT NULL)").run();
   await DB.prepare("CREATE TABLE IF NOT EXISTS vouchers (id INTEGER PRIMARY KEY AUTOINCREMENT,voucher_no TEXT,college TEXT NOT NULL,type TEXT NOT NULL CHECK(type IN ('debit','onaccount','credit')),date TEXT NOT NULL,head TEXT NOT NULL,ac_name TEXT,received_from TEXT,paid_to TEXT,towards TEXT NOT NULL,amount INTEGER NOT NULL,amt_words TEXT,mode TEXT,cheque TEXT,prep_by TEXT,checked_by TEXT,remarks TEXT,created_by TEXT NOT NULL,created_at TEXT NOT NULL,updated_by TEXT,updated_at TEXT NOT NULL,deleted_at TEXT,deleted_by TEXT)").run();
   await DB.prepare("CREATE TABLE IF NOT EXISTS account_heads (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,name_norm TEXT NOT NULL,type TEXT NOT NULL DEFAULT 'common',college TEXT NOT NULL DEFAULT 'smg',created_by TEXT NOT NULL,created_at TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 1,UNIQUE(name_norm,college))").run();
+  await DB.prepare("CREATE TABLE IF NOT EXISTS blocks (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,name_norm TEXT NOT NULL,college TEXT NOT NULL DEFAULT 'smg',created_by TEXT NOT NULL,created_at TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 1,UNIQUE(name_norm,college))").run();
   await DB.prepare("CREATE TABLE IF NOT EXISTS audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT,actor TEXT NOT NULL,action TEXT NOT NULL,entity_type TEXT NOT NULL,entity_id TEXT,details TEXT,ip TEXT,created_at TEXT NOT NULL)").run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vouchers_college_date ON vouchers(college,date)').run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vouchers_created_by ON vouchers(created_by)').run();
@@ -315,6 +323,9 @@ function voucherNumber(college,type,id){const p={debit:'DV',onaccount:'OA',credi
 async function deleteVoucher(DB,user,id,ip){id=Number(id||0);if(!id)throwError('Invalid voucher id',400);await DB.prepare('UPDATE vouchers SET deleted_at=?,deleted_by=?,updated_by=?,updated_at=? WHERE id=? AND deleted_at IS NULL').bind(now(),user.username,user.username,now(),id).run();await audit(DB,user.username,'delete_voucher','voucher',String(id),'Soft delete',ip);return send({ok:true,version:API_VERSION});}
 async function listHeads(DB,user,body){const college=allowedCollege(user,body.college);const r=await DB.prepare('SELECT * FROM account_heads WHERE active=1 AND college=? ORDER BY name').bind(college).all();return send({heads:r.results||[],version:API_VERSION});}
 async function addHead(DB,user,body,ip){const name=clean(body.name,250);if(!name)throwError('Head name required',400);const type=['debit','onaccount','credit','common'].indexOf(body.type)!==-1?body.type:'common';const college=allowedCollege(user,body.college);await DB.prepare('INSERT OR IGNORE INTO account_heads(name,name_norm,type,college,created_by,created_at,active) VALUES(?,?,?,?,?,?,1)').bind(name,norm(name),type,college,user.username,now()).run();await audit(DB,user.username,'add_account_head','account_head',name,JSON.stringify({type:type,college:college}),ip);return await listHeads(DB,user,body);}
+
+async function listBlocks(DB,user,body){const college=allowedCollege(user,body.college);const r=await DB.prepare('SELECT * FROM blocks WHERE active=1 AND college=? ORDER BY name').bind(college).all();return send({blocks:r.results||[],version:API_VERSION});}
+async function addBlock(DB,user,body,ip){const name=clean(body.name,250);if(!name)throwError('Block name required',400);const college=allowedCollege(user,body.college);await DB.prepare('INSERT OR IGNORE INTO blocks(name,name_norm,college,created_by,created_at,active) VALUES(?,?,?,?,?,1)').bind(name,norm(name),college,user.username,now()).run();await audit(DB,user.username,'add_block','block',name,JSON.stringify({college:college}),ip);return await listBlocks(DB,user,body);}
 
 async function listUsers(DB){
   const r=await DB.prepare('SELECT username,role,status,college,full_name,permissions,college_access,created_at,updated_at,last_login FROM users ORDER BY username').all();

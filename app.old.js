@@ -1,4 +1,5 @@
-const HEADS=['Building Maintenance','Garden Maintenance','Aquarium Maintenance','Staff Welfare Account','Guest Lecture Account','Workshop Account','Training & Placements Account','Transportation Account','Bank Deposits Account','Salary Account','Repairs & Maintenance','Hostel Mess Maintenance','Furniture Maintenance','Electricity Bill','Vehicle Maintenance','Electrical Expenses','Xerox Machine Maintenance','Transfer Account','Library Maintenance Account','Sports Maintenance Account','Function Celebration Account','Printing & Stationery Account','Office Maintenance Account','Professional Tax','Postage & Telegram','Admission & Promotion Account','On Account','Marketing','Advertisement','Loan Account','Audit Expenses Account','Diesel Account','Bank Charges Account','Courier Expenses','Telephone Expenses','Legal Expenses','Internet Expenses','Lab Maintenance','Conveyance Expenses','Computer Maintenance','Donation Account'];
+const HEADS=['Building Maintenance','Garden Maintenance','Aquarium Maintenance','Staff Welfare Account','Guest Lecture Account','Workshop Account','Training & Placements Account','Transportation Account','Bank Deposits Account','Salary Account','Repairs & Maintenance','Hostel Mess Maintenance','Furniture Maintenance','Electricity Bill','Vehicle Maintenance','Electrical Expenses','Xerox Machine Maintenance','Transfer Account','Library Maintenance Account','Sports Maintenance Account','Function Celebration Account','Printing & Stationery Account','Office Maintenance Account','Professional Tax','Postage & Telegram','Admission & Promotion Account','On Account','Marketing','Advertisement','Loan Account','Audit Expenses Account','Diesel Account','Bank Charges Account','Courier Expenses','Telephone Expenses','Legal Expenses','Internet Expenses','Lab Maintenance','Conveyance Expenses','Computer Maintenance','Bank Charges Account','Donation Account'];
+const BLOCKS=[];
 // ===== AUTH SYSTEM (no hardcoded passwords) =====
 // Credentials stored in localStorage as hashed passwords.
 // Up to 3 accounts: admin1, admin2, admin3
@@ -373,6 +374,12 @@ function _startLiveSync(){
         try{ if(typeof renderDashboard==='function') renderDashboard(); }catch(e){}
         try{ if(typeof renderMyDashboard==='function') renderMyDashboard(); }catch(e){}
       }
+      if (typeof fetchDynamicHeads === 'function') {
+        fetchDynamicHeads();
+      }
+      if (typeof fetchDynamicBlocks === 'function') {
+        fetchDynamicBlocks();
+      }
     }catch(e){}
   }, 3000);
 }
@@ -386,10 +393,52 @@ function setupRole(){
   if(a1){show('dashboard');}
   else if(a2){show('mydashboard');}
   else{show('create');}
+  
+  document.querySelectorAll('.admin-only-add').forEach(el => {
+    el.style.display = a1 ? 'inline' : 'none';
+  });
 }
 
 // INIT
+async function fetchDynamicHeads() {
+  try {
+    const res = await _api('listHeads', { college: CURRENT_COLLEGE || 'smg' });
+    if (res && res.heads) {
+      const dl = document.getElementById('DL_HEADS');
+      res.heads.forEach(h => {
+        if (!HEADS.some(existing => existing.toLowerCase() === h.name.toLowerCase())) {
+          HEADS.push(h.name);
+          if (dl) dl.innerHTML += `<option>${h.name}</option>`;
+        }
+      });
+      populateHeads();
+      if(typeof populateMyHeads==='function') populateMyHeads();
+    }
+  } catch(e) {
+    console.warn("Failed to fetch custom heads:", e);
+  }
+}
+
+async function fetchDynamicBlocks() {
+  try {
+    const res = await _api('listBlocks', { college: CURRENT_COLLEGE || 'smg' });
+    if (res && res.blocks) {
+      const dl = document.getElementById('DL_BLOCKS');
+      res.blocks.forEach(b => {
+        if (!BLOCKS.some(existing => existing.toLowerCase() === b.name.toLowerCase())) {
+          BLOCKS.push(b.name);
+          if (dl) dl.innerHTML += `<option>${b.name}</option>`;
+        }
+      });
+    }
+  } catch(e) {
+    console.warn("Failed to fetch custom blocks:", e);
+  }
+}
+
 function initApp(){
+  fetchDynamicHeads();
+  fetchDynamicBlocks();
   populateHeads();populateMyHeads();setDate();renderDash();renderMyDash();
   const today_str=new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   const el=document.getElementById('DD');if(el)el.textContent='Today: '+today_str;
@@ -423,6 +472,91 @@ function populateHeads(){
   const el=document.getElementById('FH');if(!el)return;
   el.innerHTML='<option value="">All Heads</option>';
   HEADS.forEach(h=>el.innerHTML+=`<option>${h}</option>`);
+}
+
+async function addNewHead(type) {
+  const name = prompt("Enter new Head Name:");
+  if(!name) return;
+  const cleanName = name.trim();
+  if(!cleanName) return;
+  
+  const lowerName = cleanName.toLowerCase();
+  const exists = HEADS.some(h => h.toLowerCase() === lowerName);
+  if (exists) {
+    alert("This Head already exists!");
+    return;
+  }
+  
+  try {
+    await _api('addHead', {
+      name: cleanName,
+      type: type,
+      college: CURRENT_COLLEGE || 'smg'
+    });
+    
+    if (!HEADS.some(h => h.toLowerCase() === lowerName)) {
+      HEADS.push(cleanName);
+    }
+    const dl = document.getElementById('DL_HEADS');
+    if (dl) dl.innerHTML += `<option>${cleanName}</option>`;
+    
+    populateHeads();
+    if(typeof populateMyHeads === 'function') populateMyHeads();
+    
+    if (type === 'credit') {
+      const el = document.getElementById('fc_head');
+      if (el) el.value = cleanName;
+    } else if (type === 'onaccount') {
+      const el = document.getElementById('fo_head');
+      if (el) el.value = cleanName;
+    }
+    
+    _toast("New Head added successfully!", "ok");
+  } catch (err) {
+    alert("Error adding Head: " + err.message);
+  }
+}
+
+async function addNewBlock(type) {
+  const name = prompt("Enter new Block Name:");
+  if(!name) return;
+  const cleanName = name.trim();
+  if(!cleanName) return;
+  
+  const lowerName = cleanName.toLowerCase();
+  const exists = BLOCKS.some(b => b.toLowerCase() === lowerName);
+  if (exists) {
+    alert("This Block already exists!");
+    return;
+  }
+  
+  try {
+    await _api('addBlock', {
+      name: cleanName,
+      college: CURRENT_COLLEGE || 'smg'
+    });
+    
+    if (!BLOCKS.some(b => b.toLowerCase() === lowerName)) {
+      BLOCKS.push(cleanName);
+    }
+    const dl = document.getElementById('DL_BLOCKS');
+    if (dl) dl.innerHTML += `<option>${cleanName}</option>`;
+    
+    if (type === 'credit') {
+      const el = document.getElementById('fc_block');
+      if (el) el.value = cleanName;
+    } else if (type === 'debit') {
+      const el = document.getElementById('fd_block');
+      if (el) el.value = cleanName;
+    } else if (type === 'onaccount') {
+      const el = document.getElementById('fo_block');
+      if (el) el.value = cleanName;
+    }
+    
+    _toast("New Block added successfully!", "ok");
+  } catch (err) {
+    alert("Error adding Block: " + err.message);
+  }
 }
 
 // NAVIGATION
@@ -477,17 +611,17 @@ function saveV(){
     createdBy:CU,createdAt:new Date().toISOString()};
   if(CVT==='credit'){
     v.acName=getVal('fc_acname');v.head=getVal('fc_head');v.receivedFrom=getVal('fc_from');
-    v.towards=getVal('fc_towards');v.amount=parseFloat(document.getElementById('fc_amt').value)||0;
+    v.towards=getVal('fc_towards');v.block=getVal('fc_block');v.amount=parseFloat(document.getElementById('fc_amt').value)||0;
     v.amtWords=getVal('fc_words');v.mode=getVal('fc_mode');v.cheque=getVal('fc_cheque');
     v.party=v.receivedFrom||v.acName;
     if(!v.receivedFrom||!v.towards||!v.amount){alert('Fill Received From, Towards and Amount.');return;}
   } else if(CVT==='debit'){
-    v.head=getVal('fd_head');v.paidTo=getVal('fd_paidto');v.towards=getVal('fd_towards');
+    v.head=getVal('fd_head');v.paidTo=getVal('fd_paidto');v.towards=getVal('fd_towards');v.block=getVal('fd_block');
     v.amount=parseFloat(document.getElementById('fd_amt').value)||0;v.amtWords=getVal('fd_words');
     v.mode=getVal('fd_mode');v.cheque=getVal('fd_cheque');v.party=v.paidTo;
     if(!v.paidTo||!v.towards||!v.amount){alert('Fill Paid To, Towards and Amount.');return;}
   } else if(CVT==='onaccount'){
-    v.head=getVal('fo_head');v.paidTo=getVal('fo_paidto');v.towards=getVal('fo_towards');
+    v.head=getVal('fo_head');v.paidTo=getVal('fo_paidto');v.towards=getVal('fo_towards');v.block=getVal('fo_block');
     v.amount=parseFloat(document.getElementById('fo_amt').value)||0;v.amtWords=getVal('fo_words');
     v.mode=getVal('fo_mode');v.cheque=getVal('fo_ref');v.party=v.paidTo;
     if(!v.paidTo||!v.towards||!v.amount){alert('Fill Paid To, Towards and Amount.');return;}
