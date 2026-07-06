@@ -877,9 +877,9 @@ function previewV(){
   let v={id:'prev',date,type:CVT,
     college:CURRENT_COLLEGE||getVal('f_college')||'smg',
     prepBy:getVal('f_prep'),checkedBy:getVal('f_chk'),remarks:getVal('f_rem'),createdBy:CU};
-  if(CVT==='credit'){v.acName=getVal('fc_acname');v.head=getVal('fc_head');v.receivedFrom=getVal('fc_from');v.towards=getVal('fc_towards');v.amount=parseFloat(document.getElementById('fc_amt').value)||0;v.amtWords=getVal('fc_words');v.mode=getVal('fc_mode');v.cheque=getVal('fc_cheque');}
-  else if(CVT==='debit'){v.head=getVal('fd_head');v.paidTo=getVal('fd_paidto');v.towards=getVal('fd_towards');v.amount=parseFloat(document.getElementById('fd_amt').value)||0;v.amtWords=getVal('fd_words');v.mode=getVal('fd_mode');v.cheque=getVal('fd_cheque');}
-  else if(CVT==='onaccount'){v.head=getVal('fo_head');v.paidTo=getVal('fo_paidto');v.towards=getVal('fo_towards');v.amount=parseFloat(document.getElementById('fo_amt').value)||0;v.amtWords=getVal('fo_words');v.mode=getVal('fo_mode');v.cheque=getVal('fo_ref');}
+  if(CVT==='credit'){v.acName=getVal('fc_acname');v.head=getVal('fc_head');v.receivedFrom=getVal('fc_from');v.towards=getVal('fc_towards');v.block=getVal('fc_block');v.amount=parseFloat(document.getElementById('fc_amt').value)||0;v.amtWords=getVal('fc_words');v.mode=getVal('fc_mode');v.cheque=getVal('fc_cheque');}
+  else if(CVT==='debit'){v.head=getVal('fd_head');v.paidTo=getVal('fd_paidto');v.towards=getVal('fd_towards');v.block=getVal('fd_block');v.amount=parseFloat(document.getElementById('fd_amt').value)||0;v.amtWords=getVal('fd_words');v.mode=getVal('fd_mode');v.cheque=getVal('fd_cheque');}
+  else if(CVT==='onaccount'){v.head=getVal('fo_head');v.paidTo=getVal('fo_paidto');v.towards=getVal('fo_towards');v.block=getVal('fo_block');v.amount=parseFloat(document.getElementById('fo_amt').value)||0;v.amtWords=getVal('fo_words');v.mode=getVal('fo_mode');v.cheque=getVal('fo_ref');}
   openPM(v);
 }
 function openPM(v){
