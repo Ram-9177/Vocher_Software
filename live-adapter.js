@@ -34,6 +34,57 @@
     if(n === 'admin3') return ['admin3','user3'];
     return [n];
   }
+  function ensureChangePanel(){
+    let panel = document.getElementById('PANEL_FORCE_PW');
+    if(panel) return panel;
+    const host = document.querySelector('#LS .lc') || document.getElementById('LS');
+    panel = document.createElement('div');
+    panel.id = 'PANEL_FORCE_PW';
+    panel.style.display = 'none';
+    panel.innerHTML =
+      '<div class="fg"><label>New Password</label><input type="password" id="FP1" placeholder="Enter new password"></div>' +
+      '<div class="fg"><label>Confirm Password</label><input type="password" id="FP2" placeholder="Re-enter new password"></div>' +
+      '<button class="lbtn" id="FPBTN" type="button" title="Update Password">Update Password</button>' +
+      '<div class="lerr" id="FPE" style="display:none"></div>';
+    if(host) host.appendChild(panel);
+    return panel;
+  }
+  function requirePasswordChange(){
+    return new Promise(function(resolve){
+      const panel = ensureChangePanel();
+      const tab = document.getElementById('TAB_LOGIN');
+      if(tab && tab.parentElement) tab.parentElement.style.display = 'none';
+      ['PANEL_LOGIN','PANEL_SIGNUP','PANEL_RESET'].forEach(function(id){ const el=document.getElementById(id); if(el) el.style.display='none'; });
+      panel.style.display = 'block';
+      const p1 = document.getElementById('FP1');
+      const p2 = document.getElementById('FP2');
+      const err = document.getElementById('FPE');
+      const btn = document.getElementById('FPBTN');
+      if(p1) p1.value = '';
+      if(p2) p2.value = '';
+      function showErr(msg){ if(err){ err.textContent = msg; err.style.display = 'block'; } }
+      async function save(){
+        const next = p1 ? p1.value : '';
+        const confirm = p2 ? p2.value : '';
+        if(err) err.style.display = 'none';
+        if(!next){ showErr('Enter a new password.'); return; }
+        if(next !== confirm){ showErr('Passwords do not match.'); return; }
+        if(btn) btn.disabled = true;
+        try{
+          const j = await cloud('changeOwnPassword', { password: next });
+          panel.style.display = 'none';
+          resolve(j.user || null);
+        }catch(e){
+          showErr(e.message || 'Password update failed.');
+        }finally{
+          if(btn) btn.disabled = false;
+        }
+      }
+      if(btn) btn.onclick = save;
+      [p1,p2].forEach(function(el){ if(el) el.onkeydown = function(e){ if(e.key === 'Enter') save(); }; });
+      if(p1) p1.focus();
+    });
+  }
 
   async function cloud(action, payload){
     const body = Object.assign({}, payload || {}, { action: action, token: token() });
@@ -88,11 +139,17 @@
       return;
     }
 
-    CU = uiUserCode(ok.user || typed);
+    let authUser = ok.user || typed;
+    if(ok.user && ok.user.mustChangePassword) {
+      const changedUser = await requirePasswordChange();
+      authUser = changedUser || ok.user;
+    }
+
+    CU = uiUserCode(authUser);
     document.getElementById('CP').style.display='none';
     document.getElementById('LS').style.display='none';
     document.getElementById('APP').style.display='block';
-    document.getElementById('UB').textContent=userLabel(ok.user, CU);
+    document.getElementById('UB').textContent=userLabel(authUser, CU);
     if(le) le.style.display='none';
     HOME_COLLEGE=CURRENT_COLLEGE || college;
     updateCollegeSwitchPill();

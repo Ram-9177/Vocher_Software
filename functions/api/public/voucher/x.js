@@ -25,6 +25,7 @@ const MANAGE_PERMISSIONS = 'manage_permissions';
 const MANAGE_COLLEGES = 'manage_colleges';
 const CHANGE_ADMIN_KEY = 'change_admin_key';
 const VIEW_AUDIT = 'view_audit';
+const USERNAME_RE = /^[a-z0-9._@-]{1,64}$/;
 
 export async function onRequest(context) {
   const request = context.request;
@@ -64,6 +65,10 @@ async function handle(context) {
   const isAdmin1 = user.username === 'admin';
 
   if (action === 'validateSession') return send({ user: publicUser(session.user), version: API_VERSION });
+  if (action === 'changeOwnPassword') return await changeOwnPassword(env.DB, user, body, ip);
+  if (Number(user.must_change_password || 0) === 1) {
+    throwError('Password change required before continuing.', 403);
+  }
 
   if (action === 'listVouchers') {
     if (!isAdmin1 && !hasPermission(user, 'view_all_vouchers') && !hasPermission(user, 'view_own_vouchers')) {
@@ -228,7 +233,8 @@ function publicUser(u) {
     status: u.status,
     college: u.college,
     collegeAccess: isMain ? '' : (u.college_access || ''),
-    permissions: isMain ? allPerms : (u.permissions || '')
+    permissions: isMain ? allPerms : (u.permissions || ''),
+    mustChangePassword: Number(u.must_change_password || 0) === 1
   };
 }
 
@@ -252,6 +258,7 @@ async function ensureSchema(DB, env) {
   try { await DB.prepare("ALTER TABLE users ADD COLUMN full_name TEXT").run(); } catch(e) {}
   try { await DB.prepare("ALTER TABLE users ADD COLUMN permissions TEXT").run(); } catch(e) {}
   try { await DB.prepare("ALTER TABLE users ADD COLUMN college_access TEXT").run(); } catch(e) {}
+  try { await DB.prepare("ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0").run(); } catch(e) {}
   try { await DB.prepare("ALTER TABLE vouchers ADD COLUMN block TEXT").run(); } catch(e) {}
   await DB.prepare("CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY,username TEXT NOT NULL,expires_at TEXT NOT NULL,created_at TEXT NOT NULL)").run();
   await DB.prepare("CREATE TABLE IF NOT EXISTS vouchers (id INTEGER PRIMARY KEY AUTOINCREMENT,voucher_no TEXT,college TEXT NOT NULL,type TEXT NOT NULL CHECK(type IN ('debit','onaccount','credit')),date TEXT NOT NULL,head TEXT NOT NULL,ac_name TEXT,received_from TEXT,paid_to TEXT,towards TEXT NOT NULL,amount INTEGER NOT NULL,amt_words TEXT,mode TEXT,cheque TEXT,prep_by TEXT,checked_by TEXT,remarks TEXT,created_by TEXT NOT NULL,created_at TEXT NOT NULL,updated_by TEXT,updated_at TEXT NOT NULL,deleted_at TEXT,deleted_by TEXT)").run();
@@ -271,9 +278,9 @@ async function ensureSchema(DB, env) {
 async function createInitialAdmin(DB, password, passwordHash, college, actor, ip) {
   if (String(password || '').length >= 6) {
     const hp = await hashPassword(String(password));
-    await DB.prepare('INSERT INTO users(username,password_salt,password_hash,role,status,college,full_name,permissions,college_access,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind('admin',hp.salt,hp.hash,'admin','active',clean(college||'smg',20),'Main Administrator','*','*',now(),now()).run();
+    await DB.prepare('INSERT INTO users(username,password_salt,password_hash,role,status,college,full_name,permissions,college_access,must_change_password,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').bind('admin',hp.salt,hp.hash,'admin','active',clean(college||'smg',20),'Main Administrator','*','*',0,now(),now()).run();
   } else if (passwordHash) {
-    await DB.prepare('INSERT INTO users(username,password_salt,password_hash,role,status,college,full_name,permissions,college_access,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind('admin',LEGACY_SHA256,clean(passwordHash,200),'admin','active',clean(college||'smg',20),'Main Administrator','*','*',now(),now()).run();
+    await DB.prepare('INSERT INTO users(username,password_salt,password_hash,role,status,college,full_name,permissions,college_access,must_change_password,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').bind('admin',LEGACY_SHA256,clean(passwordHash,200),'admin','active',clean(college||'smg',20),'Main Administrator','*','*',0,now(),now()).run();
   } else {
     throwError('Admin password must be at least 6 characters',400);
   }
@@ -359,7 +366,7 @@ async function listBlocks(DB,user,body){const college=allowedCollege(user,body.c
 async function addBlock(DB,user,body,ip){const name=clean(body.name,250);if(!name)throwError('Block name required',400);const college=allowedCollege(user,body.college);await DB.prepare('INSERT OR IGNORE INTO blocks(name,name_norm,college,created_by,created_at,active) VALUES(?,?,?,?,?,1)').bind(name,norm(name),college,user.username,now()).run();await audit(DB,user.username,'add_block','block',name,JSON.stringify({college:college}),ip);return await listBlocks(DB,user,body);}
 
 async function listUsers(DB){
-  const r=await DB.prepare('SELECT username,role,status,college,full_name,permissions,college_access,created_at,updated_at,last_login FROM users ORDER BY username').all();
+  const r=await DB.prepare('SELECT username,role,status,college,full_name,permissions,college_access,must_change_password,created_at,updated_at,last_login FROM users ORDER BY username').all();
   return send({users:(r.results||[]).map(function(u){
     return Object.assign({},u,{username:uiUsername(u.username)});
   }),version:API_VERSION});
@@ -367,10 +374,10 @@ async function listUsers(DB){
 
 async function createUser(DB,actor,body,ip){
   const username=actualUsername(body.username);
-  if(!/^[a-z0-9._-]{3,32}$/.test(username))throwError('Username must be 3-32 letters/numbers',400);
+  if(!USERNAME_RE.test(username))throwError('Username must be 1-64 letters/numbers or . _ - @',400);
   if(username==='admin')throwError('admin1 already exists as the main admin.',400);
-  const password=String(body.password||'');
-  if(password.length<6)throwError('Password must be at least 6 characters',400);
+  const password=String(body.password||'Stmarys@1234');
+  if(!password)throwError('Password required',400);
   const existing=await DB.prepare('SELECT username FROM users WHERE username=?').bind(username).first();
   if(existing)throwError('Username already exists',409);
   const college=clean(body.college||actor.college||'smg',20),hp=await hashPassword(password);
@@ -388,7 +395,7 @@ async function createUser(DB,actor,body,ip){
       'create_voucher,view_own_vouchers,print_voucher';
   }
 
-  await DB.prepare('INSERT INTO users(username,password_salt,password_hash,role,status,college,full_name,permissions,college_access,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind(username,hp.salt,hp.hash,role,'active',college,fullName,permissions,collegeAccess,now(),now()).run();
+  await DB.prepare('INSERT INTO users(username,password_salt,password_hash,role,status,college,full_name,permissions,college_access,must_change_password,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').bind(username,hp.salt,hp.hash,role,'active',college,fullName,permissions,collegeAccess,1,now(),now()).run();
   await audit(DB,actor.username,'create_user','user',username,JSON.stringify({role:role,college:college}),ip);
   return send({ok:true,version:API_VERSION});
 }
@@ -418,14 +425,24 @@ async function resetUserPassword(DB,actor,body,ip){
   const username=actualUsername(body.username);
   if(!username)throwError('Username required',400);
   const password=String(body.password||'');
-  if(password.length<6)throwError('Password must be at least 6 characters',400);
+  if(!password)throwError('Password required',400);
   const target=await DB.prepare('SELECT username FROM users WHERE username=?').bind(username).first();
   if(!target)throwError('User not found',404);
   const hp=await hashPassword(password);
-  await DB.prepare('UPDATE users SET password_salt=?,password_hash=?,updated_at=? WHERE username=?').bind(hp.salt,hp.hash,now(),username).run();
+  const mustChange = username === 'admin' ? 0 : 1;
+  await DB.prepare('UPDATE users SET password_salt=?,password_hash=?,must_change_password=?,updated_at=? WHERE username=?').bind(hp.salt,hp.hash,mustChange,now(),username).run();
   await DB.prepare('DELETE FROM sessions WHERE username=?').bind(username).run();
   await audit(DB,actor.username,'reset_user_password','user',username,'Password reset and sessions revoked',ip);
   return send({ok:true,version:API_VERSION});
+}
+async function changeOwnPassword(DB,user,body,ip){
+  const password=String(body.password||body.newPassword||'');
+  if(!password)throwError('Password required',400);
+  const hp=await hashPassword(password);
+  await DB.prepare('UPDATE users SET password_salt=?,password_hash=?,must_change_password=0,updated_at=? WHERE username=?').bind(hp.salt,hp.hash,now(),user.username).run();
+  await audit(DB,user.username,'change_own_password','user',user.username,'Password changed by user',ip);
+  const fresh=await DB.prepare('SELECT * FROM users WHERE username=?').bind(user.username).first();
+  return send({ok:true,user:publicUser(fresh||Object.assign({},user,{must_change_password:0})),version:API_VERSION});
 }
 async function setUserStatus(DB,actor,body,ip){
   const username=actualUsername(body.username),status=body.status==='blocked'?'blocked':'active';

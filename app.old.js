@@ -740,7 +740,7 @@ function renderMyVT(){
     <td style="font-weight:600">₹${Math.round(v.amount)}</td>
     <td><div style="display:flex;gap:4px">
       <button class="btn bp bsm" onclick="quickPrint(${v.id})" title="Direct Print">🖨</button>
-      <button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="Preview">👁</button>
+      <button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="View">👁</button>
     </div></td>
   </tr>`).join('');
   const emp=document.getElementById('MVT_EMPTY');if(emp)emp.style.display=f.length?'none':'block';
@@ -1358,8 +1358,8 @@ function renderVT(){
     <td style="font-size:10px;color:#666">${ts}</td>
     <td><div style="display:flex;gap:4px">
       <button class="btn bp bsm" onclick="quickPrint(${v.id})" title="Direct Print">🖨</button>
-      <button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="Preview">👁</button>
-      <button class="btn bs bsm" onclick="editV(${v.id})" title="✏️">✏️</button>
+      <button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="View">👁</button>
+      <button class="btn bs bsm" onclick="editV(${v.id})" title="Edit">✏️</button>
       <button class="btn br bsm" onclick="delV(${v.id})" title="Delete">🗑</button>
     </div></td>
   </tr>`;
