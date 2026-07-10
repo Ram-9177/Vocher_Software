@@ -739,7 +739,7 @@ function renderMyVT(){
     <td>${v.mode||'Cash'}</td>
     <td style="font-weight:600">₹${Math.round(v.amount)}</td>
     <td><div style="display:flex;gap:4px">
-      <button class="btn bp bsm" onclick="quickPrint(${v.id})" title="Direct Print">🖨</button>
+      <button class="btn bp bsm" onclick="quickPrint(${v.id})" title="Print">🖨</button>
       <button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="View">👁</button>
     </div></td>
   </tr>`).join('');
@@ -1357,7 +1357,7 @@ function renderVT(){
     <td style="font-size:11px">${v.createdBy||'–'}</td>
     <td style="font-size:10px;color:#666">${ts}</td>
     <td><div style="display:flex;gap:4px">
-      <button class="btn bp bsm" onclick="quickPrint(${v.id})" title="Direct Print">🖨</button>
+      <button class="btn bp bsm" onclick="quickPrint(${v.id})" title="Print">🖨</button>
       <button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="View">👁</button>
       <button class="btn bs bsm" onclick="editV(${v.id})" title="Edit">✏️</button>
       <button class="btn br bsm" onclick="delV(${v.id})" title="Delete">🗑</button>
