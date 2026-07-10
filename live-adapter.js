@@ -9,6 +9,7 @@
   function token(){ return localStorage.getItem('smv_token') || ''; }
   function setToken(t){ if(t) localStorage.setItem('smv_token', t); else localStorage.removeItem('smv_token'); }
   function setAuthUser(u){ if(u) localStorage.setItem('smv_auth_user', JSON.stringify(u)); else localStorage.removeItem('smv_auth_user'); }
+  function setSess(k,v){ try{ sessionStorage.setItem(k,v); localStorage.setItem(k,v); }catch(e){} }
   function isMainAdminUser(u){
     const name = String((u && u.username) || u || '').toLowerCase();
     return name === 'admin' || name === 'admin1';
@@ -156,11 +157,9 @@
     await _loadVouchersFromCloud();
     setupRole();initApp();_updateXLPill();
     const cs=document.getElementById('f_college'); if(cs){ cs.value=CURRENT_COLLEGE||'smg'; cs.disabled=true; }
-    try{
-      sessionStorage.setItem('smv_sess_user',CU);
-      sessionStorage.setItem('smv_sess_college',CURRENT_COLLEGE||'smg');
-      sessionStorage.setItem('smv_sess_home',HOME_COLLEGE||CURRENT_COLLEGE||'smg');
-    }catch(e){}
+    setSess('smv_sess_user',CU);
+    setSess('smv_sess_college',CURRENT_COLLEGE||'smg');
+    setSess('smv_sess_home',HOME_COLLEGE||CURRENT_COLLEGE||'smg');
     _startLiveSync();
   };
 

@@ -45,6 +45,10 @@ async function _hashPassword(pw){
 // =============================================
 let VS=[];
 let CU=null,CVT='debit',editId=null;
+function _setSess(k,v){try{sessionStorage.setItem(k,v);localStorage.setItem(k,v);}catch(e){}}
+function _getSess(k){try{return sessionStorage.getItem(k)||localStorage.getItem(k)||'';}catch(e){return'';}}
+function _delSess(k){try{sessionStorage.removeItem(k);localStorage.removeItem(k);}catch(e){}}
+function _clearSess(){['smv_sess_user','smv_sess_college','smv_sess_home','smv_sess_page'].forEach(_delSess);}
 
 // === EXCEL FILE LINKING (File System Access API) ===
 let XLHandle=null, XLName=null;
@@ -308,11 +312,11 @@ async function doLogin(){
   HOME_COLLEGE=CURRENT_COLLEGE; updateCollegeSwitchPill();
   await _loadVouchersFromCloud();
   setupRole();initApp();_updateXLPill();{const cs=document.getElementById('f_college');if(cs){cs.value=CURRENT_COLLEGE||'smg';cs.disabled=true;}}
-  try{sessionStorage.setItem('smv_sess_user',u);sessionStorage.setItem('smv_sess_college',CURRENT_COLLEGE||'smg');sessionStorage.setItem('smv_sess_home',CURRENT_COLLEGE||'smg');}catch(e){}
+  _setSess('smv_sess_user',u);_setSess('smv_sess_college',CURRENT_COLLEGE||'smg');_setSess('smv_sess_home',CURRENT_COLLEGE||'smg');
   _startLiveSync();
 }
-function logout(){CU=null;HOME_COLLEGE=null;_stopLiveSync();try{sessionStorage.removeItem('smv_sess_user');sessionStorage.removeItem('smv_sess_college');sessionStorage.removeItem('smv_sess_home');sessionStorage.removeItem('smv_sess_page');}catch(e){}document.getElementById('APP').style.display='none';document.getElementById('LS').style.display='none';document.getElementById('LU').value='';document.getElementById('LP').value='';backToPicker();}
-function backToPicker(){CU=null;HOME_COLLEGE=null;CURRENT_COLLEGE=null;VS=[];_stopLiveSync();try{sessionStorage.removeItem('smv_sess_user');sessionStorage.removeItem('smv_sess_college');sessionStorage.removeItem('smv_sess_home');sessionStorage.removeItem('smv_sess_page');}catch(e){}const cp=document.getElementById('CP');if(cp)cp.style.display='flex';const ls=document.getElementById('LS');if(ls)ls.style.display='none';const ap=document.getElementById('APP');if(ap)ap.style.display='none';}
+function logout(){CU=null;HOME_COLLEGE=null;_stopLiveSync();_clearSess();document.getElementById('APP').style.display='none';document.getElementById('LS').style.display='none';document.getElementById('LU').value='';document.getElementById('LP').value='';backToPicker();}
+function backToPicker(){CU=null;HOME_COLLEGE=null;CURRENT_COLLEGE=null;VS=[];_stopLiveSync();_clearSess();const cp=document.getElementById('CP');if(cp)cp.style.display='flex';const ls=document.getElementById('LS');if(ls)ls.style.display='none';const ap=document.getElementById('APP');if(ap)ap.style.display='none';}
 function selectCollege(c){CURRENT_COLLEGE=c;localStorage.setItem('smv_last_college',c);VS=[];const info=COLLEGES[c]||COLLEGES.smg;const lbl=document.getElementById('LS_COLLEGE_LABEL');if(lbl)lbl.textContent=info.label;const img=document.getElementById('LS_COLLEGE_LOGO');if(img){img.src=(c==='smg')?SMG_LOGO_SRC:(info.logo||SMG_LOGO_SRC);}document.getElementById('CP').style.display='none';document.getElementById('LS').style.display='flex';document.getElementById('LU').value='';document.getElementById('LP').value='';const le=document.getElementById('LE');if(le)le.style.display='none';if(typeof switchAuthTab==='function')switchAuthTab('login');}
 function updateCollegeSwitchPill(){
   const pill=document.getElementById('CSWPILL');if(!pill)return;
@@ -327,7 +331,7 @@ async function switchCollegeCtx(){
   const target=(CURRENT_COLLEGE==='smg')?'smwec':'smg';
   CURRENT_COLLEGE=target;
   localStorage.setItem('smv_last_college',target);
-  try{sessionStorage.setItem('smv_sess_college',target);}catch(e){}
+  _setSess('smv_sess_college',target);
   await _loadVouchersFromCloud();
   const cs=document.getElementById('f_college');if(cs){cs.value=target;cs.disabled=true;}
   updateCollegeSwitchPill();
@@ -592,7 +596,7 @@ function show(id){
   if(id==='mydashboard')renderMyDash();
   if(id==='myvouchers')renderMyVT();
   // Persist current page so refresh lands on same section
-  try{sessionStorage.setItem('smv_sess_page',id);}catch(e){}
+  _setSess('smv_sess_page',id);
 }
 
 // VOUCHER TYPE SELECT
@@ -2078,7 +2082,7 @@ window.addEventListener('DOMContentLoaded',function(){
   const cpimg2=document.getElementById('CP_LOGO_SMWEC');
   if(cpimg2) cpimg2.src=SMWEC_LOGO_SRC;
   // Only show college picker if no active session (session restore handles the logged-in case)
-  const hasSess=!!(sessionStorage.getItem('smv_sess_user')&&sessionStorage.getItem('smv_sess_college'));
+  const hasSess=!!(_getSess('smv_sess_user')&&_getSess('smv_sess_college'));
   if(!hasSess){
     const cp=document.getElementById('CP');
     const ls=document.getElementById('LS');
@@ -2094,20 +2098,25 @@ window.addEventListener('DOMContentLoaded',function(){
 // =============================================
 window.addEventListener('DOMContentLoaded', async function(){
   try{
-    const sessUser = sessionStorage.getItem('smv_sess_user');
-    const sessCollege = sessionStorage.getItem('smv_sess_college');
-    const sessHome = sessionStorage.getItem('smv_sess_home');
-    const sessPage = sessionStorage.getItem('smv_sess_page');
-    if(!sessUser || !sessCollege) return; // no session — show picker normally
+    let sessUser = _getSess('smv_sess_user');
+    let sessCollege = _getSess('smv_sess_college');
+    let sessHome = _getSess('smv_sess_home');
+    const sessPage = _getSess('smv_sess_page');
+    if(!sessUser && !localStorage.getItem('smv_token') && !localStorage.getItem('smv_auth_user')) return;
     const api=(window._api||_api);
     const session=await api('validateSession',{});
     const authUser=session&&session.user;
     if(authUser) localStorage.setItem('smv_auth_user',JSON.stringify(authUser));
+    sessUser = sessUser || _uiUserCodeFromAuth(authUser,'');
+    sessCollege = sessCollege || (authUser&&authUser.college) || localStorage.getItem('smv_last_college') || 'smg';
+    sessHome = sessHome || sessCollege;
     // Restore state
     CURRENT_COLLEGE = sessCollege;
     HOME_COLLEGE = sessHome || sessCollege;
     CU = _uiUserCodeFromAuth(authUser,sessUser);
-    try{sessionStorage.setItem('smv_sess_user',CU);}catch(e){}
+    _setSess('smv_sess_user',CU);
+    _setSess('smv_sess_college',CURRENT_COLLEGE);
+    _setSess('smv_sess_home',HOME_COLLEGE);
     await _loadVouchersFromCloud();
     // Hide picker and login, show app
     const cp = document.getElementById('CP'); if(cp) cp.style.display='none';
@@ -2129,15 +2138,12 @@ window.addEventListener('DOMContentLoaded', async function(){
     }
   }catch(e){
     console.error('session restore',e);
-    try{
-      sessionStorage.removeItem('smv_sess_user');
-      sessionStorage.removeItem('smv_sess_college');
-      sessionStorage.removeItem('smv_sess_home');
-      sessionStorage.removeItem('smv_sess_page');
+    if(/Login required|Session expired|Invalid session/i.test(e&&e.message||'')){
+      _clearSess();
       localStorage.removeItem('smv_token');
       localStorage.removeItem('smv_auth_user');
-    }catch(_e){}
-    backToPicker();
+      backToPicker();
+    }
   }
 });
 

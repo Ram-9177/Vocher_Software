@@ -1,4 +1,4 @@
-const SESSION_DAYS = 7;
+const SESSION_DAYS = 3650;
 const PBKDF2_ITERATIONS = 100000;
 const LEGACY_SHA256 = 'legacy-sha256';
 const API_VERSION = 'voucher-api-admin1-users-v6';
@@ -64,7 +64,7 @@ async function handle(context) {
   const user = session.user;
   const isAdmin1 = user.username === 'admin';
 
-  if (action === 'validateSession') return send({ user: publicUser(session.user), version: API_VERSION });
+  if (action === 'validateSession') return await validateSession(env.DB, session);
   if (action === 'changeOwnPassword') return await changeOwnPassword(env.DB, user, body, ip);
   if (Number(user.must_change_password || 0) === 1) {
     throwError('Password change required before continuing.', 403);
@@ -321,7 +321,8 @@ async function login(DB, request, body, ip) {
 }
 async function verifyLogin(body, user) { const password = String(body.password || ''); const passwordHash = clean(body.passwordHash || '', 200); if (user.password_salt === LEGACY_SHA256) { if (passwordHash && safeEqual(passwordHash, user.password_hash)) return true; if (password) return safeEqual(await sha256Hex(password), user.password_hash); return false; } if (!password) return false; return await verifyPassword(password, user.password_salt, user.password_hash); }
 async function logout(DB, request, bodyToken) { const token = cookieToken(request, bodyToken); if (token) await DB.prepare('DELETE FROM sessions WHERE token=?').bind(token).run(); return send({ ok: true, version: API_VERSION }, 200, { 'set-cookie': sessionCookie('', 0) }); }
-async function requireSession(DB, request, bodyToken) { const token = cookieToken(request, bodyToken); if (!token) throwError('Login required', 401); const row = await DB.prepare('SELECT u.* FROM sessions s JOIN users u ON u.username=s.username WHERE s.token=? AND s.expires_at>?').bind(token, now()).first(); if (!row) throwError('Session expired. Login again.', 401); if (row.status !== 'active') throwError('User is blocked. Contact admin1.', 403); return { user: row }; }
+async function requireSession(DB, request, bodyToken) { const token = cookieToken(request, bodyToken); if (!token) throwError('Login required', 401); const row = await DB.prepare('SELECT u.* FROM sessions s JOIN users u ON u.username=s.username WHERE s.token=? AND s.expires_at>?').bind(token, now()).first(); if (!row) throwError('Session expired. Login again.', 401); if (row.status !== 'active') throwError('User is blocked. Contact admin1.', 403); return { user: row, token: token }; }
+async function validateSession(DB, session){const exp=new Date(Date.now()+SESSION_DAYS*86400000).toISOString();await DB.prepare('UPDATE sessions SET expires_at=? WHERE token=?').bind(exp,session.token).run();return send({user:publicUser(session.user),version:API_VERSION},200,{'set-cookie':sessionCookie(session.token,SESSION_DAYS*86400)});}
 
 async function listVouchers(DB, user, body) {
   const college = allowedCollege(user, body.college);
