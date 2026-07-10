@@ -17,13 +17,13 @@
       <div class="cplogo"><img id="CP_LOGO_SMG" alt="SMGG"></div>
       <h2>St. Mary's Group of Institutions<br>Guntur For Women</h2>
       <p>Chebrolu, Guntur</p>
-      <button type="button">Continue &rarr;</button>
+      <button type="button" title="Continue &rarr;">Continue &rarr;</button>
     </div>
     <div class="cpc" onclick="selectCollege('smwec')">
       <div class="cplogo"><img id="CP_LOGO_SMWEC" alt="STMW"></div>
       <h2>St. Mary's Women's<br>Engineering College</h2>
       <p>Budampadu</p>
-      <button type="button">Continue &rarr;</button>
+      <button type="button" title="Continue &rarr;">Continue &rarr;</button>
     </div>
   </div>
 </div>
@@ -39,9 +39,9 @@
   </div>
   <!-- Tab switcher -->
   <div style="display:flex;gap:0;margin-bottom:1.4rem;border-radius:8px;overflow:hidden;border:1.5px solid var(--G200)">
-    <button id="TAB_LOGIN" onclick="switchAuthTab('login')" style="flex:1;padding:9px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;background:var(--M);color:#fff;transition:background .2s">Sign In</button>
-    <button id="TAB_SIGNUP" onclick="switchAuthTab('signup')" style="flex:1;padding:9px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;background:var(--G100);color:var(--G800);transition:background .2s">Sign Up</button>
-    <button id="TAB_RESET" onclick="switchAuthTab('reset')" style="flex:1;padding:9px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;background:var(--G100);color:var(--G800);transition:background .2s">Reset</button>
+    <button id="TAB_LOGIN" onclick="switchAuthTab('login')" style="flex:1;padding:9px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;background:var(--M);color:#fff;transition:background .2s" title="Sign In">Sign In</button>
+    <button id="TAB_SIGNUP" onclick="switchAuthTab('signup')" style="flex:1;padding:9px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;background:var(--G100);color:var(--G800);transition:background .2s" title="Sign Up">Sign Up</button>
+    <button id="TAB_RESET" onclick="switchAuthTab('reset')" style="flex:1;padding:9px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;background:var(--G100);color:var(--G800);transition:background .2s" title="Reset">Reset</button>
   </div>
   <!-- LOGIN PANEL -->
   <div id="PANEL_LOGIN">
@@ -53,7 +53,7 @@
       <label>Password</label>
       <input type="password" id="LP" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
-    <button class="lbtn" onclick="doLogin()">Sign In</button>
+    <button class="lbtn" onclick="doLogin()" title="Sign In">Sign In</button>
     <div class="lerr" id="LE">Invalid credentials. Please try again.</div>
     <div class="lhint" id="LH" style="margin-top:.8rem;font-size:11px;color:var(--G600);text-align:center;display:none"></div>
   </div>
@@ -76,7 +76,7 @@
       <label>Confirm Password</label>
       <input type="password" id="SP2" placeholder="Re-enter password" onkeydown="if(event.key==='Enter')doSignup()">
     </div>
-    <button class="lbtn" onclick="doSignup()">Create Account</button>
+    <button class="lbtn" onclick="doSignup()" title="Create Account">Create Account</button>
     <div class="lerr" id="SE" style="display:none"></div>
     <div style="font-size:10px;color:var(--G400);text-align:center;margin-top:.8rem">Only 3 accounts allowed (admin1, admin2, admin3).</div>
   </div>
@@ -104,7 +104,7 @@
       <label>Confirm New Password</label>
       <input type="password" id="RP2" placeholder="Re-enter new password" onkeydown="if(event.key==='Enter')doResetPassword()">
     </div>
-    <button class="lbtn" onclick="doResetPassword()">Reset Password</button>
+    <button class="lbtn" onclick="doResetPassword()" title="Reset Password">Reset Password</button>
     <div class="lerr" id="RE" style="display:none"></div>
     <div id="RH" style="font-size:11px;color:var(--G600);text-align:center;margin-top:.8rem;display:none"></div>
   </div>
@@ -122,22 +122,22 @@
      <span class="ubadge" id="UB">Admin 1</span>
      <span class="linkpill" id="CSWPILL" onclick="switchCollegeCtx()" title="Switch between SMGG and STMW" style="display:none;cursor:pointer">🔁 <span id="CSWLBL">Switch to STMW</span></span>
      <span class="linkpill" id="XLPILL" onclick="linkExcelFile()" title="Link an Excel file so Save writes back into it">📎 Link Excel</span>
-     <button class="lobtn" onclick="logout()">Sign Out</button>
+     <button class="lobtn" onclick="logout()" title="Sign Out">Sign Out</button>
    </div>
 </div>
 <div class="body">
   <nav class="sb" id="SIDEBAR">
     <div class="ns" id="A1NAV" style="display:none">
       <p>Overview</p>
-      <button class="ni act" onclick="show('dashboard')" id="ni-dashboard">
+      <button class="ni act" onclick="show('dashboard')" id="ni-dashboard" title="Dashboard">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         Dashboard
       </button>
-      <button class="ni" onclick="show('analytics')" id="ni-analytics">
+      <button class="ni" onclick="show('analytics')" id="ni-analytics" title="Analytics">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
         Analytics
       </button>
-      <button class="ni" onclick="show('vouchers')" id="ni-vouchers">
+      <button class="ni" onclick="show('vouchers')" id="ni-vouchers" title="All Vouchers">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
         All Vouchers
       </button>
@@ -145,32 +145,36 @@
     <!-- admin2/admin3 nav -->
     <div class="ns" id="A2NAV" style="display:none">
       <p>Overview</p>
-      <button class="ni" onclick="show('mydashboard')" id="ni-mydashboard">
+      <button class="ni" onclick="show('mydashboard')" id="ni-mydashboard" title="My Dashboard">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         My Dashboard
       </button>
-      <button class="ni" onclick="show('myvouchers')" id="ni-myvouchers">
+      <button class="ni" onclick="show('myvouchers')" id="ni-myvouchers" title="My Vouchers">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
         My Vouchers
       </button>
     </div>
     <div class="ns">
       <p>Create</p>
-      <button class="ni" onclick="show('create')" id="ni-create">
+      <button class="ni" onclick="show('create')" id="ni-create" title="New Voucher">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
         New Voucher
       </button>
     </div>
     <div class="ns">
       <p>Export</p>
-      <button class="ni" onclick="doExcel()" id="ni-export">
+      <button class="ni" onclick="doExcel()" id="ni-export" title="Export Excel">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Export Excel
+      </button>
+      <button class="ni" onclick="exportLedger()" id="ni-export-ledger" title="Ledger Report">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M6.5 17L20 17"/></svg>
+        Ledger Report
       </button>
     </div>
     <div class="ns">
       <p>Settings</p>
-      <button class="ni" onclick="show('printersetup')" id="ni-printersetup">
+      <button class="ni" onclick="show('printersetup')" id="ni-printersetup" title="Printer Setup">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6,9 6,2 18,2 18,9"/><path d="M6,18H4a2,2,0,0,1-2-2V11a2,2,0,0,1,2-2H20a2,2,0,0,1,2,2v5a2,2,0,0,1-2,2H18"/><rect x="6" y="14" width="12" height="8"/></svg>
         Printer Setup
       </button>
@@ -180,11 +184,19 @@
   <main class="mc">
     <!-- DASHBOARD -->
     <div class="sec act" id="sec-dashboard">
-      <div class="ph"><h1>Dashboard</h1><p id="DD">Loading...</p></div>
+      <div class="ph" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div><h1>Dashboard</h1><p id="DD">Loading...</p></div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <input type="date" id="DBF" class="inp" style="width:130px; font-size:12px; padding:6px; margin:0;" onchange="renderDash()">
+          <span style="font-size:12px; font-weight:600; color:var(--T);">TO</span>
+          <input type="date" id="DBT" class="inp" style="width:130px; font-size:12px; padding:6px; margin:0;" onchange="renderDash()">
+          <button class="btn bs" style="padding:6px 12px; font-size:12px;" onclick="document.getElementById('DBF').value='';document.getElementById('DBT').value='';renderDash()" title="Clear">Clear</button>
+        </div>
+      </div>
       <div class="sg" id="SG"></div>
       <div class="card">
         <div class="ch"><span class="ct">Recent Vouchers</span>
-          <button class="btn bs bsm" onclick="show('vouchers')">View All →</button>
+          <button class="btn bs bsm" onclick="show('vouchers')" title="View All →">View All →</button>
         </div>
         <div class="twrap"><table>
           <thead><tr><th>Date</th><th>Type</th><th>Account</th><th>Head</th><th>Cash Mode</th><th>Amount</th><th>Action</th></tr></thead>
@@ -206,11 +218,19 @@
     <!-- CREATE -->
         <!-- MY DASHBOARD (admin2/admin3) -->
     <div class="sec" id="sec-mydashboard">
-      <div class="ph"><h1 id="MDB_TITLE">My Dashboard</h1><p id="MDD">Loading...</p></div>
+      <div class="ph" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div><h1 id="MDB_TITLE">My Dashboard</h1><p id="MDD">Loading...</p></div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <input type="date" id="MDBF" class="inp" style="width:130px; font-size:12px; padding:6px; margin:0;" onchange="renderMyDash()">
+          <span style="font-size:12px; font-weight:600; color:var(--T);">TO</span>
+          <input type="date" id="MDBT" class="inp" style="width:130px; font-size:12px; padding:6px; margin:0;" onchange="renderMyDash()">
+          <button class="btn bs" style="padding:6px 12px; font-size:12px;" onclick="document.getElementById('MDBF').value='';document.getElementById('MDBT').value='';renderMyDash()" title="Clear">Clear</button>
+        </div>
+      </div>
       <div class="sg" id="MSG"></div>
       <div class="card">
         <div class="ch"><span class="ct">My Recent Vouchers</span>
-          <button class="btn bs bsm" onclick="show('myvouchers')">View All →</button>
+          <button class="btn bs bsm" onclick="show('myvouchers')" title="View All →">View All →</button>
         </div>
         <div class="twrap"><table>
           <thead><tr><th>Date</th><th>Type</th><th>Account</th><th>Head</th><th>Cash Mode</th><th>Amount</th><th>Action</th></tr></thead>
@@ -225,7 +245,7 @@
       <div class="sb2">
         <input type="text" id="MSQ" placeholder="Search party, head, purpose..." oninput="renderMyVT()">
         <input type="date" id="MSD" onchange="renderMyVT()" style="padding:8px 12px;border:1.5px solid var(--G200);border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;background:var(--W);color:var(--T)" title="Filter by date">
-        <button class="btn bs bsm" type="button" onclick="document.getElementById('MSD').value='';renderMyVT()">Clear Date</button>
+        <button class="btn bs bsm" type="button" onclick="document.getElementById('MSD').value='';renderMyVT()" title="Clear Date">Clear Date</button>
         <select id="MFT2" onchange="renderMyVT()">
           <option value="">All Types</option>
           <option value="debit">Debit</option>
@@ -233,7 +253,7 @@
           <option value="credit">Credit</option>
         </select>
         <select id="MFH" onchange="renderMyVT()"><option value="">All Heads</option></select>
-        <button class="btn bg bsm" onclick="doExcelMine()">📥 Export My Excel</button>
+        <button class="btn bg bsm" onclick="doExcelMine()" title="📥 Export My Excel">📥 Export My Excel</button>
       </div>
       <div class="twrap">
         <table><thead><tr>
@@ -262,8 +282,8 @@
       </div>
       <div class="card">
         <div class="ch">
-          <span class="ct" id="FT">Credit Voucher</span>
-          <button class="btn bs bsm" onclick="resetF()">Clear Form</button>
+          <span class="ct" id="FT">Debit Voucher</span>
+          <button class="btn bs bsm" onclick="resetF()" title="Clear Form">Clear Form</button>
         </div>
         <div class="fr f">
           <div class="fi"><label>Date *</label>
@@ -275,7 +295,7 @@
             </select></div>
         </div>
         <!-- CREDIT fields -->
-        <div id="R_credit">
+        <div id="R_credit" style="display:none">
           <div class="fr t">
             <div class="fi"><label>Credit A/c (Account Name)</label>
               <input type="text" id="fc_acname" placeholder="Enter account name"></div>
@@ -306,7 +326,7 @@
           </div>
         </div>
         <!-- DEBIT fields -->
-        <div id="R_debit" style="display:none">
+        <div id="R_debit">
           <div class="fr t">
             <div class="fi"><label>Debit A/c <a href="javascript:void(0)" onclick="addNewHead('debit')" class="admin-only-add" style="font-size:11px;color:var(--P);text-decoration:none;margin-left:5px">[+ Add New]</a></label>
               <input type="text" id="fd_head" placeholder="Enter account head" list="DL_HEADS" onblur="if(typeof checkNewHead==='function') checkNewHead(this)"></div>
@@ -375,9 +395,9 @@
             <textarea id="f_rem" placeholder="Additional remarks (optional)"></textarea></div>
         </div>
         <div class="bg-btn">
-          <button class="btn bp" onclick="saveV()">💾 Save Voucher</button>
-          <button class="btn bg" onclick="previewV()">🖨 Preview & Print</button>
-          <button class="btn bs" onclick="resetF()">↺ Reset</button>
+          <button class="btn bp" onclick="saveV()" title="💾 Save Voucher">💾 Save Voucher</button>
+          <button class="btn bg" onclick="previewV()" title="🖨 Preview & Print">🖨 Preview & Print</button>
+          <button class="btn bs" onclick="resetF()" title="↺ Reset">↺ Reset</button>
         </div>
       </div>
     </div>
@@ -394,7 +414,7 @@
         </select>
         <input type="date" id="SDF" style="padding:8px 12px;border:1.5px solid var(--G200);border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;background:var(--W);color:var(--T)" title="From date">
         <input type="date" id="SDT" style="padding:8px 12px;border:1.5px solid var(--G200);border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;background:var(--W);color:var(--T)" title="To date">
-        <button class="btn bs bsm" type="button" onclick="document.getElementById('SDF').value='';document.getElementById('SDT').value='';document.getElementById('FC').value='';document.getElementById('SQ').value='';document.getElementById('FT2').value='';document.getElementById('FH').value='';renderVT()">Clear Filters</button>
+        <button class="btn bs bsm" type="button" onclick="document.getElementById('SDF').value='';document.getElementById('SDT').value='';document.getElementById('FC').value='';document.getElementById('SQ').value='';document.getElementById('FT2').value='';document.getElementById('FH').value='';renderVT()" title="Clear Filters">Clear Filters</button>
         <select id="FT2">
           <option value="">All Types</option>
           <option value="debit">Debit</option>
@@ -402,9 +422,10 @@
           <option value="credit">Credit</option>
         </select>
         <select id="FH"><option value="">All Heads</option></select>
-        <button class="btn bp bsm" onclick="renderVT()">Submit</button>
-        <button class="btn bg bsm" onclick="doExcel()">📥 Export Excel</button>
-        <button class="btn bp bsm" onclick="doCashBook()">📒 Cash Book</button>
+        <button class="btn bp bsm" onclick="renderVT()" title="Submit">Submit</button>
+        <button class="btn bg bsm" onclick="doExcel()" title="📥 Export Excel">📥 Export Excel</button>
+        <button class="btn bp bsm" onclick="doCashBook()" title="📒 Cash Book">📒 Cash Book</button>
+        <button class="btn bp bsm" onclick="exportLedger()" style="background:var(--B);" title="📓 Ledger Report">📓 Ledger Report</button>
       </div>
       <div class="twrap">
         <table><thead><tr>
@@ -422,7 +443,7 @@
       <!-- PRINT ENGINE STATUS -->
       <div class="card" style="margin-bottom:1rem" id="printEnvCard">
         <div class="ch"><span class="ct">⚡ Print Engine Status</span>
-          <button class="btn bs bsm" onclick="refreshPrintEnv()">↺ Refresh</button>
+          <button class="btn bs bsm" onclick="refreshPrintEnv()" title="↺ Refresh">↺ Refresh</button>
         </div>
         <div id="printEnvGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;font-size:12px">
           <!-- filled by refreshPrintEnv() -->
@@ -450,9 +471,9 @@
           Connect a USB thermal receipt printer (ESC/POS compatible — e.g. Epson TM, Star TSP, Xprinter, GOOJPRT) directly from this browser using the <strong>Web Serial API</strong> (Chrome/Edge only). No drivers needed.
         </p>
         <div class="bg-btn" style="margin-bottom:.7rem">
-          <button class="btn bp bsm" onclick="connectSerialPrinter()" id="btnConnectSerial">🔌 Connect USB Printer</button>
-          <button class="btn bs bsm" onclick="disconnectSerialPrinter()" id="btnDisconnectSerial" disabled>✕ Disconnect</button>
-          <button class="btn bg bsm" onclick="testSerialPrint()" id="btnTestSerial" disabled>🖨 Print Test Page</button>
+          <button class="btn bp bsm" onclick="connectSerialPrinter()" id="btnConnectSerial" title="🔌 Connect USB Printer">🔌 Connect USB Printer</button>
+          <button class="btn bs bsm" onclick="disconnectSerialPrinter()" id="btnDisconnectSerial" disabled title="✕ Disconnect">✕ Disconnect</button>
+          <button class="btn bg bsm" onclick="testSerialPrint()" id="btnTestSerial" disabled title="🖨 Print Test Page">🖨 Print Test Page</button>
         </div>
         <div id="serialLog" style="background:#f5f5f5;border-radius:7px;padding:9px 12px;font-family:monospace;font-size:11px;color:#555;min-height:36px;max-height:80px;overflow-y:auto">
           Ready — click Connect to pick your USB printer.
@@ -518,7 +539,7 @@
             <strong>Note:</strong> Set your physical printer as the Windows/macOS default printer first. Chrome will print to it silently without any dialog or destination prompt.
           </div>
           <div style="margin-top:.5rem">
-            <button class="btn bs bsm" onclick="localStorage.setItem('smv_kioskMode','1');_PRINT_ENV.isKiosk=true;refreshPrintEnv();_toast('Kiosk mode enabled in app','ok')">
+            <button class="btn bs bsm" onclick="localStorage.setItem('smv_kioskMode','1');_PRINT_ENV.isKiosk=true;refreshPrintEnv();_toast('Kiosk mode enabled in app','ok')" title="✓ Mark as Kiosk Mode (app-level)">
               ✓ Mark as Kiosk Mode (app-level)
             </button>
           </div>
@@ -574,16 +595,16 @@
   <div class="mh">
     <h2 id="PMT">Voucher Preview</h2>
     <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
-      <button class="btn bg bsm" onclick="doExcel()">📊 Excel</button>
-      <button class="btn bs bsm" onclick="closeP();show('printersetup')">⚙ Printer Setup</button>
+      <button class="btn bg bsm" onclick="doExcel()" title="📊 Excel">📊 Excel</button>
+      <button class="btn bs bsm" onclick="closeP();show('printersetup')" title="⚙ Printer Setup">⚙ Printer Setup</button>
       <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--T);background:var(--G50);border:1.5px solid var(--G200);border-radius:6px;padding:4px 9px;cursor:pointer"><input type="checkbox" id="PRINT_COLOR" onchange="togglePrintColor(this.checked)" style="margin:0"><span>🎨 Colour print</span></label>
       <select id="PRINT_SIZE" style="padding:5px 10px;border:1.5px solid var(--G200);border-radius:6px;font-family:'Inter',sans-serif;font-size:12px;background:var(--G50);color:var(--T);cursor:pointer" onchange="updatePrintInfo()">
         <option value="a4_single" selected>A4 — 1 A5 voucher (top)</option>
         <option value="a4_double">A4 — 2 vouchers per page</option>
         <option value="a5">A5 — Direct A5 paper</option>
       </select>
-      <button class="btn bp bsm" onclick="doPrint()">🖨 Print</button>
-      <button class="cbtn" onclick="closeP()">✕</button>
+      <button class="btn bp bsm" onclick="doPrint()" title="🖨 Print">🖨 Print</button>
+      <button class="cbtn" onclick="closeP()" title="✕">✕</button>
     </div>
   </div>
   <div class="mb">

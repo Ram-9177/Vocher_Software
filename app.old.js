@@ -439,6 +439,7 @@ async function fetchDynamicBlocks() {
 function initApp(){
   fetchDynamicHeads();
   fetchDynamicBlocks();
+  setupCustomHeadDropdowns();
   populateHeads();populateMyHeads();setDate();renderDash();renderMyDash();
   const today_str=new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   const el=document.getElementById('DD');if(el)el.textContent='Today: '+today_str;
@@ -565,7 +566,11 @@ function show(id){
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('act'));
   const s=document.getElementById('sec-'+id);if(s)s.classList.add('act');
   const n=document.getElementById('ni-'+id);if(n)n.classList.add('act');
-  if(id==='create' && !editId){resetF();}
+  if(id==='create' && !editId){
+    resetF();
+    const dbEl = document.querySelector('.vtc[data-t="debit"]');
+    if(dbEl) selVT(dbEl, 'debit');
+  }
   if(id==='dashboard')renderDash();
   if(id==='vouchers')renderVT();
   if(id==='analytics')renderAnalytics();
@@ -644,9 +649,9 @@ function saveV(){
 }
 function resetF(){
   { const sel=document.getElementById('f_college'); if(sel){ sel.value=CURRENT_COLLEGE||'smg'; sel.disabled=true; } }
-  ['fc_acname','fc_from','fc_words','fc_towards','fc_block','fc_cheque',
-   'fd_paidto','fd_towards','fd_block','fd_words','fd_cheque',
-   'fo_paidto','fo_towards','fo_block','fo_words','fo_ref',
+  ['fc_acname','fc_head','fc_from','fc_words','fc_towards','fc_block','fc_cheque',
+   'fd_head','fd_paidto','fd_towards','fd_block','fd_words','fd_cheque',
+   'fo_head','fo_paidto','fo_towards','fo_block','fo_words','fo_ref',
    'fj_paidto','fj_towards','fj_words','fj_cheque',
    'f_prep','f_chk','f_rem'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   ['fc_amt','fd_amt','fo_amt','fj_amt'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -657,14 +662,28 @@ function resetF(){
 // MY DASHBOARD (admin2/admin3 — own vouchers only)
 function renderMyDash(){
   if(CU==='admin1')return;
-  const myVS=VS.filter(v=>v.createdBy===CU);
+  const mdbf = document.getElementById('MDBF') ? document.getElementById('MDBF').value : '';
+  const mdbt = document.getElementById('MDBT') ? document.getElementById('MDBT').value : '';
+  let myVS=VS.filter(v=>v.createdBy===CU);
+  if(mdbf || mdbt) {
+    myVS = myVS.filter(v => {
+      const p = (v.date||'').split('-');
+      if(p.length === 3) {
+        const iso = p[2] + '-' + p[1] + '-' + p[0];
+        if (mdbf && iso < mdbf) return false;
+        if (mdbt && iso > mdbt) return false;
+        return true;
+      }
+      return false;
+    });
+  }
   const lbl=ADMINS[CU]?ADMINS[CU].label:CU;
   const t=document.getElementById('MDB_TITLE');if(t)t.textContent=lbl+' — Dashboard';
   const tot=myVS.length,totAmt=myVS.reduce((s,v)=>s+v.amount,0),tod=myVS.filter(v=>v.date===today()).length;
   const sg=document.getElementById('MSG');if(!sg)return;
   sg.innerHTML=`
-    <div class="sc"><div class="lbl">My Vouchers</div><div class="val">${tot}</div><div class="sub">All time</div></div>
-    <div class="sc"><div class="lbl">My Total Amount</div><div class="val">₹${Math.round(totAmt)}</div><div class="sub">All vouchers</div></div>
+    <div class="sc"><div class="lbl">My Vouchers</div><div class="val">${tot}</div><div class="sub">${mdbf||mdbt ? 'Filtered' : 'All time'}</div></div>
+    <div class="sc"><div class="lbl">My Total Amount</div><div class="val">₹${Math.round(totAmt)}</div><div class="sub">${mdbf||mdbt ? 'Filtered' : 'All vouchers'}</div></div>
     <div class="sc"><div class="lbl">Today</div><div class="val">${tod}</div><div class="sub">My vouchers today</div></div>
     <div class="sc"><div class="lbl">Debit</div><div class="val">${myVS.filter(v=>v.type==='debit').length}</div><div class="sub">Payments</div></div>
     <div class="sc"><div class="lbl">On- Account</div><div class="val">${myVS.filter(v=>v.type==='onaccount').length}</div><div class="sub">Transactions</div></div>
@@ -679,7 +698,7 @@ function renderMyDash(){
     <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
     <td>${v.mode||'Cash'}</td>
     <td style="font-weight:600">₹${Math.round(v.amount)}</td>
-    <td><button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))">🖨</button></td>
+    <td><button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="Print">🖨</button></td>
   </tr>`).join('');
 }
 
@@ -830,13 +849,15 @@ function buildPrint(v){
     </div>
   </div>
 
-  <!-- TYPE BANNER -->
-  <div style="background:${TBARBG};color:#fff;font-size:13.5pt;font-weight:900;letter-spacing:3px;text-align:center;padding:4px 6px;font-family:Arial Black,Arial,sans-serif">${TYPETEXT}</div>
-
-  <!-- DATE ROW — date prominent as primary identifier -->
-  <div style="display:flex;justify-content:right;align-items:right;padding:6px 8px;border-bottom:1px solid #888;background:${BG}">
-    <span style="font-size:10pt;font-weight:400;letter-spacing:0.5px;font-family:Arial,sans-serif;margin-right:8px">DATE :</span>
-    <span style="font-size:10pt;font-weight:400;font-family:Arial,sans-serif;padding:0 14px 2px">${v.date||''}</span>
+  <!-- TYPE BANNER & DATE ROW -->
+  <div style="display:flex;border-bottom:1px solid #888;background:${BG};align-items:stretch">
+    <div style="flex:1;background:${TBARBG};color:#fff;font-size:13.5pt;font-weight:900;letter-spacing:3px;text-align:center;padding:4px 6px;font-family:Arial Black,Arial,sans-serif;display:flex;align-items:center;justify-content:center">
+      ${TYPETEXT}
+    </div>
+    <div style="width:200px;flex-shrink:0;display:flex;justify-content:flex-start;align-items:center;padding:4px 8px;border-left:2px solid #111">
+      <span style="font-size:10pt;font-weight:700;letter-spacing:0.5px;font-family:Arial,sans-serif;margin-right:8px">Date :</span>
+      <span style="font-size:10pt;font-weight:400;font-family:Arial,sans-serif;border-bottom:1.5px dotted #555;flex:1;text-align:center">${v.date||''}</span>
+    </div>
   </div>
 
   <!-- FIELDS -->
@@ -1221,15 +1242,30 @@ async function _launchPrintWindow(html, sel, silentMode){
 // DASHBOARD
 function renderDash(){
   if(CU!=='admin1')return;
-  const tot=VS.length,totAmt=VS.reduce((s,v)=>s+v.amount,0),tod=VS.filter(v=>v.date===today()).length;
+  const dbf = document.getElementById('DBF') ? document.getElementById('DBF').value : '';
+  const dbt = document.getElementById('DBT') ? document.getElementById('DBT').value : '';
+  let fvs = VS;
+  if(dbf || dbt) {
+    fvs = VS.filter(v => {
+      const p = (v.date||'').split('-');
+      if(p.length === 3) {
+        const iso = p[2] + '-' + p[1] + '-' + p[0];
+        if (dbf && iso < dbf) return false;
+        if (dbt && iso > dbt) return false;
+        return true;
+      }
+      return false;
+    });
+  }
+  const tot=fvs.length,totAmt=fvs.reduce((s,v)=>s+v.amount,0),tod=fvs.filter(v=>v.date===today()).length;
   document.getElementById('SG').innerHTML=`
-    <div class="sc"><div class="lbl">Total Vouchers</div><div class="val">${tot}</div><div class="sub">All time</div></div>
-    <div class="sc"><div class="lbl">Total Amount</div><div class="val">₹${Math.round(totAmt)}</div><div class="sub">All vouchers</div></div>
+    <div class="sc"><div class="lbl">Total Vouchers</div><div class="val">${tot}</div><div class="sub">${dbf||dbt ? 'Filtered' : 'All time'}</div></div>
+    <div class="sc"><div class="lbl">Total Amount</div><div class="val">₹${Math.round(totAmt)}</div><div class="sub">${dbf||dbt ? 'Filtered' : 'All vouchers'}</div></div>
     <div class="sc"><div class="lbl">Today</div><div class="val">${tod}</div><div class="sub">Vouchers today</div></div>
-    <div class="sc"><div class="lbl">Debit</div><div class="val">${VS.filter(v=>v.type==='debit').length}</div><div class="sub">Payments</div></div>
-    <div class="sc"><div class="lbl">On- Account</div><div class="val">${VS.filter(v=>v.type==='onaccount').length}</div><div class="sub">Transactions</div></div>
-    <div class="sc"><div class="lbl">Credit</div><div class="val">${VS.filter(v=>v.type==='credit').length}</div><div class="sub">Received</div></div>`;
-  const rec=[...VS].reverse().slice(0,10);
+    <div class="sc"><div class="lbl">Debit</div><div class="val">${fvs.filter(v=>v.type==='debit').length}</div><div class="sub">Payments</div></div>
+    <div class="sc"><div class="lbl">On- Account</div><div class="val">${fvs.filter(v=>v.type==='onaccount').length}</div><div class="sub">Transactions</div></div>
+    <div class="sc"><div class="lbl">Credit</div><div class="val">${fvs.filter(v=>v.type==='credit').length}</div><div class="sub">Received</div></div>`;
+  const rec=[...fvs].reverse().slice(0,10);
   const bc={credit:'bc',debit:'bd',onaccount:'bo'};
   document.getElementById('RB').innerHTML=rec.map(v=>`<tr>
     <td><strong>${v.date}</strong></td>
@@ -1238,7 +1274,7 @@ function renderDash(){
     <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
     <td>${v.mode||'Cash'}</td>
     <td style="font-weight:600">₹${Math.round(v.amount)}</td>
-    <td><button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))">🖨</button></td>
+    <td><button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="Print">🖨</button></td>
   </tr>`).join('');
 }
 
@@ -1308,8 +1344,8 @@ function renderVT(){
     <td><div style="display:flex;gap:4px">
       <button class="btn bp bsm" onclick="quickPrint(${v.id})" title="Direct Print">🖨</button>
       <button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="Preview">👁</button>
-      <button class="btn bs bsm" onclick="editV(${v.id})">✏️</button>
-      <button class="btn br bsm" onclick="delV(${v.id})">🗑</button>
+      <button class="btn bs bsm" onclick="editV(${v.id})" title="✏️">✏️</button>
+      <button class="btn br bsm" onclick="delV(${v.id})" title="Delete">🗑</button>
     </div></td>
   </tr>`;
     });
@@ -1520,6 +1556,140 @@ function doExcel(silent=false){
 
   } catch(err){
     console.error('Excel export error:',err);
+    if(!silent) alert('Export failed: '+err.message);
+  }
+}
+
+// =============================================
+// LEDGER REPORT EXPORT — Head wise and All Heads summary
+// =============================================
+function exportLedger(silent=false){
+  try{
+    if(typeof XLSX==='undefined'){
+      if(!silent) alert('Excel library not ready. Please wait a moment and try again.');
+      return;
+    }
+    const EXPVS = (typeof getFilteredVS==='function') ? getFilteredVS() : VS;
+    if(!EXPVS.length){if(!silent) alert('No vouchers match the current filter to export.');return;}
+
+    // Determine min/max date
+    let minDate = '9999-12-31', maxDate = '0000-00-00';
+    EXPVS.forEach(v => {
+      if(v.date) {
+        if(v.date < minDate) minDate = v.date;
+        if(v.date > maxDate) maxDate = v.date;
+      }
+    });
+    if(minDate === '9999-12-31') minDate = '-';
+    if(maxDate === '0000-00-00') maxDate = '-';
+    
+    const fmtDate = (d) => {
+      if(!d || d==='-') return '';
+      const [y,m,day] = d.split('-');
+      return `${parseInt(day)}.${parseInt(m)}.${y.slice(-2)}`;
+    };
+    const dateRangeStr = `Date ${fmtDate(minDate)} to ${fmtDate(maxDate)}`;
+
+    // Group vouchers by Head
+    const heads = {};
+    EXPVS.forEach(v => {
+      const h = v.head || 'Uncategorized';
+      if(!heads[h]) heads[h] = [];
+      heads[h].push(v);
+    });
+
+    const wb = XLSX.utils.book_new();
+    const headNames = Object.keys(heads).sort((a,b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+    
+    const allHeadsData = [];
+    for(let i=0; i<4; i++) allHeadsData.push([]);
+    
+    const row5 = [];
+    row5[6] = 'SMGG Ledger                            ' + dateRangeStr;
+    allHeadsData[4] = row5;
+    allHeadsData[5] = []; 
+    
+    const row7 = [];
+    row7[6] = 'All Heads';
+    row7[7] = 'Amount';
+    row7[8] = 'Amount';
+    allHeadsData[6] = row7;
+
+    let grandTotDr = 0, grandTotCr = 0;
+
+    headNames.forEach(h => {
+      const hData = [];
+      for(let i=0; i<6; i++) hData.push([]); // Rows 1-6 empty
+
+      let totDr = 0, totCr = 0;
+      heads[h].forEach(v => {
+        const row = [];
+        row[1] = h;
+        const pOrR = v.type === 'credit' ? (v.receivedFrom||'') : (v.paidTo||'');
+        const tw = v.towards||'';
+        const particulars = pOrR ? (pOrR + (tw ? ' t/w ' + tw : '')) : tw;
+        row[2] = particulars;
+        
+        const amt = Number(v.amount)||0;
+        if(v.type === 'credit') {
+          row[4] = amt; 
+          totCr += amt;
+        } else {
+          row[3] = amt; 
+          totDr += amt;
+        }
+        hData.push(row);
+      });
+      
+      hData.push([]);
+      hData.push([]);
+      const totRow = [];
+      totRow[3] = totDr || 0;
+      totRow[4] = totCr || 0;
+      hData.push(totRow);
+
+      const wsHead = XLSX.utils.aoa_to_sheet(hData);
+      wsHead['!cols'] = [{wch:5}, {wch:25}, {wch:60}, {wch:12}, {wch:12}];
+      
+      let shName = h.substring(0, 31).replace(/[\\/?*\[\]:]/g, ' ').trim();
+      if(!shName) shName = 'Unknown';
+      if(wb.SheetNames.includes(shName)) {
+        let cnt = 1;
+        while(wb.SheetNames.includes(shName.substring(0, 28) + '_' + cnt)) cnt++;
+        shName = shName.substring(0, 28) + '_' + cnt;
+      }
+      XLSX.utils.book_append_sheet(wb, wsHead, shName);
+
+      const ahRow = [];
+      ahRow[6] = h;
+      ahRow[7] = totDr || 0;
+      ahRow[8] = totCr || 0;
+      allHeadsData.push(ahRow);
+      
+      grandTotDr += totDr;
+      grandTotCr += totCr;
+    });
+
+    allHeadsData.push([]);
+    allHeadsData.push([]);
+    allHeadsData.push([]);
+    
+    const gtRow = [];
+    gtRow[6] = 'Grand Total';
+    gtRow[7] = grandTotDr;
+    gtRow[8] = grandTotCr;
+    allHeadsData.push(gtRow);
+
+    const wsAll = XLSX.utils.aoa_to_sheet(allHeadsData);
+    wsAll['!cols'] = [{wch:5},{wch:5},{wch:5},{wch:5},{wch:5},{wch:5},{wch:30},{wch:12},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, wsAll, 'All Heads');
+
+    const fname = 'Ledger_Report_'+today()+'.xlsx';
+    XLSX.writeFile(wb, fname, {bookType:'xlsx', type:'binary'});
+    if(!silent) _toast('✅ Ledger Report exported: '+fname,'ok');
+
+  } catch(err){
+    console.error('Ledger export error:',err);
     if(!silent) alert('Export failed: '+err.message);
   }
 }
@@ -1945,3 +2115,60 @@ window.addEventListener('DOMContentLoaded', async function(){
 
 // Auto-relink Excel handle from previous session
 window.addEventListener('DOMContentLoaded',()=>{ restoreLinkedExcel(); });
+
+// CUSTOM ACCOUNT HEAD DROPDOWN
+function setupCustomHeadDropdowns() {
+  ['fc_head', 'fd_head', 'fo_head'].forEach(id => {
+    const inp = document.getElementById(id);
+    if(!inp) return;
+    
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'relative';
+    inp.parentNode.insertBefore(wrapper, inp);
+    wrapper.appendChild(inp);
+    
+    const dd = document.createElement('div');
+    dd.className = 'custom-head-dropdown';
+    dd.style.cssText = 'position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--G200);border-radius:6px;max-height:220px;overflow-y:auto;z-index:999;display:none;box-shadow:0 4px 15px rgba(0,0,0,0.1);padding:5px 0;';
+    wrapper.appendChild(dd);
+    
+    let isMouseOver = false;
+    dd.addEventListener('mouseenter', () => isMouseOver = true);
+    dd.addEventListener('mouseleave', () => isMouseOver = false);
+    
+    function renderList() {
+      dd.innerHTML = '';
+      const sorted = [...HEADS].sort((a,b)=>a.localeCompare(b));
+      sorted.forEach(h => {
+        const item = document.createElement('div');
+        item.textContent = h;
+        item.style.cssText = 'padding:8px 12px;cursor:pointer;font-size:13px;color:var(--T);transition:background 0.2s;';
+        item.onmouseover = () => item.style.background = 'var(--G50)';
+        item.onmouseout = () => item.style.background = 'transparent';
+        item.onmousedown = (e) => {
+          e.preventDefault(); // Prevent blur
+          inp.value = h;
+          dd.style.display = 'none';
+          if(typeof checkNewHead==='function') checkNewHead(inp);
+        };
+        dd.appendChild(item);
+      });
+    }
+    
+    inp.addEventListener('focus', () => {
+      renderList();
+      dd.style.display = 'block';
+    });
+    
+    inp.addEventListener('blur', () => {
+      if(!isMouseOver) {
+        dd.style.display = 'none';
+      }
+    });
+    
+    inp.addEventListener('input', () => {
+      renderList();
+      dd.style.display = 'block';
+    });
+  });
+}
