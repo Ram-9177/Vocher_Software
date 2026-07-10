@@ -3,6 +3,13 @@
 
   var adapterReady = false;
   var domEventHeld = false;
+  var buildVersion = '20260710-session-persist-v2';
+
+  try {
+    var currentSrc = document.currentScript && document.currentScript.src;
+    var currentVersion = currentSrc ? new URL(currentSrc, window.location.href).searchParams.get('v') : '';
+    if(currentVersion) buildVersion = currentVersion;
+  } catch(e) {}
 
   function holdDomReady(e){
     if(!adapterReady){
@@ -18,7 +25,7 @@
   function load(src){
     return new Promise(function(resolve,reject){
       var s = document.createElement('script');
-      s.src = src;
+      s.src = src + (src.indexOf('?') === -1 ? '?' : '&') + 'v=' + encodeURIComponent(buildVersion);
       s.async = false;
       s.onload = resolve;
       s.onerror = function(){ reject(new Error('Failed to load ' + src)); };
