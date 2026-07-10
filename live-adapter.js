@@ -9,13 +9,24 @@
   function token(){ return localStorage.getItem('smv_token') || ''; }
   function setToken(t){ if(t) localStorage.setItem('smv_token', t); else localStorage.removeItem('smv_token'); }
   function setAuthUser(u){ if(u) localStorage.setItem('smv_auth_user', JSON.stringify(u)); else localStorage.removeItem('smv_auth_user'); }
+  function isMainAdminUser(u){
+    const name = String((u && u.username) || u || '').toLowerCase();
+    return name === 'admin' || name === 'admin1';
+  }
   function uiUserCode(u){
     const name = String((u && u.username) || u || '').toLowerCase();
-    if((u && u.role === 'admin') || name === 'admin' || name === 'admin1') return 'admin1';
+    if(isMainAdminUser(u)) return 'admin1';
     if(USER_ALIAS[name]) return USER_ALIAS[name];
+    if(u && u.role === 'admin') return 'admin1';
     if(name.indexOf('3') > -1) return 'admin3';
     return 'admin2';
   }
+  function userLabel(u, code){
+    if(u && !isMainAdminUser(u)) return u.fullName || u.username || code;
+    return (ADMIN_ROLES[code] && ADMIN_ROLES[code].label) || code;
+  }
+  window._smvUiUserCode = uiUserCode;
+  window._smvIsMainAdminUser = isMainAdminUser;
   function loginCandidates(name){
     const n = String(name || '').trim().toLowerCase();
     if(n === 'admin1') return ['admin1','admin'];
@@ -58,10 +69,6 @@
     if(le) le.style.display = 'none';
     if(lh) lh.style.display = 'none';
     if(!typed || !password){ if(le){ le.textContent='Enter username and password.'; le.style.display='block'; } return; }
-    if(!ADMIN_ROLES[typed] && typed !== 'admin' && typed !== 'user2' && typed !== 'user3'){
-      if(le){ le.textContent='Unknown username. Use admin1, admin2, or admin3.'; le.style.display='block'; }
-      return;
-    }
     const college = CURRENT_COLLEGE || 'smg';
     const hash = await _hashPassword(password);
     let ok = null, lastErr = null;
@@ -82,11 +89,10 @@
     }
 
     CU = uiUserCode(ok.user || typed);
-    const a = ADMIN_ROLES[CU] || { label:CU };
     document.getElementById('CP').style.display='none';
     document.getElementById('LS').style.display='none';
     document.getElementById('APP').style.display='block';
-    document.getElementById('UB').textContent=a.label;
+    document.getElementById('UB').textContent=userLabel(ok.user, CU);
     if(le) le.style.display='none';
     HOME_COLLEGE=CURRENT_COLLEGE || college;
     updateCollegeSwitchPill();

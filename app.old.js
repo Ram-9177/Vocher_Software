@@ -317,13 +317,13 @@ function selectCollege(c){CURRENT_COLLEGE=c;localStorage.setItem('smv_last_colle
 function updateCollegeSwitchPill(){
   const pill=document.getElementById('CSWPILL');if(!pill)return;
   // Cross-college access: ONLY admin1 who logged in via SMGG can switch into STMW
-  const allowed=(CU==='admin1' && HOME_COLLEGE==='smg');
+  const allowed=(_isPrimaryAdminSession() && HOME_COLLEGE==='smg');
   pill.style.display=allowed?'':'none';
   const lbl=document.getElementById('CSWLBL');
   if(lbl) lbl.textContent=(CURRENT_COLLEGE==='smg')?'Switch to STMW':'Back to SMGG';
 }
 async function switchCollegeCtx(){
-  if(!(CU==='admin1' && HOME_COLLEGE==='smg')){alert('You do not have access to switch colleges.');return;}
+  if(!(_isPrimaryAdminSession() && HOME_COLLEGE==='smg')){alert('You do not have access to switch colleges.');return;}
   const target=(CURRENT_COLLEGE==='smg')?'smwec':'smg';
   CURRENT_COLLEGE=target;
   localStorage.setItem('smv_last_college',target);
@@ -335,6 +335,21 @@ async function switchCollegeCtx(){
   if(typeof setupRole==='function') setupRole();
   if(typeof _updateXLPill==='function') _updateXLPill();
   _startLiveSync();
+}
+function _authUserFromStorage(){
+  try{const s=localStorage.getItem('smv_auth_user');return s?JSON.parse(s):null;}catch(e){return null;}
+}
+function _isPrimaryAdminSession(){
+  const u=_authUserFromStorage();
+  const n=String((u&&u.username)||'').toLowerCase();
+  return n==='admin'||n==='admin1';
+}
+function _uiUserCodeFromAuth(u,fallback){
+  if(window._smvUiUserCode) return window._smvUiUserCode(u||fallback);
+  const n=String((u&&u.username)||fallback||'').toLowerCase();
+  if(n==='admin'||n==='admin1'||(u&&u.role==='admin'))return'admin1';
+  if(n==='user3'||n==='admin3'||n.indexOf('3')>-1)return'admin3';
+  return'admin2';
 }
 
 // === Cloud voucher sync ===
@@ -2084,20 +2099,22 @@ window.addEventListener('DOMContentLoaded', async function(){
     const sessHome = sessionStorage.getItem('smv_sess_home');
     const sessPage = sessionStorage.getItem('smv_sess_page');
     if(!sessUser || !sessCollege) return; // no session — show picker normally
-    // Validate account still exists in the cloud
-    const creds = await _refreshCredentialsCache(sessCollege);
-    if(!creds[sessUser]) return; // account removed — fall through to picker
+    const api=(window._api||_api);
+    const session=await api('validateSession',{});
+    const authUser=session&&session.user;
+    if(authUser) localStorage.setItem('smv_auth_user',JSON.stringify(authUser));
     // Restore state
     CURRENT_COLLEGE = sessCollege;
     HOME_COLLEGE = sessHome || sessCollege;
-    CU = sessUser;
+    CU = _uiUserCodeFromAuth(authUser,sessUser);
+    try{sessionStorage.setItem('smv_sess_user',CU);}catch(e){}
     await _loadVouchersFromCloud();
     // Hide picker and login, show app
     const cp = document.getElementById('CP'); if(cp) cp.style.display='none';
     const ls = document.getElementById('LS'); if(ls) ls.style.display='none';
     const app = document.getElementById('APP'); if(app) app.style.display='block';
     const ub = document.getElementById('UB');
-    if(ub){ const a=ADMIN_ROLES[sessUser]; if(a) ub.textContent=a.label; }
+    if(ub){ const a=ADMIN_ROLES[CU]; ub.textContent=(authUser&&!_isPrimaryAdminSession()?(authUser.fullName||authUser.username):(a&&a.label)||CU); }
     const cs = document.getElementById('f_college');
     if(cs){ cs.value=sessCollege; cs.disabled=true; }
     updateCollegeSwitchPill();
@@ -2110,7 +2127,18 @@ window.addEventListener('DOMContentLoaded', async function(){
       // Use setTimeout so DOM is fully ready
       setTimeout(function(){ show(sessPage); }, 0);
     }
-  }catch(e){ console.error('session restore',e); }
+  }catch(e){
+    console.error('session restore',e);
+    try{
+      sessionStorage.removeItem('smv_sess_user');
+      sessionStorage.removeItem('smv_sess_college');
+      sessionStorage.removeItem('smv_sess_home');
+      sessionStorage.removeItem('smv_sess_page');
+      localStorage.removeItem('smv_token');
+      localStorage.removeItem('smv_auth_user');
+    }catch(_e){}
+    backToPicker();
+  }
 });
 
 // Auto-relink Excel handle from previous session

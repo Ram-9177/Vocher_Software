@@ -52,10 +52,10 @@ async function handle(context) {
   if (action === 'health') return send({ ok: true, version: API_VERSION, db: !!env.DB });
   if (!env.DB) throwError('D1 binding DB missing. Binding name must be DB.', 500);
 
-  await ensureSchema(env.DB);
+  await ensureSchema(env.DB, env);
 
   if (action === 'listAdmins') return await listAdmins(env.DB, body);
-  if (action === 'signup') throwError('Public sign up is disabled. Only admin1 can create users.', 403);
+  if (action === 'signup' || action === 'bootstrapAdmin') return await bootstrapAdmin(env.DB, body, ip);
   if (action === 'login') return await login(env.DB, request, body, ip);
   if (action === 'logout') return await logout(env.DB, request, body.token);
 
@@ -247,7 +247,7 @@ function allowedCollege(user, requested) {
 function cookieToken(request, bodyToken) { if (bodyToken) return String(bodyToken); const c = request.headers.get('cookie') || ''; const m = c.match(/(?:^|;\s*)SMV_SESSION=([^;]+)/); return m ? decodeURIComponent(m[1]) : ''; }
 function sessionCookie(token, maxAgeSeconds) { return 'SMV_SESSION=' + encodeURIComponent(token || '') + '; Path=/; Max-Age=' + Number(maxAgeSeconds || 0) + '; HttpOnly; Secure; SameSite=Lax'; }
 
-async function ensureSchema(DB) {
+async function ensureSchema(DB, env) {
   await DB.prepare("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY,password_salt TEXT NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL CHECK(role IN ('admin','user')),status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','blocked')),college TEXT NOT NULL DEFAULT 'smg',created_at TEXT NOT NULL,updated_at TEXT NOT NULL,last_login TEXT)").run();
   try { await DB.prepare("ALTER TABLE users ADD COLUMN full_name TEXT").run(); } catch(e) {}
   try { await DB.prepare("ALTER TABLE users ADD COLUMN permissions TEXT").run(); } catch(e) {}
@@ -261,6 +261,32 @@ async function ensureSchema(DB) {
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vouchers_college_date ON vouchers(college,date)').run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vouchers_created_by ON vouchers(created_by)').run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at)').run();
+  const initialPassword = env && (env.ADMIN1_INITIAL_PASSWORD || env.ADMIN_BOOTSTRAP_PASSWORD);
+  if (initialPassword) {
+    const admin = await DB.prepare('SELECT username FROM users WHERE username=?').bind('admin').first();
+    if (!admin) await createInitialAdmin(DB, String(initialPassword), '', 'smg', 'env-bootstrap', '');
+  }
+}
+
+async function createInitialAdmin(DB, password, passwordHash, college, actor, ip) {
+  if (String(password || '').length >= 6) {
+    const hp = await hashPassword(String(password));
+    await DB.prepare('INSERT INTO users(username,password_salt,password_hash,role,status,college,full_name,permissions,college_access,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind('admin',hp.salt,hp.hash,'admin','active',clean(college||'smg',20),'Main Administrator','*','*',now(),now()).run();
+  } else if (passwordHash) {
+    await DB.prepare('INSERT INTO users(username,password_salt,password_hash,role,status,college,full_name,permissions,college_access,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind('admin',LEGACY_SHA256,clean(passwordHash,200),'admin','active',clean(college||'smg',20),'Main Administrator','*','*',now(),now()).run();
+  } else {
+    throwError('Admin password must be at least 6 characters',400);
+  }
+  await audit(DB,actor||'system','bootstrap_admin','user','admin','Initial admin1 created',ip);
+  return send({ok:true,user:'admin1',version:API_VERSION});
+}
+
+async function bootstrapAdmin(DB, body, ip) {
+  const countRow = await DB.prepare('SELECT COUNT(*) AS c FROM users').first();
+  if (Number((countRow && countRow.c) || 0) > 0) throwError('Public sign up is disabled. Only admin1 can create users.',403);
+  const username = actualUsername(body.username);
+  if (username !== 'admin') throwError('First account must be admin1.',400);
+  return await createInitialAdmin(DB, String(body.password || ''), clean(body.passwordHash || '',200), body.college || 'smg', 'first-run', ip);
 }
 
 async function listAdmins(DB, body) {
@@ -310,7 +336,9 @@ async function saveVoucher(DB,user,v,ip) {
   const id=Number(v.id||0), canUpdate=id>0&&id<100000000000;
   if(canUpdate){
     if(user.username!=='admin' && !hasPermission(user,'edit_voucher')) throwError('Only authorized users can edit vouchers',403);
-    await DB.prepare('UPDATE vouchers SET college=?,type=?,date=?,head=?,ac_name=?,received_from=?,paid_to=?,towards=?,block=?,amount=?,amt_words=?,mode=?,cheque=?,prep_by=?,checked_by=?,remarks=?,updated_by=?,updated_at=? WHERE id=? AND deleted_at IS NULL').bind(row.college,row.type,row.date,row.head,row.ac_name,row.received_from,row.paid_to,row.towards,row.block,row.amount,row.amt_words,row.mode,row.cheque,row.prep_by,row.checked_by,row.remarks,user.username,now(),id).run();
+    const existing=await getActiveVoucher(DB,id);
+    ensureVoucherMutationAccess(user,existing);
+    await DB.prepare('UPDATE vouchers SET college=?,type=?,date=?,head=?,ac_name=?,received_from=?,paid_to=?,towards=?,block=?,amount=?,amt_words=?,mode=?,cheque=?,prep_by=?,checked_by=?,remarks=?,updated_by=?,updated_at=? WHERE id=? AND deleted_at IS NULL AND college=?').bind(row.college,row.type,row.date,row.head,row.ac_name,row.received_from,row.paid_to,row.towards,row.block,row.amount,row.amt_words,row.mode,row.cheque,row.prep_by,row.checked_by,row.remarks,user.username,now(),id,existing.college).run();
     await audit(DB,user.username,'update_voucher','voucher',String(id),JSON.stringify({amount:row.amount,head:row.head}),ip);
     return send({ok:true,id:id,version:API_VERSION});
   }
@@ -321,7 +349,9 @@ async function saveVoucher(DB,user,v,ip) {
   return send({ok:true,id:newId,voucher_no:voucherNo,version:API_VERSION});
 }
 function voucherNumber(college,type,id){const p={debit:'DV',onaccount:'OA',credit:'CV'}[type]||'VO';return String(college||'SMG').toUpperCase()+'-'+p+'-'+new Date().getFullYear()+'-'+String(id).padStart(5,'0');}
-async function deleteVoucher(DB,user,id,ip){id=Number(id||0);if(!id)throwError('Invalid voucher id',400);await DB.prepare('UPDATE vouchers SET deleted_at=?,deleted_by=?,updated_by=?,updated_at=? WHERE id=? AND deleted_at IS NULL').bind(now(),user.username,user.username,now(),id).run();await audit(DB,user.username,'delete_voucher','voucher',String(id),'Soft delete',ip);return send({ok:true,version:API_VERSION});}
+async function getActiveVoucher(DB,id){const row=await DB.prepare('SELECT id,college,created_by FROM vouchers WHERE id=? AND deleted_at IS NULL').bind(id).first();if(!row)throwError('Voucher not found',404);return row;}
+function ensureVoucherMutationAccess(user,v){const college=clean(v.college||'smg',20);if(allowedCollege(user,college)!==college)throwError('Access denied. Voucher is outside your college access.',403);if(user.username!=='admin'&&!hasPermission(user,'view_all_vouchers')&&v.created_by!==user.username)throwError('Access denied. You can only modify your own vouchers.',403);}
+async function deleteVoucher(DB,user,id,ip){id=Number(id||0);if(!id)throwError('Invalid voucher id',400);const existing=await getActiveVoucher(DB,id);ensureVoucherMutationAccess(user,existing);await DB.prepare('UPDATE vouchers SET deleted_at=?,deleted_by=?,updated_by=?,updated_at=? WHERE id=? AND deleted_at IS NULL AND college=?').bind(now(),user.username,user.username,now(),id,existing.college).run();await audit(DB,user.username,'delete_voucher','voucher',String(id),'Soft delete',ip);return send({ok:true,version:API_VERSION});}
 async function listHeads(DB,user,body){const college=allowedCollege(user,body.college);const r=await DB.prepare('SELECT * FROM account_heads WHERE active=1 AND college=? ORDER BY name').bind(college).all();return send({heads:r.results||[],version:API_VERSION});}
 async function addHead(DB,user,body,ip){const name=clean(body.name,250);if(!name)throwError('Head name required',400);const type=['debit','onaccount','credit','common'].indexOf(body.type)!==-1?body.type:'common';const college=allowedCollege(user,body.college);await DB.prepare('INSERT OR IGNORE INTO account_heads(name,name_norm,type,college,created_by,created_at,active) VALUES(?,?,?,?,?,?,1)').bind(name,norm(name),type,college,user.username,now()).run();await audit(DB,user.username,'add_account_head','account_head',name,JSON.stringify({type:type,college:college}),ip);return await listHeads(DB,user,body);}
 
