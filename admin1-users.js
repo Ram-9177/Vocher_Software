@@ -156,7 +156,7 @@
     const user = getCurrentUser();
     if (!user) return;
     const isMainAdmin = user.username === 'admin' || user.username === 'admin1';
-    const hasUserMgmt = isMainAdmin || hasPermission(user, 'create_users') || hasPermission(user, 'create_admin') || hasPermission(user, 'manage_permissions') || hasPermission(user, 'reset_passwords') || hasPermission(user, 'block_users') || hasPermission(user, 'manage_colleges');
+    const hasUserMgmt = isMainAdmin || hasPermission(user, 'create_users') || hasPermission(user, 'create_admin') || hasPermission(user, 'manage_permissions') || hasPermission(user, 'reset_passwords') || hasPermission(user, 'block_users') || hasPermission(user, 'manage_colleges') || hasPermission(user, 'change_admin_key') || hasPermission(user, 'view_audit');
     if (!hasUserMgmt) return;
 
     const nav=document.getElementById('A1NAV');
@@ -182,6 +182,7 @@
       applyRoleDefaults('LIVE_NEW', 'user');
     }
   }
+  window.installAdminUsers=installAdminUsers;
 
   function fillCollegeSelect(colleges){
     const activeColleges = (colleges||[]).filter(function(c){return c.status!=='inactive';});
@@ -530,7 +531,7 @@
       cardAdminKey.style.display = has('change_admin_key') ? 'block' : 'none';
     }
 
-    const hasUserMgmt = has('create_users') || has('create_admin') || has('manage_permissions') || has('reset_passwords') || has('block_users') || has('manage_colleges');
+    const hasUserMgmt = has('create_users') || has('create_admin') || has('manage_permissions') || has('reset_passwords') || has('block_users') || has('manage_colleges') || has('change_admin_key') || has('view_audit');
     const niUsers = document.getElementById('ni-users');
     if (niUsers) {
       niUsers.style.display = hasUserMgmt ? 'flex' : 'none';

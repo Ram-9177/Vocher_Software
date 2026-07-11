@@ -70,6 +70,8 @@ async function handle(context) {
     throwError('Password change required before continuing.', 403);
   }
 
+  if (action === 'syncData') return await syncData(env.DB, user, body);
+
   if (action === 'listVouchers') {
     if (!isAdmin1 && !hasPermission(user, 'view_all_vouchers') && !hasPermission(user, 'view_own_vouchers')) {
       throwError('Access denied. Missing voucher view permission.', 403);
@@ -112,7 +114,7 @@ async function handle(context) {
     return await addBlock(env.DB, user, body, ip);
   }
   if (action === 'listUsers') {
-    if (!isAdmin1 && !hasPermission(user, 'create_users') && !hasPermission(user, 'manage_permissions')) {
+    if (!isAdmin1 && !hasPermission(user, 'create_users') && !hasPermission(user, 'create_admin') && !hasPermission(user, 'manage_permissions') && !hasPermission(user, 'reset_passwords') && !hasPermission(user, 'block_users') && !hasPermission(user, 'manage_colleges') && !hasPermission(user, 'change_admin_key') && !hasPermission(user, 'view_audit')) {
       throwError('Access denied. Missing permissions.', 403);
     }
     return await listUsers(env.DB);
@@ -244,10 +246,35 @@ function allowedCollege(user, requested) {
   const allowed = parseCollegeAccess(user);
   if (!allowed.length) {
     const primary = clean(user.college || 'smg', 20);
-    return req !== primary ? primary : req;
+    if (req !== primary) throwError('Access denied. College is outside your access.', 403);
+    return primary;
   }
-  if (!allowed.includes(req)) return allowed[0];
+  if (!allowed.includes('*') && !allowed.includes(req)) throwError('Access denied. College is outside your access.', 403);
   return req;
+}
+
+function csvList(v) {
+  return clean(v || '', 2000).split(',').map(function (p) { return p.trim(); }).filter(Boolean);
+}
+function assertPassword(password) {
+  if (String(password || '').length < 6) throwError('Password must be at least 6 characters', 400);
+}
+function assertAssignableAccess(actor, role, college, collegeAccess, permissions) {
+  if (actor.username === 'admin') return;
+  const actorPerms = parsePerms(actor);
+  const actorColleges = parseCollegeAccess(actor);
+  const requestedColleges = Array.from(new Set([college].concat(csvList(collegeAccess || college)).filter(Boolean)));
+  if (!actorColleges.includes('*')) {
+    requestedColleges.forEach(function (c) {
+      if (!actorColleges.includes(c)) throwError('Access denied. Cannot assign college outside your access.', 403);
+    });
+  }
+  if (role === 'admin' && !actorPerms.includes('create_admin')) {
+    throwError('Access denied. Missing create_admin permission.', 403);
+  }
+  csvList(permissions).forEach(function (p) {
+    if (!actorPerms.includes(p)) throwError('Access denied. Cannot assign permission: ' + p, 403);
+  });
 }
 
 function cookieToken(request, bodyToken) { if (bodyToken) return String(bodyToken); const c = request.headers.get('cookie') || ''; const m = c.match(/(?:^|;\s*)SMV_SESSION=([^;]+)/); return m ? decodeURIComponent(m[1]) : ''; }
@@ -333,6 +360,32 @@ async function listVouchers(DB, user, body) {
   const r = await q.all();
   return send({ vouchers: (r.results || []).map(voucherToOld), version: API_VERSION });
 }
+async function syncData(DB,user,body){
+  const college=allowedCollege(user,body.college);
+  const showAll=user.username==='admin'||hasPermission(user,'view_all_vouchers');
+  const canView=showAll||hasPermission(user,'view_own_vouchers');
+  const voucherRequest=!canView?Promise.resolve({results:[]}):(showAll?
+    DB.prepare('SELECT * FROM vouchers WHERE deleted_at IS NULL AND college=? ORDER BY date DESC,id DESC').bind(college).all():
+    DB.prepare('SELECT * FROM vouchers WHERE deleted_at IS NULL AND college=? AND created_by=? ORDER BY date DESC,id DESC').bind(college,user.username).all());
+  const results=await Promise.all([
+    voucherRequest,
+    DB.prepare('SELECT * FROM account_heads WHERE active=1 AND college=? ORDER BY name').bind(college).all(),
+    DB.prepare('SELECT * FROM blocks WHERE active=1 AND college=? ORDER BY name').bind(college).all()
+  ]);
+  let users;
+  if(body.includeUsers&&(user.username==='admin'||['create_users','create_admin','manage_permissions','reset_passwords','block_users','manage_colleges','change_admin_key','view_audit'].some(function(permission){return hasPermission(user,permission);}))){
+    const userRows=await DB.prepare('SELECT username,role,status,college,full_name,permissions,college_access,must_change_password,created_at,updated_at,last_login FROM users ORDER BY username').all();
+    users=(userRows.results||[]).map(function(row){row.username=uiUsername(row.username);return row;});
+  }
+  return send({
+    vouchers:(results[0].results||[]).map(voucherToOld),
+    heads:results[1].results||[],
+    blocks:results[2].results||[],
+    user:publicUser(user),
+    users:users,
+    version:API_VERSION
+  });
+}
 function voucherToOld(v) { const dateISO = isoFromAny(v.date); return { id:Number(v.id||0), voucherNo:v.voucher_no||'', voucher_no:v.voucher_no||'', date:dmyFromIso(dateISO), dateISO:dateISO, type:v.type||'debit', college:v.college||'smg', head:v.head||'', acName:v.ac_name||'', ac_name:v.ac_name||'', receivedFrom:v.received_from||'', received_from:v.received_from||'', paidTo:v.paid_to||'', paid_to:v.paid_to||'', towards:v.towards||'', block:v.block||'', amount:Number(v.amount||0), amtWords:v.amt_words||'', amt_words:v.amt_words||'', mode:v.mode||'Cash', cheque:v.cheque||'', prepBy:v.prep_by||'', prep_by:v.prep_by||'', checkedBy:v.checked_by||'', checked_by:v.checked_by||'', remarks:v.remarks||'', createdBy:uiUsername(v.created_by||''), created_by:v.created_by||'', createdAt:v.created_at||'', created_at:v.created_at||'', _u:v.updated_at||v.created_at||'', party:v.paid_to||v.received_from||v.ac_name||'' }; }
 function isoFromAny(s) { s = clean(s,20); if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; const p=s.split('-'); if(p.length===3) return p[2]+'-'+p[1]+'-'+p[0]; return s || new Date().toISOString().slice(0,10); }
 function dmyFromIso(s) { if(/^\d{4}-\d{2}-\d{2}$/.test(s)){ const p=s.split('-'); return p[2]+'-'+p[1]+'-'+p[0]; } return s; }
@@ -378,7 +431,7 @@ async function createUser(DB,actor,body,ip){
   if(!USERNAME_RE.test(username))throwError('Username must be 1-64 letters/numbers or . _ - @',400);
   if(username==='admin')throwError('admin1 already exists as the main admin.',400);
   const password=String(body.password||'Stmarys@1234');
-  if(!password)throwError('Password required',400);
+  assertPassword(password);
   const existing=await DB.prepare('SELECT username FROM users WHERE username=?').bind(username).first();
   if(existing)throwError('Username already exists',409);
   const college=clean(body.college||actor.college||'smg',20),hp=await hashPassword(password);
@@ -395,6 +448,7 @@ async function createUser(DB,actor,body,ip){
       'view_dashboard,view_analytics,create_voucher,view_own_vouchers,view_all_vouchers,edit_voucher,print_voucher,export_excel,cash_book,link_excel,printer_setup,account_heads,create_users,reset_passwords,block_users' :
       'create_voucher,view_own_vouchers,print_voucher';
   }
+  assertAssignableAccess(actor, role, college, collegeAccess, permissions);
 
   await DB.prepare('INSERT INTO users(username,password_salt,password_hash,role,status,college,full_name,permissions,college_access,must_change_password,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').bind(username,hp.salt,hp.hash,role,'active',college,fullName,permissions,collegeAccess,1,now(),now()).run();
   await audit(DB,actor.username,'create_user','user',username,JSON.stringify({role:role,college:college}),ip);
@@ -416,6 +470,7 @@ async function updateUserPermissions(DB,actor,body,ip){
   const college=clean(body.college||'smg',20);
   const collegeAccess=clean(body.collegeAccess||body.college_access||'',1000);
   const permissions=clean(body.permissions||'',2000);
+  assertAssignableAccess(actor, role, college, collegeAccess || college, permissions);
   
   await DB.prepare('UPDATE users SET role=?,full_name=?,college=?,college_access=?,permissions=?,updated_at=? WHERE username=?').bind(role,fullName,college,collegeAccess,permissions,now(),username).run();
   await audit(DB,actor.username,'update_user_permissions','user',username,JSON.stringify({role,college,permissions}),ip);
@@ -426,7 +481,7 @@ async function resetUserPassword(DB,actor,body,ip){
   const username=actualUsername(body.username);
   if(!username)throwError('Username required',400);
   const password=String(body.password||'');
-  if(!password)throwError('Password required',400);
+  assertPassword(password);
   const target=await DB.prepare('SELECT username FROM users WHERE username=?').bind(username).first();
   if(!target)throwError('User not found',404);
   const hp=await hashPassword(password);
@@ -438,7 +493,7 @@ async function resetUserPassword(DB,actor,body,ip){
 }
 async function changeOwnPassword(DB,user,body,ip){
   const password=String(body.password||body.newPassword||'');
-  if(!password)throwError('Password required',400);
+  assertPassword(password);
   const hp=await hashPassword(password);
   await DB.prepare('UPDATE users SET password_salt=?,password_hash=?,must_change_password=0,updated_at=? WHERE username=?').bind(hp.salt,hp.hash,now(),user.username).run();
   await audit(DB,user.username,'change_own_password','user',user.username,'Password changed by user',ip);

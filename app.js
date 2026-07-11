@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260710-session-persist-v2';
+  var buildVersion = '20260710-ui-stability-v3';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;

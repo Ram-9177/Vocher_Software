@@ -156,6 +156,7 @@
     updateCollegeSwitchPill();
     await _loadVouchersFromCloud();
     setupRole();initApp();_updateXLPill();
+    if(typeof window.installAdminUsers==='function')window.installAdminUsers();
     const cs=document.getElementById('f_college'); if(cs){ cs.value=CURRENT_COLLEGE||'smg'; cs.disabled=true; }
     setSess('smv_sess_user',CU);
     setSess('smv_sess_college',CURRENT_COLLEGE||'smg');
@@ -244,10 +245,40 @@
   window._startLiveSync=function(){
     _stopLiveSync();
     _LIVE_SIG=_vsSignature();
+    let headsSig='', blocksSig='', usersSig='', userSig='', syncing=false;
+    function syncNamedList(response,key,target,datalistId){
+      const rows=Array.isArray(response&&response[key])?response[key]:[];
+      const sig=rows.map(function(row){return String(row.name||'').trim().toLowerCase();}).sort().join('|');
+      if(key==='heads'&&sig===headsSig)return;
+      if(key==='blocks'&&sig===blocksSig)return;
+      if(key==='heads')headsSig=sig;else blocksSig=sig;
+      rows.forEach(function(row){
+        const name=String(row.name||'').trim();
+        if(name&&!target.some(function(existing){return existing.toLowerCase()===name.toLowerCase();}))target.push(name);
+      });
+      const dl=document.getElementById(datalistId);
+      if(dl){
+        dl.innerHTML='';
+        target.filter(function(name,index,list){return list.findIndex(function(other){return other.toLowerCase()===name.toLowerCase();})===index;})
+          .sort(function(a,b){return a.localeCompare(b);})
+          .forEach(function(name){const option=document.createElement('option');option.value=name;dl.appendChild(option);});
+      }
+      if(key==='heads'){
+        try{if(typeof populateHeads==='function')populateHeads();}catch(e){}
+        try{if(typeof populateMyHeads==='function')populateMyHeads();}catch(e){}
+      }
+    }
     _LIVE_TIMER=setInterval(async function(){
-      if(!CU||!CURRENT_COLLEGE||document.hidden) return;
+      if(!CU||!CURRENT_COLLEGE||document.hidden||syncing) return;
+      syncing=true;
       try{
-        const j=await cloud('listVouchers',{college:CURRENT_COLLEGE});
+        const college=CURRENT_COLLEGE;
+        const userBody=document.getElementById('LIVE_USERS_BODY');
+        let auth={};try{auth=JSON.parse(localStorage.getItem('smv_auth_user')||'{}');}catch(e){}
+        const permissions=Array.isArray(auth.permissions)?auth.permissions:String(auth.permissions||'').split(',');
+        const userSyncPermissions=['create_users','create_admin','manage_permissions','reset_passwords','block_users','manage_colleges','change_admin_key','view_audit'];
+        const canSyncUsers=isMainAdminUser(auth)||permissions.indexOf('*')!==-1||userSyncPermissions.some(function(permission){return permissions.indexOf(permission)!==-1;});
+        const j=await cloud('syncData',{college:college,includeUsers:!!(userBody&&canSyncUsers)});
         const next=Array.isArray(j.vouchers)?j.vouchers:[];
         const nextSig=next.length+'|'+next.map(function(v){return v.id+':'+(v._u||v.dateISO||'');}).join(',');
         if(nextSig!==_LIVE_SIG){
@@ -257,7 +288,27 @@
           try{ if(typeof renderMyDash==='function') renderMyDash(); }catch(e){}
           try{ if(typeof renderMyVT==='function') renderMyVT(); }catch(e){}
         }
-      }catch(e){}
+        syncNamedList(j,'heads',HEADS,'DL_HEADS');
+        syncNamedList(j,'blocks',BLOCKS,'DL_BLOCKS');
+        const currentUser=j.user;
+        const nextUserSig=JSON.stringify(currentUser||{});
+        if(currentUser&&nextUserSig!==userSig){
+          userSig=nextUserSig;setAuthUser(currentUser);
+          try{if(typeof window.installAdminUsers==='function')window.installAdminUsers();}catch(e){}
+          try{if(typeof applyPermissionVisibility==='function')applyPermissionVisibility();}catch(e){}
+        }
+        if(Array.isArray(j.users)){
+          const users=j.users;
+          const nextUsersSig=JSON.stringify(users);
+          if(nextUsersSig!==usersSig){
+            usersSig=nextUsersSig;window.LIVE_USERS_LIST=users;
+            try{if(typeof populateEditUserSelect==='function')populateEditUserSelect(users);}catch(e){}
+            try{if(typeof renderUsersTableOnly==='function')renderUsersTableOnly();}catch(e){}
+          }
+        }
+      }catch(e){
+        if(/Login required|Session expired|Invalid session|User is blocked/i.test(e&&e.message||''))window.logout();
+      }finally{syncing=false;}
     },3000);
   };
 

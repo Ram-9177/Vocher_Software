@@ -1,10 +1,11 @@
-const HEADS=['Building Maintenance','Garden Maintenance','Aquarium Maintenance','Staff Welfare Account','Guest Lecture Account','Workshop Account','Training & Placements Account','Transportation Account','Bank Deposits Account','Salary Account','Repairs & Maintenance','Hostel Mess Maintenance','Furniture Maintenance','Electricity Bill','Vehicle Maintenance','Electrical Expenses','Xerox Machine Maintenance','Transfer Account','Library Maintenance Account','Sports Maintenance Account','Function Celebration Account','Printing & Stationery Account','Office Maintenance Account','Professional Tax','Postage & Telegram','Admission & Promotion Account','On Account','Marketing','Advertisement','Loan Account','Audit Expenses Account','Diesel Account','Bank Charges Account','Courier Expenses','Telephone Expenses','Legal Expenses','Internet Expenses','Lab Maintenance','Conveyance Expenses','Computer Maintenance','Bank Charges Account','Donation Account'];
+const HEADS=['Building Maintenance','Garden Maintenance','Aquarium Maintenance','Staff Welfare Account','Guest Lecture Account','Workshop Account','Training & Placements Account','Transportation Account','Bank Deposits Account','Salary Account','Repairs & Maintenance','Hostel Mess Maintenance','Furniture Maintenance','Electricity Bill','Vehicle Maintenance','Electrical Expenses','Xerox Machine Maintenance','Transfer Account','Library Maintenance Account','Sports Maintenance Account','Function Celebration Account','Printing & Stationery Account','Office Maintenance Account','Professional Tax','Postage & Telegram','Admission & Promotion Account','On Account','Marketing','Advertisement','Loan Account','Audit Expenses Account','Diesel Account','Bank Charges Account','Courier Expenses','Telephone Expenses','Legal Expenses','Internet Expenses','Lab Maintenance','Conveyance Expenses','Computer Maintenance','Donation Account'];
 const BLOCKS=[];
 // ===== AUTH SYSTEM (no hardcoded passwords) =====
 // Credentials stored in localStorage as hashed passwords.
 // Up to 3 accounts: admin1, admin2, admin3
 // Role: admin1 = full admin; admin2/admin3 = limited
 const ADMIN_ROLES={admin1:{label:'Admin 1',role:'admin1'},admin2:{label:'Admin 2',role:'admin2'},admin3:{label:'Admin 3',role:'admin3'}};
+const ADMINS=ADMIN_ROLES;
 let CURRENT_COLLEGE=null;
 let HOME_COLLEGE=null; // college the user logged into; only SMGG admin1 can cross over
 let SMWEC_LOGO_SRC='assets/logo_smwec.jpg';
@@ -591,7 +592,14 @@ function show(id){
     if(dbEl) selVT(dbEl, 'debit');
   }
   if(id==='dashboard')renderDash();
-  if(id==='vouchers')renderVT();
+  if(id==='vouchers'){
+    const sdf=document.getElementById('SDF'),sdt=document.getElementById('SDT');
+    if(sdf&&sdt&&sdf.dataset.defaultDateSet!=='1'){
+      const now=new Date(),localToday=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);
+      sdf.value=localToday;sdt.value=localToday;sdf.dataset.defaultDateSet='1';
+    }
+    renderVT();
+  }
   if(id==='analytics')renderAnalytics();
   if(id==='mydashboard')renderMyDash();
   if(id==='myvouchers')renderMyVT();
@@ -601,14 +609,30 @@ function show(id){
 
 // VOUCHER TYPE SELECT
 function selVT(el,t){
-  document.querySelectorAll('.vtc').forEach(c=>c.classList.remove('sel'));
-  el.classList.add('sel');CVT=t;
+  if(typeof el==='string'){t=el;el=document.querySelector(`.vtc[data-t="${t}"]`);}
+  if(!['credit','debit','onaccount'].includes(t)||!el)return;
+  document.querySelectorAll('.vtc').forEach(c=>{
+    const active=c.dataset.t===t;
+    c.classList.toggle('sel',active);
+    c.setAttribute('aria-selected',active?'true':'false');
+  });
+  CVT=t;
   const labels={credit:'Credit Voucher',debit:'Debit Voucher',onaccount:'On- Account Voucher'};
   document.getElementById('FT').textContent=labels[t];
-  ['R_credit','R_debit','R_onaccount'].forEach(id=>document.getElementById(id).style.display='none');
-  document.getElementById('R_'+t).style.display='';
+  ['credit','debit','onaccount'].forEach(type=>{
+    const panel=document.getElementById('R_'+type);
+    if(panel)panel.style.display=type===t?'':'none';
+  });
   
 }
+
+document.addEventListener('keydown',function(e){
+  const card=e.target.closest&&e.target.closest('.vtc[data-t]');
+  if(card&&(e.key==='Enter'||e.key===' ')){
+    e.preventDefault();
+    selVT(card.dataset.t);
+  }
+});
 
 // AMOUNT TO WORDS
 function numToWords(n){
@@ -707,7 +731,7 @@ function renderMyDash(){
     <div class="sc"><div class="lbl">Debit</div><div class="val">${myVS.filter(v=>v.type==='debit').length}</div><div class="sub">Payments</div></div>
     <div class="sc"><div class="lbl">On- Account</div><div class="val">${myVS.filter(v=>v.type==='onaccount').length}</div><div class="sub">Transactions</div></div>
     <div class="sc"><div class="lbl">Credit</div><div class="val">${myVS.filter(v=>v.type==='credit').length}</div><div class="sub">Received</div></div>`;
-  const rec=[...myVS].reverse().slice(0,10);
+  const rec=[...myVS].sort((a,b)=>(Date.parse(b.createdAt||b.created_at||'')||Number(b.id||0))-(Date.parse(a.createdAt||a.created_at||'')||Number(a.id||0))).slice(0,10);
   const bc={credit:'bc',debit:'bd',onaccount:'bo'};
   const rb=document.getElementById('MRB');if(!rb)return;
   rb.innerHTML=rec.map(v=>`<tr>
@@ -1284,7 +1308,7 @@ function renderDash(){
     <div class="sc"><div class="lbl">Debit</div><div class="val">${fvs.filter(v=>v.type==='debit').length}</div><div class="sub">Payments</div></div>
     <div class="sc"><div class="lbl">On- Account</div><div class="val">${fvs.filter(v=>v.type==='onaccount').length}</div><div class="sub">Transactions</div></div>
     <div class="sc"><div class="lbl">Credit</div><div class="val">${fvs.filter(v=>v.type==='credit').length}</div><div class="sub">Received</div></div>`;
-  const rec=[...fvs].reverse().slice(0,10);
+  const rec=[...fvs].sort((a,b)=>(Date.parse(b.createdAt||b.created_at||'')||Number(b.id||0))-(Date.parse(a.createdAt||a.created_at||'')||Number(a.id||0))).slice(0,10);
   const bc={credit:'bc',debit:'bd',onaccount:'bo'};
   document.getElementById('RB').innerHTML=rec.map(v=>`<tr>
     <td><strong>${v.date}</strong></td>
@@ -1320,7 +1344,14 @@ function getFilteredVS(){
   });
 }
 function renderVT(){
-  const f=getFilteredVS().reverse();
+  const f=getFilteredVS().sort((a,b)=>{
+    const bt=Date.parse(b.createdAt||b.created_at||'')||0;
+    const at=Date.parse(a.createdAt||a.created_at||'')||0;
+    if(bt!==at)return bt-at;
+    const bd=dmyToISO(b.date||''),ad=dmyToISO(a.date||'');
+    if(bd!==ad)return bd.localeCompare(ad);
+    return Number(b.id||0)-Number(a.id||0);
+  });
   const bc={credit:'bc',debit:'bd',onaccount:'bo'};
   
   if (f.length === 0) {
@@ -1329,25 +1360,10 @@ function renderVT(){
     return;
   }
 
-  // Group by head
-  const groups = {};
   let grandTotal = 0;
-  f.forEach(v => {
-    const h = v.head || 'Uncategorized';
-    if (!groups[h]) groups[h] = [];
-    groups[h].push(v);
-    grandTotal += Math.round(Number(v.amount) || 0);
-  });
-
   let html = '';
-  const sortedHeads = Object.keys(groups).sort();
-  
-  sortedHeads.forEach(head => {
-    html += `<tr><td colspan="10" style="background:#f4f4f4;font-weight:bold;font-size:14px;color:#333;padding:10px;">💳 Head: ${head}</td></tr>`;
-    let subTotal = 0;
-    
-    groups[head].forEach(v => {
-      subTotal += Math.round(Number(v.amount) || 0);
+  f.forEach(v => {
+      grandTotal += Math.round(Number(v.amount) || 0);
       const colName = v.college ? v.college.toUpperCase() : 'SMG';
       const ts = v.createdAt ? new Date(v.createdAt).toLocaleString('en-IN') : '';
       html += `<tr>
@@ -1367,13 +1383,6 @@ function renderVT(){
       <button class="btn br bsm" onclick="delV(${v.id})" title="Delete">🗑</button>
     </div></td>
   </tr>`;
-    });
-    
-    html += `<tr>
-      <td colspan="6" style="text-align:right;font-weight:bold;color:#555;">Total for ${head}:</td>
-      <td style="font-weight:bold;color:#333;">₹${subTotal}</td>
-      <td colspan="3"></td>
-    </tr>`;
   });
   
   html += `<tr>
@@ -2155,8 +2164,11 @@ function setupCustomHeadDropdowns() {
   ['fc_head', 'fd_head', 'fo_head'].forEach(id => {
     const inp = document.getElementById(id);
     if(!inp) return;
+    if(inp.dataset.headDropdownReady === '1') return;
+    inp.dataset.headDropdownReady = '1';
     
     const wrapper = document.createElement('div');
+    wrapper.className = 'head-dropdown-wrap';
     wrapper.style.position = 'relative';
     inp.parentNode.insertBefore(wrapper, inp);
     wrapper.appendChild(inp);
@@ -2172,8 +2184,9 @@ function setupCustomHeadDropdowns() {
     
     function renderList() {
       dd.innerHTML = '';
-      const sorted = [...HEADS].sort((a,b)=>a.localeCompare(b));
-      sorted.forEach(h => {
+      const query = inp.value.trim().toLowerCase();
+      const sorted = HEADS.filter((h,i,list)=>list.findIndex(x=>x.toLowerCase()===h.toLowerCase())===i).sort((a,b)=>a.localeCompare(b));
+      sorted.filter(h => !query || h.toLowerCase().includes(query)).forEach(h => {
         const item = document.createElement('div');
         item.textContent = h;
         item.style.cssText = 'padding:8px 12px;cursor:pointer;font-size:13px;color:var(--T);transition:background 0.2s;';
@@ -2187,6 +2200,12 @@ function setupCustomHeadDropdowns() {
         };
         dd.appendChild(item);
       });
+      if(!dd.children.length){
+        const empty = document.createElement('div');
+        empty.textContent = 'No matching heads';
+        empty.style.cssText = 'padding:8px 12px;font-size:12px;color:var(--G600);';
+        dd.appendChild(empty);
+      }
     }
     
     inp.addEventListener('focus', () => {

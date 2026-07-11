@@ -4,9 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>St Mary’s Voucher System</title>
+  <link rel="icon" href="assets/logo_smg.png">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="app.js?v=20260710-session-persist-v2" defer></script>
+  <script src="app.js?v=20260710-ui-stability-v3" defer></script>
 </head>
 <body>
 <div id="CP">
@@ -267,15 +268,15 @@
     <div class="sec" id="sec-create">
       <div class="ph" style="margin-bottom:.8rem"><h1 style="font-size:20px">New Voucher</h1><p>Select voucher type and fill in details</p></div>
       <div class="vtg">
-        <div class="vtc sel" onclick="selVT(this,'debit')" data-t="debit">
+        <div class="vtc sel" onclick="selVT('debit')" data-t="debit" role="button" tabindex="0" aria-controls="R_debit" aria-selected="true">
           <div class="vi" style="background:#FFF8E8">💳</div>
           <h3>Debit Voucher</h3><p>St. Mary's — payment made</p>
         </div>
-        <div class="vtc" onclick="selVT(this,'onaccount')" data-t="onaccount">
+        <div class="vtc" onclick="selVT('onaccount')" data-t="onaccount" role="button" tabindex="0" aria-controls="R_onaccount" aria-selected="false">
           <div class="vi" style="background:#f0f0f0">🔄</div>
           <h3>On- Account Voucher</h3><p>St. Mary's — account transaction</p>
         </div>
-        <div class="vtc" onclick="selVT(this,'credit')" data-t="credit">
+        <div class="vtc" onclick="selVT('credit')" data-t="credit" role="button" tabindex="0" aria-controls="R_credit" aria-selected="false">
           <div class="vi" style="background:#f0f0f0">🧾</div>
           <h3>Credit Voucher</h3><p>St. Mary's — money received</p>
         </div>
@@ -357,7 +358,7 @@
         <!-- ON ACCOUNT fields -->
         <div id="R_onaccount" style="display:none">
           <div class="fr t">
-            <div class="fi"><label>Debit A/c <a href="javascript:void(0)" onclick="addNewHead('onaccount')" class="admin-only-add" style="font-size:11px;color:var(--P);text-decoration:none;margin-left:5px">[+ Add New]</a></label>
+            <div class="fi"><label>On account <a href="javascript:void(0)" onclick="addNewHead('onaccount')" class="admin-only-add" style="font-size:11px;color:var(--P);text-decoration:none;margin-left:5px">[+ Add New]</a></label>
               <input type="text" id="fo_head" placeholder="Enter account head" list="DL_HEADS" onblur="if(typeof checkNewHead==='function') checkNewHead(this)"></div>
             <div class="fi"><label>Paid To *</label>
               <input type="text" id="fo_paidto" placeholder="Name of receiver"></div>
@@ -659,7 +660,6 @@
 <option>Lab Maintenance</option>
 <option>Conveyance Expenses</option>
 <option>Computer Maintenance</option>
-<option>Bank Charges Account</option>
 <option>Donation Account</option>
 </datalist>
 
