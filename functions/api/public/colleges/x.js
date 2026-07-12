@@ -64,7 +64,7 @@ function hasPermission(user, perm) {
 async function ensureSchema(DB){
   await DB.prepare("CREATE TABLE IF NOT EXISTS colleges (code TEXT PRIMARY KEY,name TEXT NOT NULL,location TEXT,logo_url TEXT,status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','inactive')),created_by TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)").run();
   await DB.prepare("CREATE TABLE IF NOT EXISTS audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT,actor TEXT NOT NULL,action TEXT NOT NULL,entity_type TEXT NOT NULL,entity_id TEXT,details TEXT,ip TEXT,created_at TEXT NOT NULL)").run();
-  await DB.prepare("INSERT OR IGNORE INTO colleges(code,name,location,logo_url,status,created_by,created_at,updated_at) VALUES('smg',?,'Guntur','','active','system',?,?)").bind("St. Mary's Group Of Institutions Guntur For Women",now(),now()).run();
+  await DB.prepare("INSERT OR IGNORE INTO colleges(code,name,location,logo_url,status,created_by,created_at,updated_at) VALUES('smgg',?,'Guntur','','active','system',?,?)").bind("St. Mary's Group Of Institutions Guntur For Women",now(),now()).run();
   await DB.prepare("INSERT OR IGNORE INTO colleges(code,name,location,logo_url,status,created_by,created_at,updated_at) VALUES('smwec',?,'Budampadu','','active','system',?,?)").bind("St. Mary's Women's Engineering College",now(),now()).run();
 }
 
@@ -99,7 +99,7 @@ async function setCollegeStatus(DB,user,body,ip){
   const code=norm(body.code);
   const status=body.status==='inactive'?'inactive':'active';
   if(!code)throwError('College code required',400);
-  if(code==='smg')throwError('Main college cannot be disabled',400);
+  if(code==='smgg')throwError('Main college cannot be disabled',400);
   await DB.prepare('UPDATE colleges SET status=?,updated_at=? WHERE code=?').bind(status,now(),code).run();
   await audit(DB,user.username,'set_college_status','college',code,status,ip);
   return await listColleges(DB);

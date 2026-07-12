@@ -100,7 +100,7 @@
   try { _api = cloud; } catch(e) {}
 
   window._refreshCredentialsCache = async function(college){
-    const c = college || CURRENT_COLLEGE || 'smg';
+    const c = college || CURRENT_COLLEGE || 'smgg';
     if(!window._CRED_CACHE) window._CRED_CACHE = {};
     try{
       const j = await cloud('listAdmins', { college:c });
@@ -121,7 +121,7 @@
     if(le) le.style.display = 'none';
     if(lh) lh.style.display = 'none';
     if(!typed || !password){ if(le){ le.textContent='Enter username and password.'; le.style.display='block'; } return; }
-    const college = CURRENT_COLLEGE || 'smg';
+    const college = CURRENT_COLLEGE || 'smgg';
     const hash = await _hashPassword(password);
     let ok = null, lastErr = null;
     for(const username of loginCandidates(typed)){
@@ -157,10 +157,10 @@
     await _loadVouchersFromCloud();
     setupRole();initApp();_updateXLPill();
     if(typeof window.installAdminUsers==='function')window.installAdminUsers();
-    const cs=document.getElementById('f_college'); if(cs){ cs.value=CURRENT_COLLEGE||'smg'; cs.disabled=true; }
+    const cs=document.getElementById('f_college'); if(cs){ cs.value=CURRENT_COLLEGE||'smgg'; cs.disabled=true; }
     setSess('smv_sess_user',CU);
-    setSess('smv_sess_college',CURRENT_COLLEGE||'smg');
-    setSess('smv_sess_home',HOME_COLLEGE||CURRENT_COLLEGE||'smg');
+    setSess('smv_sess_college',CURRENT_COLLEGE||'smgg');
+    setSess('smv_sess_home',HOME_COLLEGE||CURRENT_COLLEGE||'smgg');
     _startLiveSync();
   };
 
@@ -173,7 +173,7 @@
     if(!u){se.textContent='Please select a username.';se.style.display='block';return;}
     if(p.length<6){se.textContent='Password must be at least 6 characters.';se.style.display='block';return;}
     if(p!==p2){se.textContent='Passwords do not match.';se.style.display='block';return;}
-    const college=CURRENT_COLLEGE||'smg';
+    const college=CURRENT_COLLEGE||'smgg';
     const hash=await _hashPassword(p);
     try{ await cloud('signup',{college,username:u,password:p,passwordHash:hash}); }
     catch(e){ se.textContent=e.message||'Sign up failed.'; se.style.display='block'; return; }
@@ -186,7 +186,7 @@
   };
 
   window.doResetPassword = async function(){
-    const college=CURRENT_COLLEGE||'smg';
+    const college=CURRENT_COLLEGE||'smgg';
     const u=document.getElementById('RU').value;
     const p=document.getElementById('RP').value;
     const p2=document.getElementById('RP2').value;
@@ -223,7 +223,7 @@
   };
 
   window._loadVouchersFromCloud = async function(){
-    const college=CURRENT_COLLEGE||'smg';
+    const college=CURRENT_COLLEGE||'smgg';
     try{
       const j=await cloud('listVouchers',{college});
       VS=Array.isArray(j.vouchers)?j.vouchers:[];
@@ -233,7 +233,7 @@
     }
   };
   window._saveVoucherToCloud = async function(v){
-    const college=CURRENT_COLLEGE||v.college||'smg';
+    const college=CURRENT_COLLEGE||v.college||'smgg';
     const j = await cloud('saveVoucher',{college,voucher:v});
     if(j && j.id) v.id = j.id;
     if(j && j.voucher_no) v.voucherNo = j.voucher_no;

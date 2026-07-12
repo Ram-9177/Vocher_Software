@@ -29,7 +29,7 @@
   window._loadDynamicHeads = async function() {
     if (typeof _api !== 'function') return;
     try {
-      const college = window.CURRENT_COLLEGE || 'smg';
+      const college = window.CURRENT_COLLEGE || 'smgg';
       const j = await _api('listHeads', { college: college });
       if (j && Array.isArray(j.heads)) {
         j.heads.forEach(h => {
@@ -53,7 +53,7 @@
     if (hasPerm) {
       if (confirm(`"${headVal}" is a new Account Head. Do you want to add it to the dropdown for future use?`)) {
         try {
-          const col = document.getElementById('f_college') ? document.getElementById('f_college').value : 'smg';
+          const col = document.getElementById('f_college') ? document.getElementById('f_college').value : 'smgg';
           if(typeof window._api === 'function'){
             await window._api('addHead', { name: headVal, type: 'common', college: col });
           }
@@ -80,7 +80,7 @@
       id: editId || Date.now(),
       date: date,
       type: CVT,
-      college: CURRENT_COLLEGE || getVal('f_college') || 'smg',
+      college: CURRENT_COLLEGE || getVal('f_college') || 'smgg',
       prepBy: getVal('f_prep'),
       checkedBy: getVal('f_chk'),
       remarks: getVal('f_rem'),
