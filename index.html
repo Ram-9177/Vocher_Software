@@ -10,6 +10,11 @@
   <script src="app.js?v=20260710-ui-stability-v3" defer></script>
 </head>
 <body>
+<script>
+  if (localStorage.getItem('smv_token')) {
+    document.write('<style>#CP { display: none; }</style>');
+  }
+</script>
 <div id="CP">
   <h1>Select your College</h1>
   <p class="subt">Choose the institution to sign in to its voucher system</p>
