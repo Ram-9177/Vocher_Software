@@ -66,6 +66,9 @@ async function ensureSchema(DB){
   await DB.prepare("CREATE TABLE IF NOT EXISTS audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT,actor TEXT NOT NULL,action TEXT NOT NULL,entity_type TEXT NOT NULL,entity_id TEXT,details TEXT,ip TEXT,created_at TEXT NOT NULL)").run();
   await DB.prepare("INSERT OR IGNORE INTO colleges(code,name,location,logo_url,status,created_by,created_at,updated_at) VALUES('smgg',?,'Guntur','','active','system',?,?)").bind("St. Mary's Group Of Institutions Guntur For Women",now(),now()).run();
   await DB.prepare("INSERT OR IGNORE INTO colleges(code,name,location,logo_url,status,created_by,created_at,updated_at) VALUES('smwec',?,'Budampadu','','active','system',?,?)").bind("St. Mary's Women's Engineering College",now(),now()).run();
+  try {
+    await DB.prepare("UPDATE colleges SET code='smgg' WHERE code='smg'").run();
+  } catch(e) {}
 }
 
 async function requireUser(DB,request,bodyToken){

@@ -295,6 +295,13 @@ async function ensureSchema(DB, env) {
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vouchers_college_date ON vouchers(college,date)').run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vouchers_created_by ON vouchers(created_by)').run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at)').run();
+  try {
+    await DB.prepare("UPDATE vouchers SET college='smgg' WHERE college='smg'").run();
+    await DB.prepare("UPDATE account_heads SET college='smgg' WHERE college='smg'").run();
+    await DB.prepare("UPDATE blocks SET college='smgg' WHERE college='smg'").run();
+    await DB.prepare("UPDATE users SET college='smgg' WHERE college='smg'").run();
+    await DB.prepare("UPDATE users SET college_access = replace(college_access, 'smg', 'smgg') WHERE college_access LIKE '%smg%'").run();
+  } catch(e) {}
   const initialPassword = env && (env.ADMIN1_INITIAL_PASSWORD || env.ADMIN_BOOTSTRAP_PASSWORD);
   if (initialPassword) {
     const admin = await DB.prepare('SELECT username FROM users WHERE username=?').bind('admin').first();
