@@ -2158,10 +2158,11 @@ window.addEventListener('DOMContentLoaded', async function(){
     initApp();
     _updateXLPill();
     _startLiveSync();
-    // Navigate to last active page
+    // Navigate to last active page or dashboard
     if(sessPage){
-      // Use setTimeout so DOM is fully ready
       setTimeout(function(){ show(sessPage); }, 0);
+    } else {
+      setTimeout(function(){ show('dashboard'); }, 0);
     }
   }catch(e){
     console.error('session restore',e);

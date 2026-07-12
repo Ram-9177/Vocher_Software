@@ -162,6 +162,7 @@
     setSess('smv_sess_college',CURRENT_COLLEGE||'smgg');
     setSess('smv_sess_home',HOME_COLLEGE||CURRENT_COLLEGE||'smgg');
     _startLiveSync();
+    setTimeout(function(){ if(typeof show==='function') show('dashboard'); }, 0);
   };
 
   window.doSignup = async function(){
