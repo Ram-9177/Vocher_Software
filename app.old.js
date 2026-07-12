@@ -2244,7 +2244,7 @@ function setupCustomHeadDropdowns() {
   });
 }
 
-// Show date picker and select text on focus or click for date fields
+// Show date picker and select text on focus, click, or hover for date fields
 document.addEventListener('focusin', function(e) {
   if (e.target && e.target.type === 'date') {
     try { e.target.showPicker(); } catch(err) {}
@@ -2255,5 +2255,10 @@ document.addEventListener('click', function(e) {
   if (e.target && e.target.type === 'date') {
     try { e.target.showPicker(); } catch(err) {}
     try { e.target.select(); } catch(err) {}
+  }
+});
+document.addEventListener('mouseover', function(e) {
+  if (e.target && e.target.type === 'date') {
+    try { e.target.showPicker(); } catch(err) {}
   }
 });
