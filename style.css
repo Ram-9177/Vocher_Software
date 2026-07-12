@@ -140,6 +140,27 @@ body {
   background: var(--MD);
 }
 
+.add-new-btn {
+  font-size: 11px;
+  color: var(--M);
+  background: var(--W);
+  border: 1px solid var(--M);
+  border-radius: 4px;
+  padding: 3px 6px;
+  text-decoration: none;
+  margin-left: 5px;
+  cursor: pointer;
+  display: inline-block;
+  line-height: 1.2;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.add-new-btn:hover {
+  background: var(--M);
+  color: var(--W);
+}
+
 .lerr {
   color: #c0392b;
   font-size: 12px;
