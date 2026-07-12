@@ -278,15 +278,19 @@
         const permissions=Array.isArray(auth.permissions)?auth.permissions:String(auth.permissions||'').split(',');
         const userSyncPermissions=['create_users','create_admin','manage_permissions','reset_passwords','block_users','manage_colleges','change_admin_key','view_audit'];
         const canSyncUsers=isMainAdminUser(auth)||permissions.indexOf('*')!==-1||userSyncPermissions.some(function(permission){return permissions.indexOf(permission)!==-1;});
-        const j=await cloud('syncData',{college:college,includeUsers:!!(userBody&&canSyncUsers)});
-        const next=Array.isArray(j.vouchers)?j.vouchers:[];
-        const nextSig=next.length+'|'+next.map(function(v){return v.id+':'+(v._u||v.dateISO||'');}).join(',');
-        if(nextSig!==_LIVE_SIG){
-          VS=next; _LIVE_SIG=nextSig;
-          try{ if(typeof renderVT==='function') renderVT(); }catch(e){}
-          try{ if(typeof renderDash==='function') renderDash(); }catch(e){}
-          try{ if(typeof renderMyDash==='function') renderMyDash(); }catch(e){}
-          try{ if(typeof renderMyVT==='function') renderMyVT(); }catch(e){}
+        const j=await cloud('syncData',{college:college,includeUsers:!!(userBody&&canSyncUsers),vouchersHash:window._VOUCHERS_SERVER_HASH||''});
+        if (j.newVouchersHash) window._VOUCHERS_SERVER_HASH = j.newVouchersHash;
+        
+        if (!j.vouchersNotModified) {
+          const next=Array.isArray(j.vouchers)?j.vouchers:[];
+          const nextSig=next.length+'|'+next.map(function(v){return v.id+':'+(v._u||v.dateISO||'');}).join(',');
+          if(nextSig!==_LIVE_SIG){
+            VS=next; _LIVE_SIG=nextSig;
+            try{ if(typeof renderVT==='function') renderVT(); }catch(e){}
+            try{ if(typeof renderDash==='function') renderDash(); }catch(e){}
+            try{ if(typeof renderMyDash==='function') renderMyDash(); }catch(e){}
+            try{ if(typeof renderMyVT==='function') renderMyVT(); }catch(e){}
+          }
         }
         syncNamedList(j,'heads',HEADS,'DL_HEADS');
         syncNamedList(j,'blocks',BLOCKS,'DL_BLOCKS');
@@ -309,7 +313,7 @@
       }catch(e){
         if(/Login required|Session expired|Invalid session|User is blocked/i.test(e&&e.message||''))window.logout();
       }finally{syncing=false;}
-    },3000);
+    },5000);
   };
 
   function injectResponsiveFixes(){

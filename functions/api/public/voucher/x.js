@@ -295,13 +295,7 @@ async function ensureSchema(DB, env) {
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vouchers_college_date ON vouchers(college,date)').run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vouchers_created_by ON vouchers(created_by)').run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at)').run();
-  try {
-    await DB.prepare("UPDATE vouchers SET college='smgg' WHERE college='smg'").run();
-    await DB.prepare("UPDATE account_heads SET college='smgg' WHERE college='smg'").run();
-    await DB.prepare("UPDATE blocks SET college='smgg' WHERE college='smg'").run();
-    await DB.prepare("UPDATE users SET college='smgg' WHERE college='smg'").run();
-    await DB.prepare("UPDATE users SET college_access = replace(college_access, 'smg', 'smgg') WHERE college_access LIKE '%smg%'").run();
-  } catch(e) {}
+  await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vouchers_college_updated ON vouchers(college,updated_at)').run();
   const initialPassword = env && (env.ADMIN1_INITIAL_PASSWORD || env.ADMIN_BOOTSTRAP_PASSWORD);
   if (initialPassword) {
     const admin = await DB.prepare('SELECT username FROM users WHERE username=?').bind('admin').first();
@@ -371,9 +365,27 @@ async function syncData(DB,user,body){
   const college=allowedCollege(user,body.college);
   const showAll=user.username==='admin'||hasPermission(user,'view_all_vouchers');
   const canView=showAll||hasPermission(user,'view_own_vouchers');
-  const voucherRequest=!canView?Promise.resolve({results:[]}):(showAll?
+  
+  let fetchVouchers = canView;
+  let vouchersHashMatch = false;
+  let serverHash = null;
+
+  if (canView) {
+    const metaQuery = showAll ?
+      DB.prepare('SELECT COUNT(id) as c, MAX(updated_at) as m FROM vouchers WHERE deleted_at IS NULL AND college=?').bind(college) :
+      DB.prepare('SELECT COUNT(id) as c, MAX(updated_at) as m FROM vouchers WHERE deleted_at IS NULL AND college=? AND created_by=?').bind(college,user.username);
+    const meta = await metaQuery.first();
+    serverHash = (meta.c || 0) + '|' + (meta.m || '');
+    if (body.vouchersHash && serverHash === body.vouchersHash) {
+      fetchVouchers = false;
+      vouchersHashMatch = true;
+    }
+  }
+
+  const voucherRequest=!fetchVouchers?Promise.resolve({results:[]}):(showAll?
     DB.prepare('SELECT * FROM vouchers WHERE deleted_at IS NULL AND college=? ORDER BY date DESC,id DESC').bind(college).all():
     DB.prepare('SELECT * FROM vouchers WHERE deleted_at IS NULL AND college=? AND created_by=? ORDER BY date DESC,id DESC').bind(college,user.username).all());
+    
   const results=await Promise.all([
     voucherRequest,
     DB.prepare('SELECT * FROM account_heads WHERE active=1 AND college=? ORDER BY name').bind(college).all(),
@@ -385,7 +397,9 @@ async function syncData(DB,user,body){
     users=(userRows.results||[]).map(function(row){row.username=uiUsername(row.username);return row;});
   }
   return send({
-    vouchers:(results[0].results||[]).map(voucherToOld),
+    vouchers: fetchVouchers ? (results[0].results||[]).map(voucherToOld) : null,
+    vouchersNotModified: vouchersHashMatch,
+    newVouchersHash: (typeof serverHash !== 'undefined') ? serverHash : null,
     heads:results[1].results||[],
     blocks:results[2].results||[],
     user:publicUser(user),
