@@ -28,9 +28,12 @@
   }
   window._smvUiUserCode = uiUserCode;
   window._smvIsMainAdminUser = isMainAdminUser;
-  function loginCandidates(name){
+  function loginCandidates(name, college){
     const n = String(name || '').trim().toLowerCase();
-    if(n === 'admin1') return ['admin1','admin'];
+    if(n === 'admin1' || n === 'admin') {
+      if(college === 'smwec') return ['admin_stmw'];
+      return ['admin1','admin'];
+    }
     if(n === 'admin2') return ['admin2','user2'];
     if(n === 'admin3') return ['admin3','user3'];
     return [n];
@@ -124,7 +127,7 @@
     const college = CURRENT_COLLEGE || 'smgg';
     const hash = await _hashPassword(password);
     let ok = null, lastErr = null;
-    for(const username of loginCandidates(typed)){
+    for(const username of loginCandidates(typed, college)){
       try{ ok = await cloud('login', { college:college, username:username, password:password, passwordHash:hash }); break; }
       catch(e){ lastErr = e; }
     }

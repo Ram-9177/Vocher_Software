@@ -62,7 +62,7 @@
 
   function hasPermission(user, perm) {
     if (!user) return false;
-    if (user.username === 'admin' || user.username === 'admin1') return true;
+    if (user.username === 'admin' || user.username === 'admin1' || user.username === 'admin_stmw') return true;
     if (!user.permissions) return false;
     const perms = user.permissions.split(',').map(p => p.trim());
     return perms.includes(perm);
@@ -155,7 +155,7 @@
   function installAdminUsers(){
     const user = getCurrentUser();
     if (!user) return;
-    const isMainAdmin = user.username === 'admin' || user.username === 'admin1';
+    const isMainAdmin = user.username === 'admin' || user.username === 'admin1' || user.username === 'admin_stmw';
     const hasUserMgmt = isMainAdmin || hasPermission(user, 'create_users') || hasPermission(user, 'create_admin') || hasPermission(user, 'manage_permissions') || hasPermission(user, 'reset_passwords') || hasPermission(user, 'block_users') || hasPermission(user, 'manage_colleges') || hasPermission(user, 'change_admin_key') || hasPermission(user, 'view_audit');
     if (!hasUserMgmt) return;
 
@@ -348,13 +348,13 @@
     });
 
       const currentUser = getCurrentUser();
-      const canReset = currentUser && (currentUser.username === 'admin' || currentUser.username === 'admin1' || hasPermission(currentUser, 'reset_passwords'));
-      const canBlock = currentUser && (currentUser.username === 'admin' || currentUser.username === 'admin1' || hasPermission(currentUser, 'block_users'));
-      const canEditPerms = currentUser && (currentUser.username === 'admin' || currentUser.username === 'admin1' || hasPermission(currentUser, 'manage_permissions'));
+      const canReset = currentUser && (currentUser.username === 'admin' || currentUser.username === 'admin1' || currentUser.username === 'admin_stmw' || hasPermission(currentUser, 'reset_passwords'));
+      const canBlock = currentUser && (currentUser.username === 'admin' || currentUser.username === 'admin1' || currentUser.username === 'admin_stmw' || hasPermission(currentUser, 'block_users'));
+      const canEditPerms = currentUser && (currentUser.username === 'admin' || currentUser.username === 'admin1' || currentUser.username === 'admin_stmw' || hasPermission(currentUser, 'manage_permissions'));
 
       body.innerHTML=filtered.map(function(u){
         const name=esc(u.username);
-        const isMainAdmin = name === 'admin1' || name === 'admin';
+        const isMainAdmin = name === 'admin1' || name === 'admin' || name === 'admin_stmw';
         const fullName = isMainAdmin ? 'Main Administrator' : esc(u.full_name || '');
         const role = isMainAdmin ? 'admin' : esc(u.role || 'user');
         const status = String(u.status || 'active');
@@ -371,6 +371,7 @@
           if (canReset) acts += '<button class="btn bs bsm" onclick="resetUserLive(\''+name+'\')" title="Reset">Reset</button>';
           if (canBlock) acts += '<button class="btn '+(status==='active'?'br':'bp')+' bsm" style="margin-left:5px" onclick="toggleUserLive(\''+name+'\',\''+next+'\')" title="'+(status==='active'?'Block':'Activate')+'">'+(status==='active'?'Block':'Activate')+'</button>';
           if (canEditPerms) acts += '<button class="btn bp bsm" style="margin-left:5px" onclick="document.getElementById(\'LIVE_EDIT_USER\').value=\''+name+'\';loadUserToEdit(\''+name+'\');document.getElementById(\'CARD_EDIT_PERMS\').scrollIntoView();" title="Edit">Edit</button>';
+          if (canBlock) acts += '<button class="btn br bsm" style="margin-left:5px" onclick="deleteUserLive(\''+name+'\')" title="Delete">Delete</button>';
         }
         const actions = acts;
 
@@ -474,12 +475,13 @@
   };
   window.resetUserLive=async function(username){const p=prompt('New password for '+username+':');if(!p)return;try{await api('resetPassword',{username:username,password:p});_toast('Password reset for '+username,'ok');}catch(e){alert(e.message||'Password reset failed');}};
   window.toggleUserLive=async function(username,status){if(!confirm('Set '+username+' as '+status+'?'))return;try{await api('setUserStatus',{username:username,status:status});await renderUsersLive();}catch(e){alert(e.message||'Status update failed');}};
+  window.deleteUserLive=async function(username){if(!confirm('Are you sure you want to completely delete '+username+'? This cannot be undone.'))return;try{await api('deleteUser',{username:username});await renderUsersLive();}catch(e){alert(e.message||'Deletion failed');}};
 
   window.applyPermissionVisibility = function() {
     const user = getCurrentUser();
     if (!user) return;
 
-    const isMainAdmin = user.username === 'admin' || user.username === 'admin1';
+    const isMainAdmin = user.username === 'admin' || user.username === 'admin1' || user.username === 'admin_stmw';
     const perms = isMainAdmin ? [] : (user.permissions || '').split(',').map(p => p.trim());
 
     function has(p) {

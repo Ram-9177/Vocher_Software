@@ -344,6 +344,12 @@ function updateCollegeSwitchPill(){
   pill.style.display=allowed?'':'none';
   const lbl=document.getElementById('CSWLBL');
   if(lbl) lbl.textContent=(CURRENT_COLLEGE==='smgg')?'Switch to STMW':'Back to SMGG';
+  const heading=document.getElementById('APP_HEADING');
+  if(heading){
+    if(CURRENT_COLLEGE==='smgg') heading.textContent="St.Mary's Group Of Institutions Guntur For women";
+    else if(CURRENT_COLLEGE==='smwec') heading.textContent="St.Mary's Womens Engineering College";
+    else heading.textContent="St. Mary's Institutions";
+  }
 }
 async function switchCollegeCtx(){
   if(!(_isPrimaryAdminSession() && HOME_COLLEGE==='smgg')){alert('You do not have access to switch colleges.');return;}
@@ -365,12 +371,12 @@ function _authUserFromStorage(){
 function _isPrimaryAdminSession(){
   const u=_authUserFromStorage();
   const n=String((u&&u.username)||'').toLowerCase();
-  return n==='admin'||n==='admin1';
+  return n==='admin'||n==='admin1'||n==='admin_stmw';
 }
 function _uiUserCodeFromAuth(u,fallback){
   if(window._smvUiUserCode) return window._smvUiUserCode(u||fallback);
   const n=String((u&&u.username)||fallback||'').toLowerCase();
-  if(n==='admin'||n==='admin1'||(u&&u.role==='admin'))return'admin1';
+  if(n==='admin'||n==='admin1'||n==='admin_stmw'||(u&&u.role==='admin'))return'admin1';
   if(n==='user3'||n==='admin3'||n.indexOf('3')>-1)return'admin3';
   return'admin2';
 }
@@ -1650,8 +1656,10 @@ function exportLedger(silent=false){
     const allHeadsData = [];
     for(let i=0; i<4; i++) allHeadsData.push([]);
     
+    const collName = (CURRENT_COLLEGE==='smwec') ? 'STMW Ledger' : 'SMGG Ledger';
+    
     const row5 = [];
-    row5[6] = 'SMGG Ledger                            ' + dateRangeStr;
+    row5[6] = collName + '                            ' + dateRangeStr;
     allHeadsData[4] = row5;
     allHeadsData[5] = []; 
     
@@ -1666,6 +1674,11 @@ function exportLedger(silent=false){
     headNames.forEach(h => {
       const hData = [];
       for(let i=0; i<6; i++) hData.push([]); // Rows 1-6 empty
+      
+      const headRow5 = [];
+      headRow5[1] = collName + ' - ' + h;
+      headRow5[2] = dateRangeStr;
+      hData[4] = headRow5;
 
       let totDr = 0, totCr = 0;
       heads[h].forEach(v => {
@@ -1729,6 +1742,7 @@ function exportLedger(silent=false){
     const wsAll = XLSX.utils.aoa_to_sheet(allHeadsData);
     wsAll['!cols'] = [{wch:5},{wch:5},{wch:5},{wch:5},{wch:5},{wch:5},{wch:30},{wch:12},{wch:12}];
     XLSX.utils.book_append_sheet(wb, wsAll, 'All Heads');
+    wb.SheetNames.unshift(wb.SheetNames.pop());
 
     const fname = 'Ledger_Report_'+today()+'.xlsx';
     XLSX.writeFile(wb, fname, {bookType:'xlsx', type:'binary'});
