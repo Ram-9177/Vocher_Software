@@ -99,7 +99,7 @@
       v.mode = getVal('fc_mode');
       v.cheque = getVal('fc_cheque');
       v.party = v.receivedFrom || v.acName;
-      if(!v.receivedFrom || !v.towards || !v.amount){ alert('Fill Received From, Towards and Amount.'); return; }
+      if(!v.head || !v.receivedFrom || !v.towards || !v.amount){ alert('Fill Account Head, Received From, Towards and Amount.'); return; }
     } else if(CVT === 'debit'){
       v.head = getVal('fd_head');
       v.paidTo = getVal('fd_paidto');
@@ -110,7 +110,7 @@
       v.mode = getVal('fd_mode');
       v.cheque = getVal('fd_cheque');
       v.party = v.paidTo;
-      if(!v.paidTo || !v.towards || !v.amount){ alert('Fill Paid To, Towards and Amount.'); return; }
+      if(!v.head || !v.paidTo || !v.towards || !v.amount){ alert('Fill Account Head, Paid To, Towards and Amount.'); return; }
     } else if(CVT === 'onaccount'){
       v.head = getVal('fo_head');
       v.paidTo = getVal('fo_paidto');
@@ -121,7 +121,7 @@
       v.mode = getVal('fo_mode');
       v.cheque = getVal('fo_ref');
       v.party = v.paidTo;
-      if(!v.paidTo || !v.towards || !v.amount){ alert('Fill Paid To, Towards and Amount.'); return; }
+      if(!v.head || !v.paidTo || !v.towards || !v.amount){ alert('Fill Account Head, Paid To, Towards and Amount.'); return; }
     }
 
     const saveBtn = document.querySelector('.bp');

@@ -686,17 +686,17 @@ function saveV(){
     v.towards=getVal('fc_towards');v.block=getVal('fc_block');v.amount=parseFloat(document.getElementById('fc_amt').value)||0;
     v.amtWords=getVal('fc_words');v.mode=getVal('fc_mode');v.cheque=getVal('fc_cheque');
     v.party=v.receivedFrom||v.acName;
-    if(!v.receivedFrom||!v.towards||!v.amount){alert('Fill Received From, Towards and Amount.');return;}
+    if(!v.head||!v.receivedFrom||!v.towards||!v.amount){alert('Fill Account Head, Received From, Towards and Amount.');return;}
   } else if(CVT==='debit'){
     v.head=getVal('fd_head');v.paidTo=getVal('fd_paidto');v.towards=getVal('fd_towards');v.block=getVal('fd_block');
     v.amount=parseFloat(document.getElementById('fd_amt').value)||0;v.amtWords=getVal('fd_words');
     v.mode=getVal('fd_mode');v.cheque=getVal('fd_cheque');v.party=v.paidTo;
-    if(!v.paidTo||!v.towards||!v.amount){alert('Fill Paid To, Towards and Amount.');return;}
+    if(!v.head||!v.paidTo||!v.towards||!v.amount){alert('Fill Account Head, Paid To, Towards and Amount.');return;}
   } else if(CVT==='onaccount'){
     v.head=getVal('fo_head');v.paidTo=getVal('fo_paidto');v.towards=getVal('fo_towards');v.block=getVal('fo_block');
     v.amount=parseFloat(document.getElementById('fo_amt').value)||0;v.amtWords=getVal('fo_words');
     v.mode=getVal('fo_mode');v.cheque=getVal('fo_ref');v.party=v.paidTo;
-    if(!v.paidTo||!v.towards||!v.amount){alert('Fill Paid To, Towards and Amount.');return;}
+    if(!v.head||!v.paidTo||!v.towards||!v.amount){alert('Fill Account Head, Paid To, Towards and Amount.');return;}
   }
   if(editId){const i=VS.findIndex(x=>x.id===editId);if(i>-1){VS[i]=v;}editId=null;}
   else VS.push(v);
@@ -718,10 +718,11 @@ function resetF(){
   { const sel=document.getElementById('f_college'); if(sel){ sel.value=CURRENT_COLLEGE||'smgg'; sel.disabled=true; } }
   ['fc_acname','fc_head','fc_from','fc_words','fc_towards','fc_block','fc_cheque',
    'fd_head','fd_paidto','fd_towards','fd_block','fd_words','fd_cheque',
-   'fo_head','fo_paidto','fo_towards','fo_block','fo_words','fo_ref',
+   'fo_paidto','fo_towards','fo_block','fo_words','fo_ref',
    'fj_paidto','fj_towards','fj_words','fj_cheque',
    'f_prep','f_chk','f_rem'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   ['fc_amt','fd_amt','fo_amt','fj_amt'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const foHeadEl = document.getElementById('fo_head'); if(foHeadEl) foHeadEl.value = 'On Account';
   setDate();editId=null;
 }
 
