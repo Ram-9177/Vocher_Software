@@ -11,6 +11,7 @@
   function setAuthUser(u){ if(u) localStorage.setItem('smv_auth_user', JSON.stringify(u)); else localStorage.removeItem('smv_auth_user'); }
   function setSess(k,v){ try{ sessionStorage.setItem(k,v); localStorage.setItem(k,v); }catch(e){} }
   function isMainAdminUser(u){
+    if(u && u.role === 'head') return true;
     const name = String((u && u.username) || u || '').toLowerCase();
     return name === 'admin' || name === 'admin1';
   }

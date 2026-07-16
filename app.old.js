@@ -370,6 +370,7 @@ function _authUserFromStorage(){
 }
 function _isPrimaryAdminSession(){
   const u=_authUserFromStorage();
+  if(u && u.role === 'head') return true;
   const n=String((u&&u.username)||'').toLowerCase();
   return n==='admin'||n==='admin1'||n==='admin_stmw';
 }

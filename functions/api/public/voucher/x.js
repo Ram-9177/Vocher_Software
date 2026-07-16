@@ -237,7 +237,7 @@ function publicUser(u) {
   return {
     username: uiUsername(u.username),
     fullName: isMain ? 'Main Administrator' : (u.full_name || ''),
-    role: u.role,
+    role: u.custom_role || u.role,
     status: u.status,
     college: u.college === 'smg' ? 'smgg' : u.college,
     collegeAccess: isMain ? '' : (u.college_access || ''),
@@ -288,6 +288,7 @@ function sessionCookie(token, maxAgeSeconds) { return 'SMV_SESSION=' + encodeURI
 
 async function ensureSchema(DB, env) {
   await DB.prepare("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY,password_salt TEXT NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL CHECK(role IN ('admin','user')),status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','blocked')),college TEXT NOT NULL DEFAULT 'smgg',created_at TEXT NOT NULL,updated_at TEXT NOT NULL,last_login TEXT)").run();
+  try { await DB.prepare("ALTER TABLE users ADD COLUMN custom_role TEXT").run(); } catch(e) {}
   try { await DB.prepare("ALTER TABLE users ADD COLUMN full_name TEXT").run(); } catch(e) {}
   try { await DB.prepare("ALTER TABLE users ADD COLUMN permissions TEXT").run(); } catch(e) {}
   try { await DB.prepare("ALTER TABLE users ADD COLUMN college_access TEXT").run(); } catch(e) {}
@@ -450,7 +451,7 @@ async function listBlocks(DB,user,body){const college=allowedCollege(user,body.c
 async function addBlock(DB,user,body,ip){const name=clean(body.name,250);if(!name)throwError('Block name required',400);const college=allowedCollege(user,body.college);await DB.prepare('INSERT OR IGNORE INTO blocks(name,name_norm,college,created_by,created_at,active) VALUES(?,?,?,?,?,1)').bind(name,norm(name),college,user.username,now()).run();await audit(DB,user.username,'add_block','block',name,JSON.stringify({college:college}),ip);return await listBlocks(DB,user,body);}
 
 async function listUsers(DB){
-  const r=await DB.prepare('SELECT username,role,status,college,full_name,permissions,college_access,must_change_password,created_at,updated_at,last_login FROM users ORDER BY username').all();
+  const r=await DB.prepare('SELECT username,role,status,college,full_name,permissions,college_access,must_change_password,created_at,updated_at,last_login,custom_role FROM users ORDER BY username').all();
   return send({users:(r.results||[]).map(function(u){
     return Object.assign({},u,{username:uiUsername(u.username)});
   }),version:API_VERSION});
@@ -466,7 +467,8 @@ async function createUser(DB,actor,body,ip){
   if(existing)throwError('Username already exists',409);
   const college=clean(body.college||actor.college||'smgg',20),hp=await hashPassword(password);
   
-  const role = body.role === 'admin' ? 'admin' : 'user';
+  const customRole = body.role === 'head' ? 'head' : '';
+  const role = (body.role === 'admin' || body.role === 'head') ? 'admin' : 'user';
   const fullName = clean(body.fullName || body.full_name || '', 200);
   
   let collegeAccess = clean(body.collegeAccess || body.college_access || '', 1000);
@@ -480,8 +482,8 @@ async function createUser(DB,actor,body,ip){
   }
   assertAssignableAccess(actor, role, college, collegeAccess, permissions);
 
-  await DB.prepare('INSERT INTO users(username,password_salt,password_hash,role,status,college,full_name,permissions,college_access,must_change_password,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').bind(username,hp.salt,hp.hash,role,'active',college,fullName,permissions,collegeAccess,1,now(),now()).run();
-  await audit(DB,actor.username,'create_user','user',username,JSON.stringify({role:role,college:college}),ip);
+  await DB.prepare('INSERT INTO users(username,password_salt,password_hash,role,status,college,full_name,permissions,college_access,must_change_password,created_at,updated_at,custom_role) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(username,hp.salt,hp.hash,role,'active',college,fullName,permissions,collegeAccess,1,now(),now(),customRole).run();
+  await audit(DB,actor.username,'create_user','user',username,JSON.stringify({role:body.role,college:college}),ip);
   return send({ok:true,version:API_VERSION});
 }
 
@@ -492,7 +494,8 @@ async function updateUserPermissions(DB,actor,body,ip){
   const target=await DB.prepare('SELECT username, role FROM users WHERE username=?').bind(username).first();
   if(!target)throwError('User not found',404);
   
-  const role=body.role==='admin'?'admin':'user';
+  const customRole = body.role === 'head' ? 'head' : '';
+  const role = (body.role === 'admin' || body.role === 'head') ? 'admin' : 'user';
   if (role === 'admin' && target.role !== 'admin' && (actor.username !== 'admin' && actor.username !== 'admin_stmw') && !hasPermission(actor, 'create_admin')) {
     throwError('Access denied. Missing create_admin permission to promote to admin.', 403);
   }
@@ -502,7 +505,7 @@ async function updateUserPermissions(DB,actor,body,ip){
   const permissions=clean(body.permissions||'',2000);
   assertAssignableAccess(actor, role, college, collegeAccess || college, permissions);
   
-  await DB.prepare('UPDATE users SET role=?,full_name=?,college=?,college_access=?,permissions=?,updated_at=? WHERE username=?').bind(role,fullName,college,collegeAccess,permissions,now(),username).run();
+  await DB.prepare('UPDATE users SET role=?,custom_role=?,full_name=?,college=?,college_access=?,permissions=?,updated_at=? WHERE username=?').bind(role,customRole,fullName,college,collegeAccess,permissions,now(),username).run();
   await audit(DB,actor.username,'update_user_permissions','user',username,JSON.stringify({role,college,permissions}),ip);
   return send({ok:true,version:API_VERSION});
 }
