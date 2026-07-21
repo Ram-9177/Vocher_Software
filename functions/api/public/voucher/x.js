@@ -1,7 +1,7 @@
 const SESSION_DAYS = 3650;
 const PBKDF2_ITERATIONS = 100000;
 const LEGACY_SHA256 = 'legacy-sha256';
-const API_VERSION = 'voucher-api-admin1-users-v6';
+const API_VERSION = 'voucher-api-admin1-users-v7';
 
 // Permission constants
 const VIEW_DASHBOARD = 'view_dashboard';
@@ -117,7 +117,7 @@ async function handle(context) {
     if (!isAdmin1 && !hasPermission(user, 'create_users') && !hasPermission(user, 'create_admin') && !hasPermission(user, 'manage_permissions') && !hasPermission(user, 'reset_passwords') && !hasPermission(user, 'block_users') && !hasPermission(user, 'manage_colleges') && !hasPermission(user, 'change_admin_key') && !hasPermission(user, 'view_audit')) {
       throwError('Access denied. Missing permissions.', 403);
     }
-    return await listUsers(env.DB);
+    return await listUsers(env.DB, user);
   }
   if (action === 'createUser') {
     const requestedRole = body.role === 'admin' ? 'admin' : 'user';
@@ -262,6 +262,9 @@ function allowedCollege(user, requested) {
 function csvList(v) {
   return clean(v || '', 2000).split(',').map(function (p) { return p.trim(); }).filter(Boolean);
 }
+function normalizeCollegeAccess(college, value) {
+  return Array.from(new Set([clean(college || 'smgg', 20).toLowerCase()].concat(csvList(value).map(function(c){return c.toLowerCase();})))).join(',');
+}
 function assertPassword(password) {
   if (String(password || '').length < 6) throwError('Password must be at least 6 characters', 400);
 }
@@ -280,6 +283,45 @@ function assertAssignableAccess(actor, role, college, collegeAccess, permissions
   }
   csvList(permissions).forEach(function (p) {
     if (!actorPerms.includes(p)) throwError('Access denied. Cannot assign permission: ' + p, 403);
+  });
+}
+
+function canManageTarget(actor, target) {
+  if (actor.username === 'admin' || actor.username === 'admin_stmw') return true;
+  if (!target || target.username === 'admin' || target.username === 'admin_stmw') return false;
+  if (target.custom_role === 'head' && actor.custom_role !== 'head') return false;
+  const actorColleges = parseCollegeAccess(actor);
+  const targetCollege = clean(target.college || 'smgg', 20).toLowerCase();
+  return actorColleges.includes('*') || actorColleges.includes(targetCollege);
+}
+
+function assertManageTarget(actor, target) {
+  if (!target) throwError('User not found', 404);
+  if (target.custom_role === 'head' && actor.username !== 'admin' && actor.username !== 'admin_stmw' && actor.custom_role !== 'head') {
+    throwError('Access denied. Only a main administrator or Head can manage a Head user.', 403);
+  }
+  if (!canManageTarget(actor, target)) {
+    throwError('Access denied. User is outside your college access.', 403);
+  }
+}
+
+function assertResetTarget(actor, target) {
+  if (!target) throwError('User not found', 404);
+  if (actor.username === 'admin' || actor.username === 'admin_stmw') return;
+  if (target.custom_role === 'head' && actor.custom_role !== 'head') {
+    throwError('Access denied. Only a main administrator or Head can manage a Head user.', 403);
+  }
+  const actorColleges = parseCollegeAccess(actor);
+  const targetCollege = clean(target.college || 'smgg', 20).toLowerCase();
+  if (!actorColleges.includes('*') && !actorColleges.includes(targetCollege)) {
+    throwError('Access denied. User is outside your college access.', 403);
+  }
+}
+
+function userListRow(row) {
+  return Object.assign({}, row, {
+    username: uiUsername(row.username),
+    role: row.custom_role || row.role
   });
 }
 
@@ -403,8 +445,8 @@ async function syncData(DB,user,body){
   ]);
   let users;
   if(body.includeUsers&&(user.username==='admin'||['create_users','create_admin','manage_permissions','reset_passwords','block_users','manage_colleges','change_admin_key','view_audit'].some(function(permission){return hasPermission(user,permission);}))){
-    const userRows=await DB.prepare('SELECT username,role,status,college,full_name,permissions,college_access,must_change_password,created_at,updated_at,last_login FROM users ORDER BY username').all();
-    users=(userRows.results||[]).map(function(row){row.username=uiUsername(row.username);return row;});
+    const userRows=await DB.prepare('SELECT username,role,status,college,full_name,permissions,college_access,must_change_password,created_at,updated_at,last_login,custom_role FROM users ORDER BY username').all();
+    users=(userRows.results||[]).filter(function(row){return canManageTarget(user,row);}).map(userListRow);
   }
   return send({
     vouchers: fetchVouchers ? (results[0].results||[]).map(voucherToOld) : null,
@@ -450,11 +492,9 @@ async function addHead(DB,user,body,ip){const name=clean(body.name,250);if(!name
 async function listBlocks(DB,user,body){const college=allowedCollege(user,body.college);const r=await DB.prepare('SELECT * FROM blocks WHERE active=1 AND college=? ORDER BY name').bind(college).all();return send({blocks:r.results||[],version:API_VERSION});}
 async function addBlock(DB,user,body,ip){const name=clean(body.name,250);if(!name)throwError('Block name required',400);const college=allowedCollege(user,body.college);await DB.prepare('INSERT OR IGNORE INTO blocks(name,name_norm,college,created_by,created_at,active) VALUES(?,?,?,?,?,1)').bind(name,norm(name),college,user.username,now()).run();await audit(DB,user.username,'add_block','block',name,JSON.stringify({college:college}),ip);return await listBlocks(DB,user,body);}
 
-async function listUsers(DB){
+async function listUsers(DB,actor){
   const r=await DB.prepare('SELECT username,role,status,college,full_name,permissions,college_access,must_change_password,created_at,updated_at,last_login,custom_role FROM users ORDER BY username').all();
-  return send({users:(r.results||[]).map(function(u){
-    return Object.assign({},u,{username:uiUsername(u.username)});
-  }),version:API_VERSION});
+  return send({users:(r.results||[]).filter(function(u){return canManageTarget(actor,u);}).map(userListRow),version:API_VERSION});
 }
 
 async function createUser(DB,actor,body,ip){
@@ -471,8 +511,7 @@ async function createUser(DB,actor,body,ip){
   const role = (body.role === 'admin' || body.role === 'head') ? 'admin' : 'user';
   const fullName = clean(body.fullName || body.full_name || '', 200);
   
-  let collegeAccess = clean(body.collegeAccess || body.college_access || '', 1000);
-  if (!collegeAccess) collegeAccess = college;
+  const collegeAccess = normalizeCollegeAccess(college, body.collegeAccess || body.college_access || '');
   
   let permissions = clean(body.permissions || '', 2000);
   if (!permissions) {
@@ -491,8 +530,8 @@ async function updateUserPermissions(DB,actor,body,ip){
   const username=actualUsername(body.username);
   if(!username)throwError('Username required',400);
   if(username==='admin')throwError('admin1 cannot be permission-reduced or modified.',400);
-  const target=await DB.prepare('SELECT username, role FROM users WHERE username=?').bind(username).first();
-  if(!target)throwError('User not found',404);
+  const target=await DB.prepare('SELECT username,role,college,custom_role FROM users WHERE username=?').bind(username).first();
+  assertManageTarget(actor,target);
   
   const customRole = body.role === 'head' ? 'head' : '';
   const role = (body.role === 'admin' || body.role === 'head') ? 'admin' : 'user';
@@ -501,7 +540,7 @@ async function updateUserPermissions(DB,actor,body,ip){
   }
   const fullName=clean(body.fullName||body.full_name||'',200);
   const college=clean(body.college||'smgg',20);
-  const collegeAccess=clean(body.collegeAccess||body.college_access||'',1000);
+  const collegeAccess=normalizeCollegeAccess(college,body.collegeAccess||body.college_access||'');
   const permissions=clean(body.permissions||'',2000);
   assertAssignableAccess(actor, role, college, collegeAccess || college, permissions);
   
@@ -515,8 +554,8 @@ async function resetUserPassword(DB,actor,body,ip){
   if(!username)throwError('Username required',400);
   const password=String(body.password||'');
   assertPassword(password);
-  const target=await DB.prepare('SELECT username FROM users WHERE username=?').bind(username).first();
-  if(!target)throwError('User not found',404);
+  const target=await DB.prepare('SELECT username,college,custom_role FROM users WHERE username=?').bind(username).first();
+  assertResetTarget(actor,target);
   const hp=await hashPassword(password);
   const mustChange = (username === 'admin' || username === 'admin_stmw') ? 0 : 1;
   await DB.prepare('UPDATE users SET password_salt=?,password_hash=?,must_change_password=?,updated_at=? WHERE username=?').bind(hp.salt,hp.hash,mustChange,now(),username).run();
@@ -536,6 +575,8 @@ async function changeOwnPassword(DB,user,body,ip){
 async function setUserStatus(DB,actor,body,ip){
   const username=actualUsername(body.username),status=body.status==='blocked'?'blocked':'active';
   if(username==='admin' || username==='admin_stmw')throwError('Main admins cannot be blocked',400);
+  const target=await DB.prepare('SELECT username,college,custom_role FROM users WHERE username=?').bind(username).first();
+  assertManageTarget(actor,target);
   await DB.prepare('UPDATE users SET status=?,updated_at=? WHERE username=?').bind(status,now(),username).run();
   if(status==='blocked')await DB.prepare('DELETE FROM sessions WHERE username=?').bind(username).run();
   await audit(DB,actor.username,'set_user_status','user',username,status,ip);
@@ -545,6 +586,8 @@ async function deleteUser(DB,actor,body,ip){
   const username=actualUsername(body.username);
   if(username==='admin'||username==='admin1'||username==='admin_stmw')throwError('Main admins cannot be deleted',400);
   if(username===actor.username)throwError('You cannot delete yourself',400);
+  const target=await DB.prepare('SELECT username,college,custom_role FROM users WHERE username=?').bind(username).first();
+  assertManageTarget(actor,target);
   await DB.prepare('DELETE FROM users WHERE username=?').bind(username).run();
   await DB.prepare('DELETE FROM sessions WHERE username=?').bind(username).run();
   await audit(DB,actor.username,'delete_user','user',username,'deleted',ip);

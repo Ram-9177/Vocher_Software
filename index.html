@@ -7,7 +7,7 @@
   <link rel="icon" href="assets/logo_smgg.png">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="app.js?v=20260710-ui-stability-v3" defer></script>
+  <script src="app.js?v=20260721-user-management-v7" defer></script>
 </head>
 <body>
 <script>
@@ -302,17 +302,17 @@
         </div>
         <!-- CREDIT fields -->
         <div id="R_credit" style="display:none">
+          <!-- fc_head hidden with fixed value so backend validation passes -->
+          <input type="hidden" id="fc_head" value="Credit">
           <div class="fr t">
-            <div class="fi"><label>Credit A/c (Account Name)</label>
-              <input type="text" id="fc_acname" placeholder="Enter account name"></div>
-            <div class="fi"><label>Account Head <a href="javascript:void(0)" onclick="addNewHead('credit')" class="admin-only-add add-new-btn">+ Add New</a></label>
-              <input type="text" id="fc_head" placeholder="Enter account head" list="DL_HEADS" onblur="if(typeof checkNewHead==='function') checkNewHead(this)"></div>
+            <div class="fi"><label>Credit</label>
+              <input type="text" id="fc_acname" value="Credit" readonly style="background:#f0ede8;color:#555"></div>
+            <div class="fi"><label>Received From *</label>
+              <input type="text" id="fc_from" placeholder="Name of the person"></div>
             <div class="fi"><label>Amount (Rs.) *</label>
               <input type="number" id="fc_amt" placeholder="e.g. 5000" oninput="autoWords('fc_amt','fc_words')"></div>
           </div>
-          <div class="fr">
-            <div class="fi"><label>Received From *</label>
-              <input type="text" id="fc_from" placeholder="Name of the person"></div>
+          <div class="fr f">
             <div class="fi"><label>Rupees (In Words) — auto filled</label>
               <input type="text" id="fc_words" placeholder="Auto-filled from amount" readonly style="background:#f0ede8;color:#555"></div>
           </div>

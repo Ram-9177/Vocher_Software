@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260710-ui-stability-v3';
+  var buildVersion = '20260721-user-management-v7';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;

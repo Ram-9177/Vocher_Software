@@ -683,11 +683,11 @@ function saveV(){
     prepBy:getVal('f_prep'),checkedBy:getVal('f_chk'),remarks:getVal('f_rem'),
     createdBy:CU,createdAt:new Date().toISOString()};
   if(CVT==='credit'){
-    v.acName=getVal('fc_acname');v.head=getVal('fc_head');v.receivedFrom=getVal('fc_from');
+    v.acName='Credit';v.head='Credit';v.receivedFrom=getVal('fc_from');
     v.towards=getVal('fc_towards');v.block=getVal('fc_block');v.amount=parseFloat(document.getElementById('fc_amt').value)||0;
     v.amtWords=getVal('fc_words');v.mode=getVal('fc_mode');v.cheque=getVal('fc_cheque');
-    v.party=v.receivedFrom||v.acName;
-    if(!v.head||!v.receivedFrom||!v.towards||!v.amount){alert('Fill Account Head, Received From, Towards and Amount.');return;}
+    v.party=v.receivedFrom;
+    if(!v.receivedFrom||!v.towards||!v.amount){alert('Fill Received From, Towards and Amount.');return;}
   } else if(CVT==='debit'){
     v.head=getVal('fd_head');v.paidTo=getVal('fd_paidto');v.towards=getVal('fd_towards');v.block=getVal('fd_block');
     v.amount=parseFloat(document.getElementById('fd_amt').value)||0;v.amtWords=getVal('fd_words');
@@ -717,7 +717,7 @@ function saveV(){
 }
 function resetF(){
   { const sel=document.getElementById('f_college'); if(sel){ sel.value=CURRENT_COLLEGE||'smgg'; sel.disabled=true; } }
-  ['fc_acname','fc_head','fc_from','fc_words','fc_towards','fc_block','fc_cheque',
+  ['fc_from','fc_words','fc_towards','fc_block','fc_cheque',
    'fd_head','fd_paidto','fd_towards','fd_block','fd_words','fd_cheque',
    'fo_paidto','fo_towards','fo_block','fo_words','fo_ref',
    'fj_paidto','fj_towards','fj_words','fj_cheque',
@@ -877,16 +877,33 @@ function buildPrint(v){
        <span style="${LINE}">${val||''}</span>
      </div>`;
 
-  // Towards — exactly 3 dotted lines (first carries value, 2 empty below)
-  const ROWT = (lbl,val,lw='90px') =>
-    `<div style="display:flex;align-items:flex-start;margin-bottom:5px">
+  // Towards — exactly 3 dotted lines; text fills line 1 fully before spilling to line 2, then line 3
+  const ROWT = (lbl,val,lw='90px') => {
+    // Split text into up to 3 lines, filling each line before moving to the next
+    const words = (val||'').split(' ');
+    const CHARS_PER_LINE = 52; // approx chars that fit on one dotted line at 9pt
+    let lines = ['','',''];
+    let li = 0;
+    for (const w of words) {
+      if (li >= 3) break;
+      const candidate = lines[li] ? lines[li] + ' ' + w : w;
+      if (candidate.length <= CHARS_PER_LINE || !lines[li]) {
+        lines[li] = candidate;
+      } else {
+        li++;
+        if (li < 3) lines[li] = w;
+      }
+    }
+    return `<div style="display:flex;align-items:flex-start;margin-bottom:5px">
        <span style="${S};min-width:${lw};flex-shrink:0;padding-top:2px">${lbl}</span>
        <div style="flex:1;display:flex;flex-direction:column;gap:4px">
-         <div style="${LINE}">${val||''}</div>
-         <div style="${LINE}">&nbsp;</div>
-         <div style="${LINE}">&nbsp;</div>
+         <div style="${LINE}">${lines[0]||'&nbsp;'}</div>
+         <div style="${LINE}">${lines[1]||'&nbsp;'}</div>
+         <div style="${LINE}">${lines[2]||'&nbsp;'}</div>
        </div>
      </div>`;
+  };
+
 
   // Build field rows based on voucher type
   let FIELDS = '';
@@ -1877,7 +1894,7 @@ function doCashBook(){
             border:allBorder
           };
           if(isAmtCol && typeof ws[addr].v === 'number'){
-            ws[addr].z = '#,##0.00';
+            ws[addr].z = '#,##0';
           }
         }
       }
@@ -2261,20 +2278,9 @@ function setupCustomHeadDropdowns() {
   });
 }
 
-// Show date picker and select text on focus, click, or hover for date fields
-document.addEventListener('focusin', function(e) {
-  if (e.target && e.target.type === 'date') {
-    try { e.target.showPicker(); } catch(err) {}
-    try { e.target.select(); } catch(err) {}
-  }
-});
+
+// Show date picker only on explicit click for date fields
 document.addEventListener('click', function(e) {
-  if (e.target && e.target.type === 'date') {
-    try { e.target.showPicker(); } catch(err) {}
-    try { e.target.select(); } catch(err) {}
-  }
-});
-document.addEventListener('mouseover', function(e) {
   if (e.target && e.target.type === 'date') {
     try { e.target.showPicker(); } catch(err) {}
   }

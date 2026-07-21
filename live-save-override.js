@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  var buildVersion = '20260710-ui-stability-v3';
+  var buildVersion = '20260721-user-management-v7';
   try {
     var currentSrc = document.currentScript && document.currentScript.src;
     var currentVersion = currentSrc ? new URL(currentSrc, window.location.href).searchParams.get('v') : '';
@@ -89,8 +89,8 @@
     };
 
     if(CVT === 'credit'){
-      v.acName = getVal('fc_acname');
-      v.head = getVal('fc_head');
+      v.acName = 'Credit';
+      v.head = 'Credit';
       v.receivedFrom = getVal('fc_from');
       v.towards = getVal('fc_towards');
       v.block = getVal('fc_block');
@@ -98,8 +98,8 @@
       v.amtWords = getVal('fc_words');
       v.mode = getVal('fc_mode');
       v.cheque = getVal('fc_cheque');
-      v.party = v.receivedFrom || v.acName;
-      if(!v.head || !v.receivedFrom || !v.towards || !v.amount){ alert('Fill Account Head, Received From, Towards and Amount.'); return; }
+      v.party = v.receivedFrom;
+      if(!v.receivedFrom || !v.towards || !v.amount){ alert('Fill Received From, Towards and Amount.'); return; }
     } else if(CVT === 'debit'){
       v.head = getVal('fd_head');
       v.paidTo = getVal('fd_paidto');
