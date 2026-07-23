@@ -777,18 +777,37 @@ function renderMyDash(){
   </tr>`).join('');
 }
 
-// MY VOUCHERS TABLE (admin2/admin3)
+// MY VOUCHERS TABLE (users — own vouchers only)
+function getMyFilteredVS(){
+  const qEl=document.getElementById('MSQ'),q=qEl?qEl.value.trim().toLowerCase():'';
+  const ftEl=document.getElementById('MFT2'),ft=ftEl?ftEl.value:'';
+  const fhEl=document.getElementById('MFH'),fh=fhEl?fhEl.value:'';
+  const fmEl=document.getElementById('MFM'),fm=fmEl?fmEl.value.toLowerCase():'';
+  const fromEl=document.getElementById('MSDF'),from=fromEl?fromEl.value:'';
+  const toEl=document.getElementById('MSDT'),to=toEl?toEl.value:'';
+  return VS.filter(_isOwnVoucher).filter(v=>{
+    const text=[v.party,v.paidTo,v.receivedFrom,v.head,v.towards,v.block,v.cheque].filter(Boolean).join(' ').toLowerCase();
+    const dateISO=v.dateISO||dmyToISO(v.date||'');
+    return (!q||text.includes(q))&&
+      (!ft||v.type===ft)&&
+      (!fh||v.head===fh)&&
+      (!fm||String(v.mode||'Cash').toLowerCase()===fm)&&
+      (!from||dateISO>=from)&&
+      (!to||dateISO<=to);
+  });
+}
+function clearMyVoucherFilters(){
+  ['MSQ','MSDF','MSDT','MFT2','MFH','MFM'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  renderMyVT();
+}
 function renderMyVT(){
-  const myVS=VS.filter(_isOwnVoucher);
-  const q=document.getElementById('MSQ').value.toLowerCase();
-  const ft=document.getElementById('MFT2').value,fh=document.getElementById('MFH').value;
-  const sdEl=document.getElementById('MSD'),sd=sdEl?sdEl.value:'';
-  const f=myVS.filter(v=>{
-    const sq=!q||((v.party||'')+(v.paidTo||'')+(v.receivedFrom||'')+(v.head||'')+' '+(v.towards||'')).toLowerCase().includes(q);
-    let sdMatch=true;
-    if(sd){const p=(v.date||'').split('-');if(p.length===3){const iso=p[2]+'-'+p[1]+'-'+p[0];sdMatch=(iso===sd);}else sdMatch=false;}
-    return sq&&(!ft||v.type===ft)&&(!fh||v.head===fh)&&sdMatch;
-  }).reverse();
+  const ownCount=VS.filter(_isOwnVoucher).length;
+  const f=getMyFilteredVS().sort((a,b)=>{
+    const bt=Date.parse(b.createdAt||b.created_at||'')||0;
+    const at=Date.parse(a.createdAt||a.created_at||'')||0;
+    if(bt!==at)return bt-at;
+    return String(b.dateISO||dmyToISO(b.date||'')).localeCompare(String(a.dateISO||dmyToISO(a.date||'')));
+  });
   const bc={credit:'bc',debit:'bd',onaccount:'bo'};
   const tb=document.getElementById('MVTB');if(!tb)return;
   tb.innerHTML=f.map(v=>`<tr>
@@ -804,6 +823,7 @@ function renderMyVT(){
     </div></td>
   </tr>`).join('');
   const emp=document.getElementById('MVT_EMPTY');if(emp)emp.style.display=f.length?'none':'block';
+  const count=document.getElementById('MVC');if(count)count.textContent=`Showing ${f.length} of ${ownCount} vouchers`;
   const t=document.getElementById('MVT_TITLE');if(t)t.textContent=(ADMINS[CU]?ADMINS[CU].label:CU)+' — My Vouchers';
 }
 
@@ -816,7 +836,7 @@ function populateMyHeads(){
 function doExcelMine(){
   try{
     if(typeof XLSX==='undefined'){alert('Excel library not ready.');return;}
-    const myVS=VS.filter(_isOwnVoucher);
+    const myVS=getMyFilteredVS();
     if(!myVS.length){alert('No vouchers to export.');return;}
     const wb=XLSX.utils.book_new();
     const rows=myVS.map(v=>({

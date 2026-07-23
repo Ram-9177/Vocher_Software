@@ -504,6 +504,7 @@
     if (!user) return;
 
     const isMainAdmin = user.username === 'admin' || user.username === 'admin1' || user.username === 'admin_stmw';
+    const isVoucherAdmin = isMainAdmin || user.role === 'admin' || user.role === 'head';
     const perms = isMainAdmin ? [] : (user.permissions || '').split(',').map(p => p.trim());
 
     function has(p) {
@@ -517,7 +518,7 @@
 
     const niVouchers = document.getElementById('ni-vouchers');
     if (niVouchers) {
-      niVouchers.style.display = has('view_all_vouchers') ? 'flex' : 'none';
+      niVouchers.style.display = isVoucherAdmin ? 'flex' : 'none';
     }
 
     const niMyVouchers = document.getElementById('ni-myvouchers');

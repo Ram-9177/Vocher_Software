@@ -1,7 +1,7 @@
 const SESSION_DAYS = 3650;
 const PBKDF2_ITERATIONS = 100000;
 const LEGACY_SHA256 = 'legacy-sha256';
-const API_VERSION = 'voucher-api-admin1-users-v7';
+const API_VERSION = 'voucher-api-owner-scope-v8';
 
 // Permission constants
 const VIEW_DASHBOARD = 'view_dashboard';
@@ -73,9 +73,6 @@ async function handle(context) {
   if (action === 'syncData') return await syncData(env.DB, user, body);
 
   if (action === 'listVouchers') {
-    if (!isAdmin1 && !hasPermission(user, 'view_all_vouchers') && !hasPermission(user, 'view_own_vouchers')) {
-      throwError('Access denied. Missing voucher view permission.', 403);
-    }
     return await listVouchers(env.DB, user, body);
   }
   if (action === 'saveVoucher') {
@@ -217,6 +214,14 @@ function hasPerm(user, perm) {
   return parsePerms(user).includes(perm);
 }
 function hasPermission(user, perm) { return hasPerm(user, perm); }
+function isVoucherAdmin(user) {
+  return !!user && (
+    user.username === 'admin' ||
+    user.username === 'admin_stmw' ||
+    user.role === 'admin' ||
+    user.custom_role === 'head'
+  );
+}
 function need(user, permission) {
   if (!hasPerm(user, permission)) throwError('Access denied. Missing ' + permission, 403);
 }
@@ -241,7 +246,7 @@ function publicUser(u) {
     status: u.status,
     college: u.college === 'smg' ? 'smgg' : u.college,
     collegeAccess: isMain ? '' : (u.college_access || ''),
-    permissions: isMain ? allPerms : (u.permissions || ''),
+    permissions: isMain ? allPerms : voucherScopedPermissions(u.role, parsePerms(u).join(',')),
     mustChangePassword: Number(u.must_change_password || 0) === 1
   };
 }
@@ -261,6 +266,16 @@ function allowedCollege(user, requested) {
 
 function csvList(v) {
   return clean(v || '', 2000).split(',').map(function (p) { return p.trim(); }).filter(Boolean);
+}
+function voucherScopedPermissions(role, value) {
+  let permissions = csvList(value);
+  if (role === 'admin') {
+    if (!permissions.includes(VIEW_ALL_VOUCHERS)) permissions.push(VIEW_ALL_VOUCHERS);
+  } else {
+    permissions = permissions.filter(function (permission) { return permission !== VIEW_ALL_VOUCHERS; });
+    if (!permissions.includes(VIEW_OWN_VOUCHERS)) permissions.push(VIEW_OWN_VOUCHERS);
+  }
+  return Array.from(new Set(permissions)).join(',');
 }
 function normalizeCollegeAccess(college, value) {
   return Array.from(new Set([clean(college || 'smgg', 20).toLowerCase()].concat(csvList(value).map(function(c){return c.toLowerCase();})))).join(',');
@@ -282,6 +297,7 @@ function assertAssignableAccess(actor, role, college, collegeAccess, permissions
     throwError('Access denied. Missing create_admin permission.', 403);
   }
   csvList(permissions).forEach(function (p) {
+    if (p === VIEW_OWN_VOUCHERS || p === VIEW_ALL_VOUCHERS) return;
     if (!actorPerms.includes(p)) throwError('Access denied. Cannot assign permission: ' + p, 403);
   });
 }
@@ -321,7 +337,8 @@ function assertResetTarget(actor, target) {
 function userListRow(row) {
   return Object.assign({}, row, {
     username: uiUsername(row.username),
-    role: row.custom_role || row.role
+    role: row.custom_role || row.role,
+    permissions: voucherScopedPermissions(row.role, parsePerms(row).join(','))
   });
 }
 
@@ -406,7 +423,7 @@ async function validateSession(DB, session){const exp=new Date(Date.now()+SESSIO
 
 async function listVouchers(DB, user, body) {
   const college = allowedCollege(user, body.college);
-  const showAll = (user.username === 'admin' || user.username === 'admin_stmw') || hasPermission(user, 'view_all_vouchers');
+  const showAll = isVoucherAdmin(user);
   const q = showAll ?
     DB.prepare('SELECT * FROM vouchers WHERE deleted_at IS NULL AND college=? ORDER BY date DESC,id DESC').bind(college) :
     DB.prepare('SELECT * FROM vouchers WHERE deleted_at IS NULL AND college=? AND created_by=? ORDER BY date DESC,id DESC').bind(college, user.username);
@@ -415,8 +432,8 @@ async function listVouchers(DB, user, body) {
 }
 async function syncData(DB,user,body){
   const college=allowedCollege(user,body.college);
-  const showAll=user.username==='admin'||hasPermission(user,'view_all_vouchers');
-  const canView=showAll||hasPermission(user,'view_own_vouchers');
+  const showAll=isVoucherAdmin(user);
+  const canView=showAll||user.role==='user'||hasPermission(user,'view_own_vouchers');
   
   let fetchVouchers = canView;
   let vouchersHashMatch = false;
@@ -484,7 +501,7 @@ async function saveVoucher(DB,user,v,ip) {
 }
 function voucherNumber(college,type,id){const p={debit:'DV',onaccount:'OA',credit:'CV'}[type]||'VO';return String(college||'SMGG').toUpperCase()+'-'+p+'-'+new Date().getFullYear()+'-'+String(id).padStart(5,'0');}
 async function getActiveVoucher(DB,id){const row=await DB.prepare('SELECT id,college,created_by FROM vouchers WHERE id=? AND deleted_at IS NULL').bind(id).first();if(!row)throwError('Voucher not found',404);return row;}
-function ensureVoucherMutationAccess(user,v){const college=clean(v.college||'smgg',20);if(allowedCollege(user,college)!==college)throwError('Access denied. Voucher is outside your college access.',403);if(user.username!=='admin'&&!hasPermission(user,'view_all_vouchers')&&v.created_by!==user.username)throwError('Access denied. You can only modify your own vouchers.',403);}
+function ensureVoucherMutationAccess(user,v){const college=clean(v.college||'smgg',20);if(allowedCollege(user,college)!==college)throwError('Access denied. Voucher is outside your college access.',403);if(!isVoucherAdmin(user)&&v.created_by!==user.username)throwError('Access denied. You can only modify your own vouchers.',403);}
 async function deleteVoucher(DB,user,id,ip){id=Number(id||0);if(!id)throwError('Invalid voucher id',400);const existing=await getActiveVoucher(DB,id);ensureVoucherMutationAccess(user,existing);await DB.prepare('UPDATE vouchers SET deleted_at=?,deleted_by=?,updated_by=?,updated_at=? WHERE id=? AND deleted_at IS NULL AND college=?').bind(now(),user.username,user.username,now(),id,existing.college).run();await audit(DB,user.username,'delete_voucher','voucher',String(id),'Soft delete',ip);return send({ok:true,version:API_VERSION});}
 async function listHeads(DB,user,body){const college=allowedCollege(user,body.college);const r=await DB.prepare('SELECT * FROM account_heads WHERE active=1 AND college=? ORDER BY name').bind(college).all();return send({heads:r.results||[],version:API_VERSION});}
 async function addHead(DB,user,body,ip){const name=clean(body.name,250);if(!name)throwError('Head name required',400);const type=['debit','onaccount','credit','common'].indexOf(body.type)!==-1?body.type:'common';const college=allowedCollege(user,body.college);await DB.prepare('INSERT OR IGNORE INTO account_heads(name,name_norm,type,college,created_by,created_at,active) VALUES(?,?,?,?,?,?,1)').bind(name,norm(name),type,college,user.username,now()).run();await audit(DB,user.username,'add_account_head','account_head',name,JSON.stringify({type:type,college:college}),ip);return await listHeads(DB,user,body);}
@@ -519,6 +536,7 @@ async function createUser(DB,actor,body,ip){
       'view_dashboard,view_analytics,create_voucher,view_own_vouchers,view_all_vouchers,edit_voucher,print_voucher,export_excel,cash_book,link_excel,printer_setup,account_heads,create_users,reset_passwords,block_users' :
       'create_voucher,view_own_vouchers,print_voucher';
   }
+  permissions = voucherScopedPermissions(role, permissions);
   assertAssignableAccess(actor, role, college, collegeAccess, permissions);
 
   await DB.prepare('INSERT INTO users(username,password_salt,password_hash,role,status,college,full_name,permissions,college_access,must_change_password,created_at,updated_at,custom_role) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(username,hp.salt,hp.hash,role,'active',college,fullName,permissions,collegeAccess,1,now(),now(),customRole).run();
@@ -541,7 +559,7 @@ async function updateUserPermissions(DB,actor,body,ip){
   const fullName=clean(body.fullName||body.full_name||'',200);
   const college=clean(body.college||'smgg',20);
   const collegeAccess=normalizeCollegeAccess(college,body.collegeAccess||body.college_access||'');
-  const permissions=clean(body.permissions||'',2000);
+  const permissions=voucherScopedPermissions(role, clean(body.permissions||'',2000));
   assertAssignableAccess(actor, role, college, collegeAccess || college, permissions);
   
   await DB.prepare('UPDATE users SET role=?,custom_role=?,full_name=?,college=?,college_access=?,permissions=?,updated_at=? WHERE username=?').bind(role,customRole,fullName,college,collegeAccess,permissions,now(),username).run();

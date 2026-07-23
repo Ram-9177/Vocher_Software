@@ -7,7 +7,7 @@
   <link rel="icon" href="assets/logo_smgg.png">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="app.js?v=20260723-ledger-date-format-v10" defer></script>
+  <script src="app.js?v=20260723-owner-scope-filters-v11" defer></script>
 </head>
 <body>
 <script>
@@ -250,8 +250,8 @@
       <div class="ph"><h1 id="MVT_TITLE">My Vouchers</h1><p>Your vouchers — search, filter, print</p></div>
       <div class="sb2">
         <input type="text" id="MSQ" placeholder="Search party, head, purpose..." oninput="renderMyVT()">
-        <input type="date" id="MSD" onchange="renderMyVT()" style="padding:8px 12px;border:1.5px solid var(--G200);border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;background:var(--W);color:var(--T)" title="Filter by date">
-        <button class="btn bs bsm" type="button" onclick="document.getElementById('MSD').value='';renderMyVT()" title="Clear Date">Clear Date</button>
+        <input type="date" id="MSDF" onchange="renderMyVT()" style="padding:8px 12px;border:1.5px solid var(--G200);border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;background:var(--W);color:var(--T)" title="From date">
+        <input type="date" id="MSDT" onchange="renderMyVT()" style="padding:8px 12px;border:1.5px solid var(--G200);border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;background:var(--W);color:var(--T)" title="To date">
         <select id="MFT2" onchange="renderMyVT()">
           <option value="">All Types</option>
           <option value="debit">Debit</option>
@@ -259,6 +259,16 @@
           <option value="credit">Credit</option>
         </select>
         <select id="MFH" onchange="renderMyVT()"><option value="">All Heads</option></select>
+        <select id="MFM" onchange="renderMyVT()">
+          <option value="">All Payment Modes</option>
+          <option value="Cash">Cash</option>
+          <option value="Cheque">Cheque</option>
+          <option value="NEFT">NEFT</option>
+          <option value="RTGS">RTGS</option>
+          <option value="UPI">UPI</option>
+          <option value="DD">DD</option>
+        </select>
+        <button class="btn bs bsm" type="button" onclick="clearMyVoucherFilters()" title="Clear Filters">Clear Filters</button>
         <button class="btn bg bsm" onclick="doExcelMine()" title="📥 Export My Excel">📥 Export My Excel</button>
       </div>
       <div class="twrap">
@@ -267,6 +277,7 @@
         </tr></thead>
         <tbody id="MVTB"></tbody></table>
       </div>
+      <div id="MVC" style="margin-top:8px;font-size:11.5px;color:var(--G600)"></div>
       <div id="MVT_EMPTY" style="text-align:center;padding:2rem;color:var(--G400);display:none">No vouchers found.</div>
     </div>
 

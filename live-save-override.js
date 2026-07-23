@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  var buildVersion = '20260723-ledger-date-format-v10';
+  var buildVersion = '20260723-owner-scope-filters-v11';
   try {
     var currentSrc = document.currentScript && document.currentScript.src;
     var currentVersion = currentSrc ? new URL(currentSrc, window.location.href).searchParams.get('v') : '';
