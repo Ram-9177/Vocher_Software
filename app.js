@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260721-user-management-v7';
+  var buildVersion = '20260723-ledger-date-format-v10';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;

@@ -368,6 +368,12 @@ async function switchCollegeCtx(){
 function _authUserFromStorage(){
   try{const s=localStorage.getItem('smv_auth_user');return s?JSON.parse(s):null;}catch(e){return null;}
 }
+function _isOwnVoucher(v){
+  const u=_authUserFromStorage();
+  const identities=[u&&u.username,CU].filter(Boolean).map(x=>String(x).toLowerCase());
+  const owners=[v&&v.created_by,v&&v.createdBy].filter(Boolean).map(x=>String(x).toLowerCase());
+  return owners.some(owner=>identities.includes(owner));
+}
 function _isPrimaryAdminSession(){
   const u=_authUserFromStorage();
   if(u && u.role === 'head') return true;
@@ -733,7 +739,7 @@ function renderMyDash(){
   if(CU==='admin1')return;
   const mdbf = document.getElementById('MDBF') ? document.getElementById('MDBF').value : '';
   const mdbt = document.getElementById('MDBT') ? document.getElementById('MDBT').value : '';
-  let myVS=VS.filter(v=>v.createdBy===CU);
+  let myVS=VS.filter(_isOwnVoucher);
   if(mdbf || mdbt) {
     myVS = myVS.filter(v => {
       const p = (v.date||'').split('-');
@@ -773,7 +779,7 @@ function renderMyDash(){
 
 // MY VOUCHERS TABLE (admin2/admin3)
 function renderMyVT(){
-  const myVS=VS.filter(v=>v.createdBy===CU);
+  const myVS=VS.filter(_isOwnVoucher);
   const q=document.getElementById('MSQ').value.toLowerCase();
   const ft=document.getElementById('MFT2').value,fh=document.getElementById('MFH').value;
   const sdEl=document.getElementById('MSD'),sd=sdEl?sdEl.value:'';
@@ -810,7 +816,7 @@ function populateMyHeads(){
 function doExcelMine(){
   try{
     if(typeof XLSX==='undefined'){alert('Excel library not ready.');return;}
-    const myVS=VS.filter(v=>v.createdBy===CU);
+    const myVS=VS.filter(_isOwnVoucher);
     if(!myVS.length){alert('No vouchers to export.');return;}
     const wb=XLSX.utils.book_new();
     const rows=myVS.map(v=>({
@@ -1643,12 +1649,22 @@ function exportLedger(silent=false){
     const EXPVS = (typeof getFilteredVS==='function') ? getFilteredVS() : VS;
     if(!EXPVS.length){if(!silent) alert('No vouchers match the current filter to export.');return;}
 
-    // Determine min/max date
+    // Determine min/max date using ISO values, then display as DD-MM-YYYY.
+    const ledgerDateISO = v => {
+      const raw = String(v.dateISO || v.date || '').trim();
+      if(/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+      if(/^\d{2}-\d{2}-\d{4}$/.test(raw)) {
+        const [day,month,year] = raw.split('-');
+        return `${year}-${month}-${day}`;
+      }
+      return '';
+    };
     let minDate = '9999-12-31', maxDate = '0000-00-00';
     EXPVS.forEach(v => {
-      if(v.date) {
-        if(v.date < minDate) minDate = v.date;
-        if(v.date > maxDate) maxDate = v.date;
+      const dateISO = ledgerDateISO(v);
+      if(dateISO) {
+        if(dateISO < minDate) minDate = dateISO;
+        if(dateISO > maxDate) maxDate = dateISO;
       }
     });
     if(minDate === '9999-12-31') minDate = '-';
@@ -1657,7 +1673,7 @@ function exportLedger(silent=false){
     const fmtDate = (d) => {
       if(!d || d==='-') return '';
       const [y,m,day] = d.split('-');
-      return `${parseInt(day)}.${parseInt(m)}.${y.slice(-2)}`;
+      return `${day}-${m}-${y}`;
     };
     const dateRangeStr = `Date ${fmtDate(minDate)} to ${fmtDate(maxDate)}`;
 
@@ -1688,7 +1704,8 @@ function exportLedger(silent=false){
     row7[8] = 'Amount';
     allHeadsData[6] = row7;
 
-    let grandTotDr = 0, grandTotCr = 0;
+    const isCashMode = v => String(v.mode || 'Cash').trim().toLowerCase() === 'cash';
+    let grandTotCash = 0, grandTotBank = 0;
 
     headNames.forEach(h => {
       const hData = [];
@@ -1699,7 +1716,7 @@ function exportLedger(silent=false){
       headRow5[2] = dateRangeStr;
       hData[4] = headRow5;
 
-      let totDr = 0, totCr = 0;
+      let totDr = 0, totCr = 0, totCash = 0, totBank = 0;
       heads[h].forEach(v => {
         const row = [];
         row[1] = h;
@@ -1709,6 +1726,8 @@ function exportLedger(silent=false){
         row[2] = particulars;
         
         const amt = Number(v.amount)||0;
+        if(isCashMode(v)) totCash += amt;
+        else totBank += amt;
         if(v.type === 'credit') {
           row[4] = amt; 
           totCr += amt;
@@ -1740,12 +1759,12 @@ function exportLedger(silent=false){
 
       const ahRow = [];
       ahRow[6] = h;
-      ahRow[7] = totDr || 0;
-      ahRow[8] = totCr || 0;
+      ahRow[7] = totCash || 0;
+      ahRow[8] = totBank || 0;
       allHeadsData.push(ahRow);
       
-      grandTotDr += totDr;
-      grandTotCr += totCr;
+      grandTotCash += totCash;
+      grandTotBank += totBank;
     });
 
     allHeadsData.push([]);
@@ -1754,8 +1773,8 @@ function exportLedger(silent=false){
     
     const gtRow = [];
     gtRow[6] = 'Grand Total';
-    gtRow[7] = grandTotDr;
-    gtRow[8] = grandTotCr;
+    gtRow[7] = grandTotCash;
+    gtRow[8] = grandTotBank;
     allHeadsData.push(gtRow);
 
     const wsAll = XLSX.utils.aoa_to_sheet(allHeadsData);
