@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260725-cash-book-period-v13';
+  var buildVersion = '20260725-cash-book-block-narration-v14';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;
