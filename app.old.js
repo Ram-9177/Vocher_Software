@@ -1815,7 +1815,7 @@ function exportLedger(silent=false){
 
 // =============================================
 // CASH BOOK EXPORT — one sheet per institution
-// Columns: Particulars | Amount | Amount | Head Account | Particulars | Amount | Amount
+// Columns: Particulars | Block | Amount | Amount | Head Account | Particulars | Block | Amount | Amount
 // Left (Receipts) = Credit vouchers · Right (Payments) = Debit + On Account vouchers
 // =============================================
 function doCashBook(){
@@ -1835,6 +1835,19 @@ function doCashBook(){
     const fcEl = document.getElementById('FC');
     const selectedInst = fcEl ? fcEl.value : '';
     const instKeysToProcess = selectedInst ? [selectedInst] : instKeys;
+    const fromDate = (document.getElementById('SDF')||{}).value || '';
+    const toDate = (document.getElementById('SDT')||{}).value || '';
+    const fmtFilterDate = value => {
+      const parts = value.split('-');
+      return parts.length===3 ? parts[2]+'-'+parts[1]+'-'+parts[0] : value;
+    };
+    const periodLabel = fromDate && toDate
+      ? 'Period: '+fmtFilterDate(fromDate)+' – '+fmtFilterDate(toDate)
+      : fromDate
+        ? 'Period: From '+fmtFilterDate(fromDate)
+        : toDate
+          ? 'Period: Up to '+fmtFilterDate(toDate)
+          : 'Period: All Dates';
 
     instKeysToProcess.forEach(key=>{
       const instLabel = (insts[key] && insts[key].label) ? insts[key].label : key;
@@ -1860,8 +1873,9 @@ function doCashBook(){
 
       // Build AOA
       const aoa = [];
-      aoa.push([instLabel+' Cash Book','','','','','','']); // row 0: title (merged)
-      aoa.push(['Particulars','Amount','Amount','Head Account','Particulars','Amount','Amount']); // row 1: header
+      aoa.push([instLabel+' Cash Book','','','','','','','','']); // row 0: title (merged)
+      aoa.push([periodLabel,'','','','','','','','']); // row 1: selected date range (merged)
+      aoa.push(['Particulars','Block','Amount','Amount','Head Account','Particulars','Block','Amount','Amount']); // row 2: header
       let rcvCash=0, rcvBank=0, payCash=0, payBank=0;
       const isCash = v => ((v.mode||'Cash').toLowerCase()==='cash');
       for(let i=0;i<nRows;i++){
@@ -1876,25 +1890,30 @@ function doCashBook(){
         if(p){ if(isCash(p)) payCash+=pAmtNum; else payBank+=pAmtNum; }
         aoa.push([
           r ? rcvParticulars(r) : '',
+          r ? (r.block||'') : '',
           rCash,
           rBank,
           p ? (p.head||'') : (r ? (r.head||'') : ''),
           p ? payParticulars(p) : '',
+          p ? (p.block||'') : '',
           pCash,
           pBank
         ]);
       }
       // Totals row
-      aoa.push(['Total', rcvCash, rcvBank, '', 'Total', payCash, payBank]);
+      aoa.push(['Total', '', rcvCash, rcvBank, '', 'Total', '', payCash, payBank]);
 
       const ws = XLSX.utils.aoa_to_sheet(aoa);
-      ws['!cols']=[{wch:38},{wch:12},{wch:12},{wch:22},{wch:44},{wch:12},{wch:12}];
+      ws['!cols']=[{wch:38},{wch:18},{wch:12},{wch:12},{wch:22},{wch:44},{wch:18},{wch:12},{wch:12}];
 
-      // Merge title across 7 cols (row 0), and merge "Amount Amount" headers if you want (kept separate per image)
-      ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:6}}];
+      // Merge title and selected period across 9 cols.
+      ws['!merges'] = [
+        {s:{r:0,c:0},e:{r:0,c:8}},
+        {s:{r:1,c:0},e:{r:1,c:8}}
+      ];
 
       // Freeze header rows
-      ws['!freeze']={xSplit:0,ySplit:2};
+      ws['!freeze']={xSplit:0,ySplit:3};
 
       const lastRow = aoa.length - 1;
 
@@ -1906,9 +1925,16 @@ function doCashBook(){
           border:allBorder
         };
       }
+      if(ws['A2']){
+        ws['A2'].s = {
+          font:{bold:true, sz:11, color:{rgb:'000000'}},
+          alignment:{horizontal:'center', vertical:'center'},
+          border:allBorder
+        };
+      }
       // Header row style
-      for(let C=0;C<=6;C++){
-        const addr = XLSX.utils.encode_cell({r:1,c:C});
+      for(let C=0;C<=8;C++){
+        const addr = XLSX.utils.encode_cell({r:2,c:C});
         if(!ws[addr]) ws[addr]={t:'s',v:''};
         ws[addr].s = {
           font:{bold:true, color:{rgb:HDR_FONT}, sz:11},
@@ -1918,12 +1944,12 @@ function doCashBook(){
         };
       }
       // Body styles
-      for(let R=2; R<=lastRow; R++){
+      for(let R=3; R<=lastRow; R++){
         const isTotal = (R===lastRow);
-        for(let C=0;C<=6;C++){
+        for(let C=0;C<=8;C++){
           const addr = XLSX.utils.encode_cell({r:R,c:C});
           if(!ws[addr]) ws[addr]={t:'s',v:''};
-          const isAmtCol = (C===1 || C===2 || C===5 || C===6);
+          const isAmtCol = (C===2 || C===3 || C===7 || C===8);
           ws[addr].s = {
             font: isTotal ? {bold:true} : (isAmtCol?{bold:false}:{}),
             alignment: isAmtCol
@@ -1938,7 +1964,7 @@ function doCashBook(){
         }
       }
       // Slightly taller title row
-      ws['!rows'] = [{hpt:24},{hpt:22}];
+      ws['!rows'] = [{hpt:24},{hpt:20},{hpt:22}];
 
       // Sheet name: keep <=31 chars and safe
       let sheetName = instLabel.replace(/[\\\/\?\*\[\]:]/g,' ').slice(0,31);
