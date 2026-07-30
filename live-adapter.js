@@ -150,6 +150,10 @@
       authUser = changedUser || ok.user;
     }
 
+    const allowedColleges = typeof _sessionCollegeAccess === 'function' ? _sessionCollegeAccess() : [];
+    if(allowedColleges.length && allowedColleges.indexOf(CURRENT_COLLEGE) === -1) {
+      CURRENT_COLLEGE = allowedColleges.indexOf(authUser.college) !== -1 ? authUser.college : allowedColleges[0];
+    }
     CU = uiUserCode(authUser);
     document.getElementById('CP').style.display='none';
     document.getElementById('LS').style.display='none';
@@ -257,6 +261,8 @@
       if(key==='heads'&&sig===headsSig)return;
       if(key==='blocks'&&sig===blocksSig)return;
       if(key==='heads')headsSig=sig;else blocksSig=sig;
+      if(key==='heads'&&typeof DEFAULT_HEADS!=='undefined')target.splice(0,target.length,...DEFAULT_HEADS);
+      if(key==='blocks')target.length=0;
       rows.forEach(function(row){
         const name=String(row.name||'').trim();
         if(name&&!target.some(function(existing){return existing.toLowerCase()===name.toLowerCase();}))target.push(name);
@@ -303,6 +309,7 @@
         const nextUserSig=JSON.stringify(currentUser||{});
         if(currentUser&&nextUserSig!==userSig){
           userSig=nextUserSig;setAuthUser(currentUser);
+          try{if(typeof updateCollegeSwitchPill==='function')updateCollegeSwitchPill();}catch(e){}
           try{if(typeof window.installAdminUsers==='function')window.installAdminUsers();}catch(e){}
           try{if(typeof applyPermissionVisibility==='function')applyPermissionVisibility();}catch(e){}
         }

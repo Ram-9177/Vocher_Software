@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260725-cash-book-block-narration-v14';
+  var buildVersion = '20260730-voucher-filters-totals-switch-v19';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;

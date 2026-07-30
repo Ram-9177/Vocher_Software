@@ -7,7 +7,7 @@
   <link rel="icon" href="assets/logo_smgg.png">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="app.js?v=20260725-cash-book-block-narration-v14" defer></script>
+  <script src="app.js?v=20260730-voucher-filters-totals-switch-v19" defer></script>
 </head>
 <body>
 <script>
@@ -126,7 +126,7 @@
   </div>
    <div class="tbr">
      <span class="ubadge" id="UB">Admin 1</span>
-     <span class="linkpill" id="CSWPILL" onclick="switchCollegeCtx()" title="Switch between SMGG and STMW" style="display:none;cursor:pointer">🔁 <span id="CSWLBL">Switch to STMW</span></span>
+     <span class="linkpill" id="CSWPILL" onclick="switchCollegeCtx()" title="Switch between permitted colleges" style="display:none;cursor:pointer">🔁 <span id="CSWLBL">Switch to STMW</span></span>
      <span class="linkpill" id="XLPILL" onclick="linkExcelFile()" title="Link an Excel file so Save writes back into it">📎 Link Excel</span>
      <button class="lobtn" onclick="logout()" title="Sign Out">Sign Out</button>
    </div>
@@ -249,17 +249,17 @@
     <div class="sec" id="sec-myvouchers">
       <div class="ph"><h1 id="MVT_TITLE">My Vouchers</h1><p>Your vouchers — search, filter, print</p></div>
       <div class="sb2">
-        <input type="text" id="MSQ" placeholder="Search party, head, purpose..." oninput="renderMyVT()">
-        <input type="date" id="MSDF" onchange="renderMyVT()" style="padding:8px 12px;border:1.5px solid var(--G200);border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;background:var(--W);color:var(--T)" title="From date">
-        <input type="date" id="MSDT" onchange="renderMyVT()" style="padding:8px 12px;border:1.5px solid var(--G200);border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;background:var(--W);color:var(--T)" title="To date">
-        <select id="MFT2" onchange="renderMyVT()">
+        <input type="text" id="MSQ" placeholder="Search party, head, purpose...">
+        <input type="date" id="MSDF" style="padding:8px 12px;border:1.5px solid var(--G200);border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;background:var(--W);color:var(--T)" title="From date">
+        <input type="date" id="MSDT" style="padding:8px 12px;border:1.5px solid var(--G200);border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;background:var(--W);color:var(--T)" title="To date">
+        <select id="MFT2">
           <option value="">All Types</option>
           <option value="debit">Debit</option>
           <option value="onaccount">On- Account</option>
           <option value="credit">Credit</option>
         </select>
-        <select id="MFH" onchange="renderMyVT()"><option value="">All Heads</option></select>
-        <select id="MFM" onchange="renderMyVT()">
+        <select id="MFH"><option value="">All Heads</option></select>
+        <select id="MFM">
           <option value="">All Payment Modes</option>
           <option value="Cash">Cash</option>
           <option value="Cheque">Cheque</option>
@@ -268,12 +268,13 @@
           <option value="UPI">UPI</option>
           <option value="DD">DD</option>
         </select>
+        <button class="btn bp bsm" type="button" onclick="renderMyVT()" title="Submit">Submit</button>
         <button class="btn bs bsm" type="button" onclick="clearMyVoucherFilters()" title="Clear Filters">Clear Filters</button>
         <button class="btn bg bsm" onclick="doExcelMine()" title="📥 Export My Excel">📥 Export My Excel</button>
       </div>
       <div class="twrap">
         <table><thead><tr>
-          <th>Date</th><th>Type</th><th>Party/Account</th><th>Head</th><th>Cash Mode</th><th>Amount</th><th>Actions</th>
+          <th>Date</th><th>Type</th><th>Party/Account</th><th>Head</th><th>Payment Mode</th><th>Cash Amount</th><th>Cheque Amount</th><th>Other Amount</th><th>Actions</th>
         </tr></thead>
         <tbody id="MVTB"></tbody></table>
       </div>
@@ -446,7 +447,7 @@
       </div>
       <div class="twrap">
         <table><thead><tr>
-          <th>Date</th><th>Type</th><th>Party/Account</th><th>Head</th><th>Location</th><th>Cash Mode</th><th>Amount</th><th>Entered By</th><th>Timestamp</th><th>Actions</th>
+          <th>Date</th><th>Type</th><th>Party/Account</th><th>Head</th><th>Location</th><th>Payment Mode</th><th>Cash Amount</th><th>Cheque Amount</th><th>Other Amount</th><th>Entered By</th><th>Timestamp</th><th>Actions</th>
         </tr></thead>
         <tbody id="VTB"></tbody></table>
       </div>

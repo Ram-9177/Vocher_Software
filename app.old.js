@@ -1,4 +1,5 @@
 const HEADS=['Building Maintenance','Garden Maintenance','Aquarium Maintenance','Staff Welfare Account','Guest Lecture Account','Workshop Account','Training & Placements Account','Transportation Account','Bank Deposits Account','Salary Account','Repairs & Maintenance','Hostel Mess Maintenance','Furniture Maintenance','Electricity Bill','Vehicle Maintenance','Electrical Expenses','Xerox Machine Maintenance','Transfer Account','Library Maintenance Account','Sports Maintenance Account','Function Celebration Account','Printing & Stationery Account','Office Maintenance Account','Professional Tax','Postage & Telegram','Admission & Promotion Account','On Account','Marketing','Advertisement','Loan Account','Audit Expenses Account','Diesel Account','Bank Charges Account','Courier Expenses','Telephone Expenses','Legal Expenses','Internet Expenses','Lab Maintenance','Conveyance Expenses','Computer Maintenance','Donation Account'];
+const DEFAULT_HEADS=[...HEADS];
 const BLOCKS=[];
 // ===== AUTH SYSTEM (no hardcoded passwords) =====
 // Credentials stored in localStorage as hashed passwords.
@@ -337,13 +338,26 @@ async function doLogin(){
 function logout(){CU=null;HOME_COLLEGE=null;_stopLiveSync();_clearSess();document.getElementById('APP').style.display='none';document.getElementById('LS').style.display='none';document.getElementById('LU').value='';document.getElementById('LP').value='';backToPicker();}
 function backToPicker(){CU=null;HOME_COLLEGE=null;CURRENT_COLLEGE=null;VS=[];_stopLiveSync();_clearSess();const cp=document.getElementById('CP');if(cp)cp.style.display='flex';const ls=document.getElementById('LS');if(ls)ls.style.display='none';const ap=document.getElementById('APP');if(ap)ap.style.display='none';}
 function selectCollege(c){CURRENT_COLLEGE=c;localStorage.setItem('smv_last_college',c);VS=[];const info=COLLEGES[c]||COLLEGES.smgg;const lbl=document.getElementById('LS_COLLEGE_LABEL');if(lbl)lbl.textContent=info.label;const img=document.getElementById('LS_COLLEGE_LOGO');if(img){img.src=(c==='smgg')?SMGG_LOGO_SRC:(info.logo||SMGG_LOGO_SRC);}document.getElementById('CP').style.display='none';document.getElementById('LS').style.display='flex';document.getElementById('LU').value='';document.getElementById('LP').value='';const le=document.getElementById('LE');if(le)le.style.display='none';if(typeof switchAuthTab==='function')switchAuthTab('login');}
+function _sessionCollegeAccess(){
+  const u=_authUserFromStorage();
+  const username=String(u&&u.username||'').toLowerCase();
+  if(username==='admin'||username==='admin1'||username==='admin_stmw')return ['smgg','smwec'];
+  const raw=String(u&&(u.collegeAccess||u.college_access)||'');
+  const access=raw.split(',').map(c=>c.trim().toLowerCase()).filter(Boolean).map(c=>c==='smg'?'smgg':c);
+  if(access.includes('*'))return ['smgg','smwec'];
+  const primary=String(u&&u.college||HOME_COLLEGE||CURRENT_COLLEGE||'').toLowerCase();
+  if(primary&&!access.includes(primary))access.push(primary);
+  return Array.from(new Set(access)).filter(c=>c==='smgg'||c==='smwec');
+}
 function updateCollegeSwitchPill(){
   const pill=document.getElementById('CSWPILL');if(!pill)return;
-  // Cross-college access: ONLY admin1 who logged in via SMGG can switch into STMW
-  const allowed=(_isPrimaryAdminSession() && HOME_COLLEGE==='smgg');
+  const access=_sessionCollegeAccess();
+  const target=(CURRENT_COLLEGE==='smgg')?'smwec':'smgg';
+  const allowed=access.includes(CURRENT_COLLEGE)&&access.includes(target);
   pill.style.display=allowed?'':'none';
+  pill.title='Switch to '+(target==='smwec'?'STMW':'SMGG');
   const lbl=document.getElementById('CSWLBL');
-  if(lbl) lbl.textContent=(CURRENT_COLLEGE==='smgg')?'Switch to STMW':'Back to SMGG';
+  if(lbl) lbl.textContent=(target==='smwec')?'Switch to STMW':'Switch to SMGG';
   const heading=document.getElementById('APP_HEADING');
   if(heading){
     if(CURRENT_COLLEGE==='smgg') heading.textContent="St.Mary's Group Of Institutions Guntur For women";
@@ -352,18 +366,32 @@ function updateCollegeSwitchPill(){
   }
 }
 async function switchCollegeCtx(){
-  if(!(_isPrimaryAdminSession() && HOME_COLLEGE==='smgg')){alert('You do not have access to switch colleges.');return;}
   const target=(CURRENT_COLLEGE==='smgg')?'smwec':'smgg';
-  CURRENT_COLLEGE=target;
-  localStorage.setItem('smv_last_college',target);
-  _setSess('smv_sess_college',target);
-  await _loadVouchersFromCloud();
-  const cs=document.getElementById('f_college');if(cs){cs.value=target;cs.disabled=true;}
-  updateCollegeSwitchPill();
-  if(typeof initApp==='function') initApp();
-  if(typeof setupRole==='function') setupRole();
-  if(typeof _updateXLPill==='function') _updateXLPill();
-  _startLiveSync();
+  if(!_sessionCollegeAccess().includes(target)){alert('You do not have access to switch colleges.');return;}
+  const pill=document.getElementById('CSWPILL');
+  if(pill)pill.style.pointerEvents='none';
+  _stopLiveSync();
+  try{
+    const session=await _api('validateSession',{});
+    if(session&&session.user)localStorage.setItem('smv_auth_user',JSON.stringify(session.user));
+    if(!_sessionCollegeAccess().includes(target))throw new Error('You do not have access to switch colleges.');
+    const result=await _api('listVouchers',{college:target});
+    const nextVouchers=Array.isArray(result&&result.vouchers)?result.vouchers:[];
+    CURRENT_COLLEGE=target;
+    VS=nextVouchers;
+    localStorage.setItem('smv_last_college',target);
+    _setSess('smv_sess_college',target);
+    const cs=document.getElementById('f_college');if(cs){cs.value=target;cs.disabled=true;}
+    updateCollegeSwitchPill();
+    if(typeof initApp==='function') initApp();
+    if(typeof setupRole==='function') setupRole();
+    if(typeof _updateXLPill==='function') _updateXLPill();
+  }catch(e){
+    alert(e&&e.message?e.message:'Unable to switch colleges.');
+  }finally{
+    if(pill)pill.style.pointerEvents='';
+    _startLiveSync();
+  }
 }
 function _authUserFromStorage(){
   try{const s=localStorage.getItem('smv_auth_user');return s?JSON.parse(s):null;}catch(e){return null;}
@@ -452,16 +480,28 @@ function setupRole(){
 
 // INIT
 async function fetchDynamicHeads() {
+  const college=CURRENT_COLLEGE||'smgg';
+  const dl=document.getElementById('DL_HEADS');
+  HEADS.splice(0,HEADS.length,...DEFAULT_HEADS);
+  if(dl){
+    dl.innerHTML='';
+    HEADS.forEach(h=>{const option=document.createElement('option');option.value=h;dl.appendChild(option);});
+  }
+  populateHeads();
+  if(typeof populateMyHeads==='function')populateMyHeads();
   try {
-    const res = await _api('listHeads', { college: CURRENT_COLLEGE || 'smgg' });
+    const res = await _api('listHeads', { college });
+    if(college!==(CURRENT_COLLEGE||'smgg'))return;
     if (res && res.heads) {
-      const dl = document.getElementById('DL_HEADS');
       res.heads.forEach(h => {
         if (!HEADS.some(existing => existing.toLowerCase() === h.name.toLowerCase())) {
           HEADS.push(h.name);
-          if (dl) dl.innerHTML += `<option>${h.name}</option>`;
         }
       });
+      if(dl){
+        dl.innerHTML='';
+        HEADS.forEach(h=>{const option=document.createElement('option');option.value=h;dl.appendChild(option);});
+      }
       populateHeads();
       if(typeof populateMyHeads==='function') populateMyHeads();
     }
@@ -471,16 +511,20 @@ async function fetchDynamicHeads() {
 }
 
 async function fetchDynamicBlocks() {
+  const college=CURRENT_COLLEGE||'smgg';
+  const dl=document.getElementById('DL_BLOCKS');
+  BLOCKS.length=0;
+  if(dl)dl.innerHTML='';
   try {
-    const res = await _api('listBlocks', { college: CURRENT_COLLEGE || 'smgg' });
+    const res = await _api('listBlocks', { college });
+    if(college!==(CURRENT_COLLEGE||'smgg'))return;
     if (res && res.blocks) {
-      const dl = document.getElementById('DL_BLOCKS');
       res.blocks.forEach(b => {
         if (!BLOCKS.some(existing => existing.toLowerCase() === b.name.toLowerCase())) {
           BLOCKS.push(b.name);
-          if (dl) dl.innerHTML += `<option>${b.name}</option>`;
         }
       });
+      if(dl)BLOCKS.forEach(b=>{const option=document.createElement('option');option.value=b;dl.appendChild(option);});
     }
   } catch(e) {
     console.warn("Failed to fetch custom blocks:", e);
@@ -633,7 +677,14 @@ function show(id){
   }
   if(id==='analytics')renderAnalytics();
   if(id==='mydashboard')renderMyDash();
-  if(id==='myvouchers')renderMyVT();
+  if(id==='myvouchers'){
+    const msdf=document.getElementById('MSDF'),msdt=document.getElementById('MSDT');
+    if(msdf&&msdt&&msdf.dataset.defaultDateSet!=='1'){
+      const now=new Date(),localToday=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);
+      msdf.value=localToday;msdt.value=localToday;msdf.dataset.defaultDateSet='1';
+    }
+    renderMyVT();
+  }
   // Persist current page so refresh lands on same section
   _setSess('smv_sess_page',id);
 }
@@ -810,18 +861,42 @@ function renderMyVT(){
   });
   const bc={credit:'bc',debit:'bd',onaccount:'bo'};
   const tb=document.getElementById('MVTB');if(!tb)return;
-  tb.innerHTML=f.map(v=>`<tr>
+  const rows=f.map(v=>{
+    const amount=Math.round(Number(v.amount)||0);
+    const mode=String(v.mode||'Cash').trim().toLowerCase();
+    return `<tr>
     <td><strong>${v.date}</strong></td>
     <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
     <td>${v.party||v.paidTo||v.receivedFrom||'–'}</td>
     <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
     <td>${v.mode||'Cash'}</td>
-    <td style="font-weight:600">₹${Math.round(v.amount)}</td>
+    <td style="font-weight:600">${mode==='cash'?'₹'+amount:'–'}</td>
+    <td style="font-weight:600">${mode==='cheque'?'₹'+amount:'–'}</td>
+    <td style="font-weight:600">${mode!=='cash'&&mode!=='cheque'?'₹'+amount:'–'}</td>
     <td><div style="display:flex;gap:4px">
       <button class="btn bp bsm" onclick="quickPrint(${v.id})" title="Print">🖨</button>
       <button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="View">👁</button>
     </div></td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
+  const cashTotal=f.reduce((sum,v)=>String(v.mode||'Cash').trim().toLowerCase()==='cash'?sum+Math.round(Number(v.amount)||0):sum,0);
+  const chequeTotal=f.reduce((sum,v)=>String(v.mode||'Cash').trim().toLowerCase()==='cheque'?sum+Math.round(Number(v.amount)||0):sum,0);
+  const otherTotal=f.reduce((sum,v)=>{
+    const mode=String(v.mode||'Cash').trim().toLowerCase();
+    return mode!=='cash'&&mode!=='cheque'?sum+Math.round(Number(v.amount)||0):sum;
+  },0);
+  const total=f.reduce((sum,v)=>sum+Math.round(Number(v.amount)||0),0);
+  tb.innerHTML=rows+(f.length?`<tr>
+    <td colspan="5" style="text-align:right;font-weight:900;color:#000;padding-top:12px">MODE TOTALS:</td>
+    <td style="font-weight:900;color:#7B1D2E;padding-top:12px"><small style="display:block">CASH TOTAL</small>₹${cashTotal}</td>
+    <td style="font-weight:900;color:#7B1D2E;padding-top:12px"><small style="display:block">CHEQUE TOTAL</small>₹${chequeTotal}</td>
+    <td style="font-weight:900;color:#7B1D2E;padding-top:12px"><small style="display:block">OTHER TOTAL</small>₹${otherTotal}</td>
+    <td></td>
+  </tr><tr>
+    <td colspan="5" style="text-align:right;font-weight:900;font-size:15px;color:#000">GRAND TOTAL:</td>
+    <td colspan="3" style="font-weight:900;font-size:15px;color:#7B1D2E">₹${total}</td>
+    <td></td>
+  </tr>`:'');
   const emp=document.getElementById('MVT_EMPTY');if(emp)emp.style.display=f.length?'none':'block';
   const count=document.getElementById('MVC');if(count)count.textContent=`Showing ${f.length} of ${ownCount} vouchers`;
   const t=document.getElementById('MVT_TITLE');if(t)t.textContent=(ADMINS[CU]?ADMINS[CU].label:CU)+' — My Vouchers';
@@ -1424,15 +1499,23 @@ function renderVT(){
   const bc={credit:'bc',debit:'bd',onaccount:'bo'};
   
   if (f.length === 0) {
-    document.getElementById('VTB').innerHTML = '<tr><td colspan="10" style="text-align:center;">No vouchers found.</td></tr>';
+    document.getElementById('VTB').innerHTML = '<tr><td colspan="12" style="text-align:center;">No vouchers found.</td></tr>';
     document.getElementById('VC').textContent=`Showing 0 of ${VS.length} vouchers`;
     return;
   }
 
+  let cashTotal = 0;
+  let chequeTotal = 0;
+  let otherTotal = 0;
   let grandTotal = 0;
   let html = '';
   f.forEach(v => {
-      grandTotal += Math.round(Number(v.amount) || 0);
+      const amount = Math.round(Number(v.amount) || 0);
+      const mode = String(v.mode || 'Cash').trim().toLowerCase();
+      if(mode === 'cash') cashTotal += amount;
+      if(mode === 'cheque') chequeTotal += amount;
+      if(mode !== 'cash' && mode !== 'cheque') otherTotal += amount;
+      grandTotal += amount;
       const colName = v.college ? v.college.toUpperCase() : 'SMGG';
       const ts = v.createdAt ? new Date(v.createdAt).toLocaleString('en-IN') : '';
       html += `<tr>
@@ -1442,7 +1525,9 @@ function renderVT(){
     <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
     <td><span style="font-size:10px;background:#eef;padding:2px 4px;border-radius:3px;font-weight:600;color:#333;">${colName}</span></td>
     <td>${v.mode||'Cash'}</td>
-    <td style="font-weight:600">₹${Math.round(v.amount)}</td>
+    <td style="font-weight:600">${mode==='cash'?'₹'+amount:'–'}</td>
+    <td style="font-weight:600">${mode==='cheque'?'₹'+amount:'–'}</td>
+    <td style="font-weight:600">${mode!=='cash'&&mode!=='cheque'?'₹'+amount:'–'}</td>
     <td style="font-size:11px">${v.createdBy||'–'}</td>
     <td style="font-size:10px;color:#666">${ts}</td>
     <td><div style="display:flex;gap:4px">
@@ -1455,8 +1540,14 @@ function renderVT(){
   });
   
   html += `<tr>
-    <td colspan="6" style="text-align:right;font-weight:900;font-size:15px;color:#000;padding-top:12px;">GRAND TOTAL:</td>
-    <td style="font-weight:900;font-size:15px;color:#7B1D2E;padding-top:12px;">₹${grandTotal}</td>
+    <td colspan="6" style="text-align:right;font-weight:900;color:#000;padding-top:12px;">MODE TOTALS:</td>
+    <td style="font-weight:900;color:#7B1D2E;padding-top:12px;"><small style="display:block">CASH TOTAL</small>₹${cashTotal}</td>
+    <td style="font-weight:900;color:#7B1D2E;padding-top:12px;"><small style="display:block">CHEQUE TOTAL</small>₹${chequeTotal}</td>
+    <td style="font-weight:900;color:#7B1D2E;padding-top:12px;"><small style="display:block">OTHER TOTAL</small>₹${otherTotal}</td>
+    <td colspan="3"></td>
+  </tr><tr>
+    <td colspan="6" style="text-align:right;font-weight:900;font-size:15px;color:#000;">GRAND TOTAL:</td>
+    <td colspan="3" style="font-weight:900;font-size:15px;color:#7B1D2E;">₹${grandTotal}</td>
     <td colspan="3"></td>
   </tr>`;
 
@@ -2237,6 +2328,10 @@ window.addEventListener('DOMContentLoaded', async function(){
     sessUser = sessUser || _uiUserCodeFromAuth(authUser,'');
     sessCollege = sessCollege || (authUser&&authUser.college) || localStorage.getItem('smv_last_college') || 'smgg';
     sessHome = sessHome || sessCollege;
+    const sessionAccess=_sessionCollegeAccess();
+    if(sessionAccess.length&&!sessionAccess.includes(sessCollege)){
+      sessCollege=sessionAccess.includes(authUser&&authUser.college)?authUser.college:sessionAccess[0];
+    }
     // Restore state
     CURRENT_COLLEGE = sessCollege;
     HOME_COLLEGE = sessHome || sessCollege;
