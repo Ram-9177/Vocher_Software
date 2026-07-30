@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260730-voucher-filters-totals-switch-v19';
+  var buildVersion = '20260730-ddmmyyyy-date-filters-v20';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;

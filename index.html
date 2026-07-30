@@ -7,7 +7,7 @@
   <link rel="icon" href="assets/logo_smgg.png">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="app.js?v=20260730-voucher-filters-totals-switch-v19" defer></script>
+  <script src="app.js?v=20260730-ddmmyyyy-date-filters-v20" defer></script>
 </head>
 <body>
 <script>
@@ -250,8 +250,16 @@
       <div class="ph"><h1 id="MVT_TITLE">My Vouchers</h1><p>Your vouchers — search, filter, print</p></div>
       <div class="sb2">
         <input type="text" id="MSQ" placeholder="Search party, head, purpose...">
-        <input type="date" id="MSDF" style="padding:8px 12px;border:1.5px solid var(--G200);border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;background:var(--W);color:var(--T)" title="From date">
-        <input type="date" id="MSDT" style="padding:8px 12px;border:1.5px solid var(--G200);border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;background:var(--W);color:var(--T)" title="To date">
+        <div class="date-filter-field">
+          <input type="text" id="MSDF_DISPLAY" class="date-filter-display" placeholder="DD/MM/YYYY" readonly onclick="openDateFilterPicker('MSDF')" title="From date (DD/MM/YYYY)">
+          <input type="date" id="MSDF" class="date-filter-native" onchange="syncDateFilterDisplay('MSDF')" tabindex="-1" aria-hidden="true">
+          <button type="button" class="date-filter-button" onclick="openDateFilterPicker('MSDF')" aria-label="Select from date">📅</button>
+        </div>
+        <div class="date-filter-field">
+          <input type="text" id="MSDT_DISPLAY" class="date-filter-display" placeholder="DD/MM/YYYY" readonly onclick="openDateFilterPicker('MSDT')" title="To date (DD/MM/YYYY)">
+          <input type="date" id="MSDT" class="date-filter-native" onchange="syncDateFilterDisplay('MSDT')" tabindex="-1" aria-hidden="true">
+          <button type="button" class="date-filter-button" onclick="openDateFilterPicker('MSDT')" aria-label="Select to date">📅</button>
+        </div>
         <select id="MFT2">
           <option value="">All Types</option>
           <option value="debit">Debit</option>
@@ -430,9 +438,17 @@
           <option value="smgg">St. Mary's Group of Institutions Guntur (Chebrolu)</option>
           <option value="smwec">St. Mary's Women's Engineering College, Budampadu</option>
         </select>
-        <input type="date" id="SDF" style="padding:8px 12px;border:1.5px solid var(--G200);border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;background:var(--W);color:var(--T)" title="From date">
-        <input type="date" id="SDT" style="padding:8px 12px;border:1.5px solid var(--G200);border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;background:var(--W);color:var(--T)" title="To date">
-        <button class="btn bs bsm" type="button" onclick="document.getElementById('SDF').value='';document.getElementById('SDT').value='';document.getElementById('FC').value='';document.getElementById('SQ').value='';document.getElementById('FT2').value='';document.getElementById('FH').value='';renderVT()" title="Clear Filters">Clear Filters</button>
+        <div class="date-filter-field">
+          <input type="text" id="SDF_DISPLAY" class="date-filter-display" placeholder="DD/MM/YYYY" readonly onclick="openDateFilterPicker('SDF')" title="From date (DD/MM/YYYY)">
+          <input type="date" id="SDF" class="date-filter-native" onchange="syncDateFilterDisplay('SDF')" tabindex="-1" aria-hidden="true">
+          <button type="button" class="date-filter-button" onclick="openDateFilterPicker('SDF')" aria-label="Select from date">📅</button>
+        </div>
+        <div class="date-filter-field">
+          <input type="text" id="SDT_DISPLAY" class="date-filter-display" placeholder="DD/MM/YYYY" readonly onclick="openDateFilterPicker('SDT')" title="To date (DD/MM/YYYY)">
+          <input type="date" id="SDT" class="date-filter-native" onchange="syncDateFilterDisplay('SDT')" tabindex="-1" aria-hidden="true">
+          <button type="button" class="date-filter-button" onclick="openDateFilterPicker('SDT')" aria-label="Select to date">📅</button>
+        </div>
+        <button class="btn bs bsm" type="button" onclick="clearVoucherFilters()" title="Clear Filters">Clear Filters</button>
         <select id="FT2">
           <option value="">All Types</option>
           <option value="debit">Debit</option>

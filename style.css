@@ -674,6 +674,45 @@ tr:hover td {
   border-color: var(--M);
 }
 
+.date-filter-field {
+  position: relative;
+  flex: 1 1 160px;
+  min-width: 160px;
+}
+
+.sb2 .date-filter-display {
+  width: 100%;
+  min-width: 0;
+  padding-right: 38px;
+  cursor: pointer;
+}
+
+.sb2 .date-filter-native {
+  position: absolute;
+  right: 8px;
+  bottom: 2px;
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.date-filter-button {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
 /* ===ANALYTICS=== */
 .ag {
   display: grid;

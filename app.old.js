@@ -553,6 +553,29 @@ function setDate(){
 }
 function isoToDMY(s){if(!s)return'';const p=s.split('-');if(p.length!==3)return s;return p[2]+'-'+p[1]+'-'+p[0];}
 function dmyToISO(s){if(!s)return'';const p=s.split('-');if(p.length!==3)return s;return p[2]+'-'+p[1]+'-'+p[0];}
+function formatDateFilterDisplay(iso){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(iso||''))return'';
+  const p=iso.split('-');
+  return p[2]+'/'+p[1]+'/'+p[0];
+}
+function syncDateFilterDisplay(id){
+  const input=document.getElementById(id);
+  const display=document.getElementById(id+'_DISPLAY');
+  if(display)display.value=formatDateFilterDisplay(input?input.value:'');
+}
+function setDateFilterValue(id,value){
+  const input=document.getElementById(id);
+  if(input)input.value=value||'';
+  syncDateFilterDisplay(id);
+}
+function openDateFilterPicker(id){
+  const input=document.getElementById(id);
+  if(!input)return;
+  try{
+    if(typeof input.showPicker==='function')input.showPicker();
+    else{input.focus();input.click();}
+  }catch(e){input.focus();input.click();}
+}
 function autoDate(el){
   let v=el.value.replace(/[^0-9]/g,'');
   if(v.length>2&&v.length<=4)v=v.slice(0,2)+'-'+v.slice(2);
@@ -671,8 +694,9 @@ function show(id){
     const sdf=document.getElementById('SDF'),sdt=document.getElementById('SDT');
     if(sdf&&sdt&&sdf.dataset.defaultDateSet!=='1'){
       const now=new Date(),localToday=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);
-      sdf.value=localToday;sdt.value=localToday;sdf.dataset.defaultDateSet='1';
+      setDateFilterValue('SDF',localToday);setDateFilterValue('SDT',localToday);sdf.dataset.defaultDateSet='1';
     }
+    syncDateFilterDisplay('SDF');syncDateFilterDisplay('SDT');
     renderVT();
   }
   if(id==='analytics')renderAnalytics();
@@ -681,8 +705,9 @@ function show(id){
     const msdf=document.getElementById('MSDF'),msdt=document.getElementById('MSDT');
     if(msdf&&msdt&&msdf.dataset.defaultDateSet!=='1'){
       const now=new Date(),localToday=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);
-      msdf.value=localToday;msdt.value=localToday;msdf.dataset.defaultDateSet='1';
+      setDateFilterValue('MSDF',localToday);setDateFilterValue('MSDT',localToday);msdf.dataset.defaultDateSet='1';
     }
+    syncDateFilterDisplay('MSDF');syncDateFilterDisplay('MSDT');
     renderMyVT();
   }
   // Persist current page so refresh lands on same section
@@ -849,6 +874,7 @@ function getMyFilteredVS(){
 }
 function clearMyVoucherFilters(){
   ['MSQ','MSDF','MSDT','MFT2','MFH','MFM'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  syncDateFilterDisplay('MSDF');syncDateFilterDisplay('MSDT');
   renderMyVT();
 }
 function renderMyVT(){
@@ -1486,6 +1512,11 @@ function getFilteredVS(){
     }
     return sq&&(!ft||v.type===ft)&&(!fh||v.head===fh)&&(!fc||v.college===fc)&&dMatch;
   });
+}
+function clearVoucherFilters(){
+  ['SDF','SDT','FC','SQ','FT2','FH'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  syncDateFilterDisplay('SDF');syncDateFilterDisplay('SDT');
+  renderVT();
 }
 function renderVT(){
   const f=getFilteredVS().sort((a,b)=>{
