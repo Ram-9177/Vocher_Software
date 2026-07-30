@@ -342,6 +342,7 @@ function _sessionCollegeAccess(){
   const u=_authUserFromStorage();
   const username=String(u&&u.username||'').toLowerCase();
   if(username==='admin'||username==='admin1'||username==='admin_stmw')return ['smgg','smwec'];
+  if(u&&u.role==='user')return ['smgg','smwec'];
   const raw=String(u&&(u.collegeAccess||u.college_access)||'');
   const access=raw.split(',').map(c=>c.trim().toLowerCase()).filter(Boolean).map(c=>c==='smg'?'smgg':c);
   if(access.includes('*'))return ['smgg','smwec'];
@@ -842,15 +843,21 @@ function renderMyDash(){
   const rec=[...myVS].sort((a,b)=>(Date.parse(b.createdAt||b.created_at||'')||Number(b.id||0))-(Date.parse(a.createdAt||a.created_at||'')||Number(a.id||0))).slice(0,10);
   const bc={credit:'bc',debit:'bd',onaccount:'bo'};
   const rb=document.getElementById('MRB');if(!rb)return;
-  rb.innerHTML=rec.map(v=>`<tr>
+  rb.innerHTML=rec.map(v=>{
+    const amount=Math.round(Number(v.amount)||0);
+    const mode=String(v.mode||'Cash').trim().toLowerCase();
+    return `<tr>
     <td><strong>${v.date}</strong></td>
     <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
     <td>${v.party||v.paidTo||v.receivedFrom||'–'}</td>
     <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
     <td>${v.mode||'Cash'}</td>
-    <td style="font-weight:600">₹${Math.round(v.amount)}</td>
+    <td style="font-weight:600">${mode==='cash'?'₹'+amount:'–'}</td>
+    <td style="font-weight:600">${mode==='cheque'?'₹'+amount:'–'}</td>
+    <td style="font-weight:600">${mode!=='cash'&&mode!=='cheque'?'₹'+amount:'–'}</td>
     <td><button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="Print">🖨</button></td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
 }
 
 // MY VOUCHERS TABLE (users — own vouchers only)

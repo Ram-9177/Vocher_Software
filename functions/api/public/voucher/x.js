@@ -1,7 +1,7 @@
 const SESSION_DAYS = 3650;
 const PBKDF2_ITERATIONS = 100000;
 const LEGACY_SHA256 = 'legacy-sha256';
-const API_VERSION = 'voucher-api-owner-scope-v8';
+const API_VERSION = 'voucher-api-user-college-switch-v9';
 
 // Permission constants
 const VIEW_DASHBOARD = 'view_dashboard';
@@ -205,6 +205,7 @@ function parsePerms(user) {
 }
 function parseCollegeAccess(user) {
   if ((user.username === 'admin' || user.username === 'admin_stmw')) return ['*'];
+  if (user.role === 'user') return ['smgg', 'smwec'];
   let accessStr = user.college_access || '';
   if (!accessStr) accessStr = user.college || 'smgg';
   return accessStr.split(',').map(c => { let x = c.trim().toLowerCase(); return x === 'smg' ? 'smgg' : x; }).filter(Boolean);
@@ -245,7 +246,7 @@ function publicUser(u) {
     role: u.custom_role || u.role,
     status: u.status,
     college: u.college === 'smg' ? 'smgg' : u.college,
-    collegeAccess: isMain ? '' : (u.college_access || ''),
+    collegeAccess: (isMain || u.role === 'user') ? 'smgg,smwec' : (u.college_access || ''),
     permissions: isMain ? allPerms : voucherScopedPermissions(u.role, parsePerms(u).join(',')),
     mustChangePassword: Number(u.must_change_password || 0) === 1
   };
