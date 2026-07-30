@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260730-ddmmyyyy-date-filters-v20';
+  var buildVersion = '20260730-user-cash-cheque-stmw-v21';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;
