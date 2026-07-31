@@ -607,7 +607,7 @@ async function changeOwnPassword(DB,user,body,ip){
 }
 async function setUserStatus(DB,actor,body,ip){
   const username=actualUsername(body.username),status=body.status==='blocked'?'blocked':'active';
-  if(isSuperAdmin(username))throwError('Main admins cannot be blocked',400);
+  if(isSuperAdmin(username) && status==='blocked')throwError('Main admins cannot be blocked',400);
   const target=await DB.prepare('SELECT username,college,custom_role FROM users WHERE username=?').bind(username).first();
   assertManageTarget(actor,target);
   await DB.prepare('UPDATE users SET status=?,updated_at=? WHERE username=?').bind(status,now(),username).run();
