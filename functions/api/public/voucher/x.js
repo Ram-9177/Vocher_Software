@@ -1,7 +1,7 @@
 const SESSION_DAYS = 3650;
 const PBKDF2_ITERATIONS = 100000;
 const LEGACY_SHA256 = 'legacy-sha256';
-const API_VERSION = 'voucher-api-multi-superadmin-v13';
+const API_VERSION = 'voucher-api-multi-superadmin-v14';
 
 // Permission constants
 const VIEW_DASHBOARD = 'view_dashboard';
