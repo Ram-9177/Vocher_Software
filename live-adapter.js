@@ -31,10 +31,8 @@
   window._smvIsMainAdminUser = isMainAdminUser;
   function loginCandidates(name, college){
     const n = String(name || '').trim().toLowerCase();
-    if(n === 'admin1' || n === 'admin') {
-      if(college === 'smwec') return ['admin_stmw'];
-      return ['admin1','admin'];
-    }
+    if(n === 'superadmin') return ['superadmin'];
+    if(n === 'admin1' || n === 'admin' || n === 'admin_stmw') return [];
     if(n === 'admin2') return ['admin2','user2'];
     if(n === 'admin3') return ['admin3','user3'];
     return [n];

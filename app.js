@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260731-cashbook-date-filter-v22';
+  var buildVersion = '20260731-superadmin-login-v24';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;

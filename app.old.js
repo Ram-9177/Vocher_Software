@@ -5,7 +5,7 @@ const BLOCKS=[];
 // Credentials stored in localStorage as hashed passwords.
 // Up to 3 accounts: admin1, admin2, admin3
 // Role: admin1 = full admin; admin2/admin3 = limited
-const ADMIN_ROLES={admin1:{label:'Admin 1',role:'admin1'},admin2:{label:'Admin 2',role:'admin2'},admin3:{label:'Admin 3',role:'admin3'}};
+const ADMIN_ROLES={admin1:{label:'Super Admin',role:'admin1'},admin2:{label:'Admin 2',role:'admin2'},admin3:{label:'Admin 3',role:'admin3'}};
 const ADMINS=ADMIN_ROLES;
 let CURRENT_COLLEGE=null;
 let HOME_COLLEGE=null; // college the user logged into; only SMGG admin1 can cross over

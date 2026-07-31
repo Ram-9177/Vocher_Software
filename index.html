@@ -7,7 +7,7 @@
   <link rel="icon" href="assets/logo_smgg.png">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="app.js?v=20260731-cashbook-date-filter-v22" defer></script>
+  <script src="app.js?v=20260731-superadmin-login-v24" defer></script>
 </head>
 <body>
 <script>
@@ -53,7 +53,7 @@
   <div id="PANEL_LOGIN">
     <div class="fg">
       <label>Admin Username</label>
-      <input type="text" id="LU" placeholder="admin1 / admin2 / admin3" onkeydown="if(event.key==='Enter')doLogin()">
+      <input type="text" id="LU" placeholder="SuperAdmin / admin2 / admin3" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
     <div class="fg">
       <label>Password</label>
@@ -125,7 +125,7 @@
     <div><h2 id="APP_HEADING">St. Mary's Institutions</h2><p>Voucher Entry System</p></div>
   </div>
    <div class="tbr">
-     <span class="ubadge" id="UB">Admin 1</span>
+     <span class="ubadge" id="UB">Super Admin</span>
      <span class="linkpill" id="CSWPILL" onclick="switchCollegeCtx()" title="Switch between permitted colleges" style="display:none;cursor:pointer">🔁 <span id="CSWLBL">Switch to STMW</span></span>
      <span class="linkpill" id="XLPILL" onclick="linkExcelFile()" title="Link an Excel file so Save writes back into it">📎 Link Excel</span>
      <button class="lobtn" onclick="logout()" title="Sign Out">Sign Out</button>

@@ -91,7 +91,7 @@
     if(tab&&tab.parentElement)tab.parentElement.style.display='none';
     ['TAB_SIGNUP','TAB_RESET','PANEL_SIGNUP','PANEL_RESET'].forEach(function(id){const el=document.getElementById(id);if(el)el.style.display='none';});
     const panel=document.getElementById('PANEL_LOGIN');if(panel)panel.style.display='block';
-    const lu=document.getElementById('LU');if(lu)lu.placeholder='admin1 / user2 / user3 / staff username';
+    const lu=document.getElementById('LU');if(lu)lu.placeholder='SuperAdmin / user2 / user3 / staff username';
     const lh=document.getElementById('LH');if(lh){lh.textContent='Users are created by admin1 only.';lh.style.display='block';}
   }
 
@@ -612,7 +612,7 @@
       niExportLedger.style.display = has('export_excel') ? 'flex' : 'none';
     }
 
-    const cashBookBtns = document.querySelectorAll('button[onclick="doCashBook()"]');
+    const cashBookBtns = document.querySelectorAll('button[onclick^="doCashBook("]');
     cashBookBtns.forEach(btn => {
       btn.style.display = has('cash_book') ? 'inline-block' : 'none';
     });

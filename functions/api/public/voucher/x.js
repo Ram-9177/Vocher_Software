@@ -1,7 +1,7 @@
 const SESSION_DAYS = 3650;
 const PBKDF2_ITERATIONS = 100000;
 const LEGACY_SHA256 = 'legacy-sha256';
-const API_VERSION = 'voucher-api-user-college-switch-v9';
+const API_VERSION = 'voucher-api-superadmin-login-v11';
 
 // Permission constants
 const VIEW_DASHBOARD = 'view_dashboard';
@@ -364,10 +364,14 @@ async function ensureSchema(DB, env) {
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at)').run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vouchers_college_updated ON vouchers(college,updated_at)').run();
   const initialPassword = env && (env.ADMIN1_INITIAL_PASSWORD || env.ADMIN_BOOTSTRAP_PASSWORD);
-  if (initialPassword) {
-    const admin = await DB.prepare('SELECT username FROM users WHERE username=?').bind('admin').first();
-    const admin_stmw = await DB.prepare('SELECT username FROM users WHERE username=?').bind('admin_stmw').first();
-    if (!admin || !admin_stmw) await createInitialAdmin(DB, String(initialPassword), '', 'smgg', 'env-bootstrap', '', !admin, !admin_stmw);
+  const admin = await DB.prepare('SELECT username FROM users WHERE username=?').bind('admin').first();
+  const adminStmw = await DB.prepare('SELECT username FROM users WHERE username=?').bind('admin_stmw').first();
+  if (initialPassword && (!admin || !adminStmw)) {
+    await createInitialAdmin(DB, String(initialPassword), '', 'smgg', 'env-bootstrap', '', !admin, !adminStmw);
+  } else if (admin && !adminStmw) {
+    const createdAt = now();
+    await DB.prepare("INSERT INTO users(username,password_salt,password_hash,role,status,college,full_name,permissions,college_access,must_change_password,created_at,updated_at,custom_role) SELECT 'admin_stmw',password_salt,password_hash,'admin','active','smwec','Main Administrator (STMW)','*','*',0,?,?,NULL FROM users WHERE username='admin'").bind(createdAt,createdAt).run();
+    await audit(DB,'system','bootstrap_admin','user','admin_stmw','STMW administrator created from main administrator credentials','');
   }
 }
 
@@ -398,12 +402,21 @@ async function listAdmins(DB, body) {
   const college = clean(body.college || 'smgg', 20);
   const r = await DB.prepare("SELECT username,role,college,status FROM users WHERE status='active' ORDER BY username").all();
   const out = [];
-  (r.results || []).forEach(function (u) { const mapped = uiUsername(u.username); if (mapped === 'admin1') out.push('admin1'); else if ((u.college || 'smgg') === college && ['admin2','admin3'].indexOf(mapped) !== -1) out.push(mapped); });
+  (r.results || []).forEach(function (u) {
+    const mapped = uiUsername(u.username);
+    const isCampusAdmin = college === 'smwec' ? u.username === 'admin_stmw' : u.username === 'admin';
+    if (mapped === 'admin1' && isCampusAdmin) out.push('admin1');
+    else if ((u.college || 'smgg') === college && ['admin2','admin3'].indexOf(mapped) !== -1) out.push(mapped);
+  });
   return send({ usernames: Array.from(new Set(out)), version: API_VERSION });
 }
 async function login(DB, request, body, ip) {
   const requested = norm(body.username);
-  const candidates = Array.from(new Set([actualUsername(requested), requested]));
+  const rootLogin = requested === 'superadmin';
+  if (['admin','admin1','admin_stmw'].indexOf(requested) !== -1) throwError('No such account', 401);
+  const candidates = rootLogin
+    ? [clean(body.college,20) === 'smwec' ? 'admin_stmw' : 'admin']
+    : Array.from(new Set([actualUsername(requested), requested]));
   let user = null;
   for (const c of candidates) { user = await DB.prepare('SELECT * FROM users WHERE username=?').bind(c).first(); if (user) break; }
   if (!user) throwError('No such account', 401);
