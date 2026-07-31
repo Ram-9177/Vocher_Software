@@ -1982,10 +1982,13 @@ function exportLedger(silent=false){
 // Columns: Particulars (including Block) | Amount | Amount | Head Account | Particulars (including Block) | Amount | Amount
 // Left (Receipts) = Credit vouchers · Right (Payments) = Debit + On Account vouchers
 // =============================================
-function doCashBook(){
+function doCashBook(scope){
   try{
     if(typeof XLSX==='undefined'){alert('Excel library not ready. Please try again.');return;}
-    const EXPVS = (typeof getFilteredVS==='function') ? getFilteredVS() : VS;
+    const isMine = scope === 'mine';
+    const EXPVS = isMine && typeof getMyFilteredVS==='function'
+      ? getMyFilteredVS()
+      : (typeof getFilteredVS==='function' ? getFilteredVS() : VS);
     if(!EXPVS.length){alert('No vouchers match the current filter to export.');return;}
 
     const wb = XLSX.utils.book_new();
@@ -1997,10 +2000,10 @@ function doCashBook(){
     const allBorder = {top:thinBlk,bottom:thinBlk,left:thinBlk,right:thinBlk};
 
     const fcEl = document.getElementById('FC');
-    const selectedInst = fcEl ? fcEl.value : '';
+    const selectedInst = isMine ? '' : (fcEl ? fcEl.value : '');
     const instKeysToProcess = selectedInst ? [selectedInst] : instKeys;
-    const fromDate = (document.getElementById('SDF')||{}).value || (document.getElementById('MSDF')||{}).value || '';
-    const toDate = (document.getElementById('SDT')||{}).value || (document.getElementById('MSDT')||{}).value || '';
+    const fromDate = (document.getElementById(isMine ? 'MSDF' : 'SDF')||{}).value || '';
+    const toDate = (document.getElementById(isMine ? 'MSDT' : 'SDT')||{}).value || '';
     const fmtFilterDate = value => {
       const parts = value.split('-');
       return parts.length===3 ? parts[2]+'-'+parts[1]+'-'+parts[0] : value;

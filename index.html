@@ -7,7 +7,7 @@
   <link rel="icon" href="assets/logo_smgg.png">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="app.js?v=20260730-user-cash-cheque-stmw-v21" defer></script>
+  <script src="app.js?v=20260731-cashbook-date-filter-v22" defer></script>
 </head>
 <body>
 <script>
@@ -279,7 +279,7 @@
         <button class="btn bp bsm" type="button" onclick="renderMyVT()" title="Submit">Submit</button>
         <button class="btn bs bsm" type="button" onclick="clearMyVoucherFilters()" title="Clear Filters">Clear Filters</button>
         <button class="btn bg bsm" onclick="doExcelMine()" title="📥 Export My Excel">📥 Export My Excel</button>
-        <button class="btn bp bsm" onclick="doCashBook()" title="📒 Cash Book">📒 Cash Book</button>
+        <button class="btn bp bsm" onclick="doCashBook('mine')" title="📒 Cash Book">📒 Cash Book</button>
       </div>
       <div class="twrap">
         <table><thead><tr>

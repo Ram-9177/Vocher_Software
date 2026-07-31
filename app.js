@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260730-user-cash-cheque-stmw-v21';
+  var buildVersion = '20260731-cashbook-date-filter-v22';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;
