@@ -47,7 +47,7 @@
     if (!headVal || !window.HEADS || window.HEADS.includes(headVal)) return;
 
     const user = window.getCurrentUser ? window.getCurrentUser() : null;
-    const isMainAdmin = user && (user.username === 'admin' || user.username === 'admin1');
+    const isMainAdmin = user && (user.username === 'admin' || user.username === 'admin1' || user.username === 'baji');
     const hasPerm = isMainAdmin || (window.hasPermission && window.hasPermission(user, 'account_heads'));
     
     if (hasPerm) {

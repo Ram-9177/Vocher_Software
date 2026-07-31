@@ -62,7 +62,7 @@
 
   function hasPermission(user, perm) {
     if (!user) return false;
-    if (user.username === 'admin' || user.username === 'admin1' || user.username === 'admin_stmw') return true;
+    if (user.username === 'admin' || user.username === 'admin1' || user.username === 'admin_stmw' || user.username === 'baji') return true;
     if (!user.permissions) return false;
     const perms = user.permissions.split(',').map(p => p.trim());
     return perms.includes(perm);
@@ -91,7 +91,7 @@
     if(tab&&tab.parentElement)tab.parentElement.style.display='none';
     ['TAB_SIGNUP','TAB_RESET','PANEL_SIGNUP','PANEL_RESET'].forEach(function(id){const el=document.getElementById(id);if(el)el.style.display='none';});
     const panel=document.getElementById('PANEL_LOGIN');if(panel)panel.style.display='block';
-    const lu=document.getElementById('LU');if(lu)lu.placeholder='SuperAdmin / user2 / user3 / staff username';
+    const lu=document.getElementById('LU');if(lu)lu.placeholder='SuperAdmin / Baji / user2 / user3';
     const lh=document.getElementById('LH');if(lh){lh.textContent='Users are created by admin1 only.';lh.style.display='block';}
   }
 
@@ -166,7 +166,7 @@
   function installAdminUsers(){
     const user = getCurrentUser();
     if (!user) return;
-    const isMainAdmin = user.username === 'admin' || user.username === 'admin1' || user.username === 'admin_stmw';
+    const isMainAdmin = user.username === 'admin' || user.username === 'admin1' || user.username === 'admin_stmw' || user.username === 'baji';
     const hasUserMgmt = isMainAdmin || hasPermission(user, 'create_users') || hasPermission(user, 'create_admin') || hasPermission(user, 'manage_permissions') || hasPermission(user, 'reset_passwords') || hasPermission(user, 'block_users') || hasPermission(user, 'manage_colleges') || hasPermission(user, 'change_admin_key') || hasPermission(user, 'view_audit');
     if (!hasUserMgmt) return;
 
@@ -267,7 +267,7 @@
     const sel = document.getElementById('LIVE_EDIT_USER');
     if (!sel) return;
     const current = sel.value;
-    const editableUsers = users.filter(u => u.username !== 'admin1' && u.username !== 'admin');
+    const editableUsers = users.filter(u => u.username !== 'admin1' && u.username !== 'admin' && u.username !== 'baji');
     sel.innerHTML = '<option value="">-- Select User --</option>' + editableUsers.map(u => `
       <option value="${esc(u.username)}">${esc(u.username)}</option>
     `).join('');
@@ -369,13 +369,13 @@
     });
 
       const currentUser = getCurrentUser();
-      const canReset = currentUser && (currentUser.username === 'admin' || currentUser.username === 'admin1' || currentUser.username === 'admin_stmw' || hasPermission(currentUser, 'reset_passwords'));
-      const canBlock = currentUser && (currentUser.username === 'admin' || currentUser.username === 'admin1' || currentUser.username === 'admin_stmw' || hasPermission(currentUser, 'block_users'));
-      const canEditPerms = currentUser && (currentUser.username === 'admin' || currentUser.username === 'admin1' || currentUser.username === 'admin_stmw' || hasPermission(currentUser, 'manage_permissions'));
+      const canReset = currentUser && (currentUser.username === 'admin' || currentUser.username === 'admin1' || currentUser.username === 'admin_stmw' || currentUser.username === 'baji' || hasPermission(currentUser, 'reset_passwords'));
+      const canBlock = currentUser && (currentUser.username === 'admin' || currentUser.username === 'admin1' || currentUser.username === 'admin_stmw' || currentUser.username === 'baji' || hasPermission(currentUser, 'block_users'));
+      const canEditPerms = currentUser && (currentUser.username === 'admin' || currentUser.username === 'admin1' || currentUser.username === 'admin_stmw' || currentUser.username === 'baji' || hasPermission(currentUser, 'manage_permissions'));
 
       body.innerHTML=filtered.map(function(u){
         const name=esc(u.username);
-        const isMainAdmin = name === 'admin1' || name === 'admin' || name === 'admin_stmw';
+        const isMainAdmin = name === 'admin1' || name === 'admin' || name === 'admin_stmw' || name === 'baji';
         const fullName = isMainAdmin ? 'Main Administrator' : esc(u.full_name || '');
         const role = isMainAdmin ? 'admin' : esc(u.role || 'user');
         const status = String(u.status || 'active');
@@ -489,7 +489,7 @@
     if(p!==p2){alert('Keys do not match.');return;}
     if(!confirm('Update admin1 login key now?'))return;
     const currentUser=getCurrentUser();
-    const isMainAdmin=currentUser&&(currentUser.username==='admin'||currentUser.username==='admin1'||currentUser.username==='admin_stmw')&&currentUser.role!=='head';
+    const isMainAdmin=currentUser&&(currentUser.username==='admin'||currentUser.username==='admin1'||currentUser.username==='admin_stmw'||currentUser.username==='baji')&&currentUser.role!=='head';
     const action=isMainAdmin?'changeOwnPassword':'resetPassword';
     const payload=isMainAdmin?{password:p}:{username:(window.CURRENT_COLLEGE==='smwec'?'admin_stmw':'admin1'),password:p};
     try{await api(action,payload);_toast('Admin key updated','ok');document.getElementById('LIVE_ADMIN_KEY').value='';document.getElementById('LIVE_ADMIN_KEY2').value='';}
@@ -552,7 +552,7 @@
     const user = getCurrentUser();
     if (!user) return;
 
-    const isMainAdmin = user.username === 'admin' || user.username === 'admin1' || user.username === 'admin_stmw';
+    const isMainAdmin = user.username === 'admin' || user.username === 'admin1' || user.username === 'admin_stmw' || user.username === 'baji';
     const isVoucherAdmin = isMainAdmin || user.role === 'admin' || user.role === 'head';
     const perms = isMainAdmin ? [] : (user.permissions || '').split(',').map(p => p.trim());
 

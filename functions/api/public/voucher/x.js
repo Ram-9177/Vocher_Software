@@ -1,7 +1,7 @@
 const SESSION_DAYS = 3650;
 const PBKDF2_ITERATIONS = 100000;
 const LEGACY_SHA256 = 'legacy-sha256';
-const API_VERSION = 'voucher-api-superadmin-login-v11';
+const API_VERSION = 'voucher-api-multi-superadmin-v13';
 
 // Permission constants
 const VIEW_DASHBOARD = 'view_dashboard';
@@ -62,7 +62,7 @@ async function handle(context) {
 
   const session = await requireSession(env.DB, request, body.token);
   const user = session.user;
-  const isAdmin1 = (user.username === 'admin' || user.username === 'admin_stmw');
+  const isAdmin1 = isSuperAdmin(user);
 
   if (action === 'validateSession') return await validateSession(env.DB, session);
   if (action === 'changeOwnPassword') return await changeOwnPassword(env.DB, user, body, ip);
@@ -156,7 +156,7 @@ async function handle(context) {
   }
   if (action === 'resetPassword') {
     const target = actualUsername(body.username);
-    if ((target === 'admin' || target === 'admin_stmw')) {
+    if (isSuperAdmin(target)) {
       if (!isAdmin1 && !hasPermission(user, 'change_admin_key')) {
         throwError('Access denied. Missing change_admin_key permission.', 403);
       }
@@ -190,11 +190,12 @@ function now() { return new Date().toISOString(); }
 function clean(v, max) { return String(v == null ? '' : v).trim().replace(/\s+/g, ' ').slice(0, max || 2000); }
 function norm(v) { return clean(v, 250).toLowerCase(); }
 function amount(v) { return Math.round(Number(v || 0)); }
+function isSuperAdmin(user) { const username = norm(typeof user === 'string' ? user : user && user.username); return username === 'admin' || username === 'admin_stmw' || username === 'baji'; }
 function actualUsername(name) { const u = norm(name); if (u === 'admin' || u === 'admin1') return 'admin'; if (u === 'admin2') return 'user2'; if (u === 'admin3') return 'user3'; return u; }
 function uiUsername(name) { const u = norm(name); if (u === 'admin' || u === 'admin_stmw') return 'admin1'; if (u === 'user2') return 'admin2'; if (u === 'user3') return 'admin3'; return u; }
 
 function parsePerms(user) {
-  if ((user.username === 'admin' || user.username === 'admin_stmw')) return ['*'];
+  if (isSuperAdmin(user)) return ['*'];
   let permsStr = user.permissions || '';
   if (!permsStr) {
     permsStr = user.role === 'admin' ? 
@@ -204,21 +205,20 @@ function parsePerms(user) {
   return permsStr.split(',').map(p => p.trim()).filter(Boolean);
 }
 function parseCollegeAccess(user) {
-  if ((user.username === 'admin' || user.username === 'admin_stmw')) return ['*'];
+  if (isSuperAdmin(user)) return ['*'];
   if (user.role === 'user') return ['smgg', 'smwec'];
   let accessStr = user.college_access || '';
   if (!accessStr) accessStr = user.college || 'smgg';
   return accessStr.split(',').map(c => { let x = c.trim().toLowerCase(); return x === 'smg' ? 'smgg' : x; }).filter(Boolean);
 }
 function hasPerm(user, perm) {
-  if ((user.username === 'admin' || user.username === 'admin_stmw')) return true;
+  if (isSuperAdmin(user)) return true;
   return parsePerms(user).includes(perm);
 }
 function hasPermission(user, perm) { return hasPerm(user, perm); }
 function isVoucherAdmin(user) {
   return !!user && (
-    user.username === 'admin' ||
-    user.username === 'admin_stmw' ||
+    isSuperAdmin(user) ||
     user.role === 'admin' ||
     user.custom_role === 'head'
   );
@@ -227,13 +227,13 @@ function need(user, permission) {
   if (!hasPerm(user, permission)) throwError('Access denied. Missing ' + permission, 403);
 }
 function needAny(user, permissions) {
-  if ((user.username === 'admin' || user.username === 'admin_stmw')) return;
+  if (isSuperAdmin(user)) return;
   const perms = parsePerms(user);
   if (!permissions.some(p => perms.includes(p))) throwError('Access denied. Missing required permissions.', 403);
 }
 
 function publicUser(u) {
-  const isMain = (u.username === 'admin' || u.username === 'admin_stmw');
+  const isMain = isSuperAdmin(u);
   const allPerms = [
     'view_dashboard', 'view_analytics', 'create_voucher', 'view_own_vouchers', 'view_all_vouchers',
     'edit_voucher', 'delete_voucher', 'print_voucher', 'export_excel', 'cash_book', 'link_excel',
@@ -242,7 +242,7 @@ function publicUser(u) {
   ].join(',');
   return {
     username: uiUsername(u.username),
-    fullName: isMain ? 'Main Administrator' : (u.full_name || ''),
+    fullName: u.username === 'baji' ? (u.full_name || 'Baji') : (isMain ? 'Main Administrator' : (u.full_name || '')),
     role: u.custom_role || u.role,
     status: u.status,
     college: u.college === 'smg' ? 'smgg' : u.college,
@@ -254,7 +254,7 @@ function publicUser(u) {
 
 function allowedCollege(user, requested) {
   const req = clean(requested || user.college || 'smgg', 20);
-  if ((user.username === 'admin' || user.username === 'admin_stmw')) return req;
+  if (isSuperAdmin(user)) return req;
   const allowed = parseCollegeAccess(user);
   if (!allowed.length) {
     const primary = clean(user.college || 'smgg', 20);
@@ -285,7 +285,7 @@ function assertPassword(password) {
   if (String(password || '').length < 6) throwError('Password must be at least 6 characters', 400);
 }
 function assertAssignableAccess(actor, role, college, collegeAccess, permissions) {
-  if ((actor.username === 'admin' || actor.username === 'admin_stmw')) return;
+  if (isSuperAdmin(actor)) return;
   const actorPerms = parsePerms(actor);
   const actorColleges = parseCollegeAccess(actor);
   const requestedColleges = Array.from(new Set([college].concat(csvList(collegeAccess || college)).filter(Boolean)));
@@ -304,8 +304,8 @@ function assertAssignableAccess(actor, role, college, collegeAccess, permissions
 }
 
 function canManageTarget(actor, target) {
-  if (actor.username === 'admin' || actor.username === 'admin_stmw') return true;
-  if (!target || target.username === 'admin' || target.username === 'admin_stmw') return false;
+  if (isSuperAdmin(actor)) return true;
+  if (!target || isSuperAdmin(target)) return false;
   if (target.custom_role === 'head' && actor.custom_role !== 'head') return false;
   const actorColleges = parseCollegeAccess(actor);
   const targetCollege = clean(target.college || 'smgg', 20).toLowerCase();
@@ -314,7 +314,7 @@ function canManageTarget(actor, target) {
 
 function assertManageTarget(actor, target) {
   if (!target) throwError('User not found', 404);
-  if (target.custom_role === 'head' && actor.username !== 'admin' && actor.username !== 'admin_stmw' && actor.custom_role !== 'head') {
+  if (target.custom_role === 'head' && !isSuperAdmin(actor) && actor.custom_role !== 'head') {
     throwError('Access denied. Only a main administrator or Head can manage a Head user.', 403);
   }
   if (!canManageTarget(actor, target)) {
@@ -324,7 +324,7 @@ function assertManageTarget(actor, target) {
 
 function assertResetTarget(actor, target) {
   if (!target) throwError('User not found', 404);
-  if (actor.username === 'admin' || actor.username === 'admin_stmw') return;
+  if (isSuperAdmin(actor)) return;
   if (target.custom_role === 'head' && actor.custom_role !== 'head') {
     throwError('Access denied. Only a main administrator or Head can manage a Head user.', 403);
   }
@@ -406,6 +406,7 @@ async function listAdmins(DB, body) {
     const mapped = uiUsername(u.username);
     const isCampusAdmin = college === 'smwec' ? u.username === 'admin_stmw' : u.username === 'admin';
     if (mapped === 'admin1' && isCampusAdmin) out.push('admin1');
+    else if (u.username === 'baji') out.push('baji');
     else if ((u.college || 'smgg') === college && ['admin2','admin3'].indexOf(mapped) !== -1) out.push(mapped);
   });
   return send({ usernames: Array.from(new Set(out)), version: API_VERSION });
@@ -561,13 +562,13 @@ async function createUser(DB,actor,body,ip){
 async function updateUserPermissions(DB,actor,body,ip){
   const username=actualUsername(body.username);
   if(!username)throwError('Username required',400);
-  if(username==='admin')throwError('admin1 cannot be permission-reduced or modified.',400);
+  if(isSuperAdmin(username))throwError('Super administrators cannot be permission-reduced or modified.',400);
   const target=await DB.prepare('SELECT username,role,college,custom_role FROM users WHERE username=?').bind(username).first();
   assertManageTarget(actor,target);
   
   const customRole = body.role === 'head' ? 'head' : '';
   const role = (body.role === 'admin' || body.role === 'head') ? 'admin' : 'user';
-  if (role === 'admin' && target.role !== 'admin' && (actor.username !== 'admin' && actor.username !== 'admin_stmw') && !hasPermission(actor, 'create_admin')) {
+  if (role === 'admin' && target.role !== 'admin' && !isSuperAdmin(actor) && !hasPermission(actor, 'create_admin')) {
     throwError('Access denied. Missing create_admin permission to promote to admin.', 403);
   }
   const fullName=clean(body.fullName||body.full_name||'',200);
@@ -589,7 +590,7 @@ async function resetUserPassword(DB,actor,body,ip){
   const target=await DB.prepare('SELECT username,college,custom_role FROM users WHERE username=?').bind(username).first();
   assertResetTarget(actor,target);
   const hp=await hashPassword(password);
-  const mustChange = (username === 'admin' || username === 'admin_stmw') ? 0 : 1;
+  const mustChange = isSuperAdmin(username) ? 0 : 1;
   await DB.prepare('UPDATE users SET password_salt=?,password_hash=?,must_change_password=?,updated_at=? WHERE username=?').bind(hp.salt,hp.hash,mustChange,now(),username).run();
   await DB.prepare('DELETE FROM sessions WHERE username=?').bind(username).run();
   await audit(DB,actor.username,'reset_user_password','user',username,'Password reset and sessions revoked',ip);
@@ -606,7 +607,7 @@ async function changeOwnPassword(DB,user,body,ip){
 }
 async function setUserStatus(DB,actor,body,ip){
   const username=actualUsername(body.username),status=body.status==='blocked'?'blocked':'active';
-  if(username==='admin' || username==='admin_stmw')throwError('Main admins cannot be blocked',400);
+  if(isSuperAdmin(username))throwError('Main admins cannot be blocked',400);
   const target=await DB.prepare('SELECT username,college,custom_role FROM users WHERE username=?').bind(username).first();
   assertManageTarget(actor,target);
   await DB.prepare('UPDATE users SET status=?,updated_at=? WHERE username=?').bind(status,now(),username).run();
@@ -616,7 +617,7 @@ async function setUserStatus(DB,actor,body,ip){
 }
 async function deleteUser(DB,actor,body,ip){
   const username=actualUsername(body.username);
-  if(username==='admin'||username==='admin1'||username==='admin_stmw')throwError('Main admins cannot be deleted',400);
+  if(isSuperAdmin(username)||username==='admin1')throwError('Main admins cannot be deleted',400);
   if(username===actor.username)throwError('You cannot delete yourself',400);
   const target=await DB.prepare('SELECT username,college,custom_role FROM users WHERE username=?').bind(username).first();
   assertManageTarget(actor,target);

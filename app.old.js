@@ -341,7 +341,7 @@ function selectCollege(c){CURRENT_COLLEGE=c;localStorage.setItem('smv_last_colle
 function _sessionCollegeAccess(){
   const u=_authUserFromStorage();
   const username=String(u&&u.username||'').toLowerCase();
-  if(username==='admin'||username==='admin1'||username==='admin_stmw')return ['smgg','smwec'];
+  if(username==='admin'||username==='admin1'||username==='admin_stmw'||username==='baji')return ['smgg','smwec'];
   if(u&&u.role==='user')return ['smgg','smwec'];
   const raw=String(u&&(u.collegeAccess||u.college_access)||'');
   const access=raw.split(',').map(c=>c.trim().toLowerCase()).filter(Boolean).map(c=>c==='smg'?'smgg':c);
@@ -407,12 +407,12 @@ function _isPrimaryAdminSession(){
   const u=_authUserFromStorage();
   if(u && u.role === 'head') return true;
   const n=String((u&&u.username)||'').toLowerCase();
-  return n==='admin'||n==='admin1'||n==='admin_stmw';
+  return n==='admin'||n==='admin1'||n==='admin_stmw'||n==='baji';
 }
 function _uiUserCodeFromAuth(u,fallback){
   if(window._smvUiUserCode) return window._smvUiUserCode(u||fallback);
   const n=String((u&&u.username)||fallback||'').toLowerCase();
-  if(n==='admin'||n==='admin1'||n==='admin_stmw'||(u&&u.role==='admin'))return'admin1';
+  if(n==='admin'||n==='admin1'||n==='admin_stmw'||n==='baji'||(u&&u.role==='admin'))return'admin1';
   if(n==='user3'||n==='admin3'||n.indexOf('3')>-1)return'admin3';
   return'admin2';
 }
@@ -467,7 +467,7 @@ function _stopLiveSync(){ if(_LIVE_TIMER){ clearInterval(_LIVE_TIMER); _LIVE_TIM
 
 function setupRole(skipShow){
   const user = window.getCurrentUser ? window.getCurrentUser() : null;
-  const isMainAdmin = user ? (user.username === 'admin' || user.username === 'admin1' || user.username === 'admin_stmw') : (CU === 'admin1');
+  const isMainAdmin = user ? (user.username === 'admin' || user.username === 'admin1' || user.username === 'admin_stmw' || user.username === 'baji') : (CU === 'admin1');
   const a1 = isMainAdmin;
   const a2 = (CU === 'admin2' || CU === 'admin3');
   

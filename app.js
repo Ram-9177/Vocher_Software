@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260731-superadmin-login-v24';
+  var buildVersion = '20260731-multi-superadmin-v26';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;

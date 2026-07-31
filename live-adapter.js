@@ -13,7 +13,7 @@
   function isMainAdminUser(u){
     if(u && u.role === 'head') return true;
     const name = String((u && u.username) || u || '').toLowerCase();
-    return name === 'admin' || name === 'admin1';
+    return name === 'admin' || name === 'admin1' || name === 'baji';
   }
   function uiUserCode(u){
     const name = String((u && u.username) || u || '').toLowerCase();
@@ -24,6 +24,7 @@
     return 'admin2';
   }
   function userLabel(u, code){
+    if(u && String(u.username || '').toLowerCase() === 'baji') return u.fullName || 'Baji';
     if(u && !isMainAdminUser(u)) return u.fullName || u.username || code;
     return (ADMIN_ROLES[code] && ADMIN_ROLES[code].label) || code;
   }
@@ -32,6 +33,7 @@
   function loginCandidates(name, college){
     const n = String(name || '').trim().toLowerCase();
     if(n === 'superadmin') return ['superadmin'];
+    if(n === 'baji') return ['baji'];
     if(n === 'admin1' || n === 'admin' || n === 'admin_stmw') return [];
     if(n === 'admin2') return ['admin2','user2'];
     if(n === 'admin3') return ['admin3','user3'];
