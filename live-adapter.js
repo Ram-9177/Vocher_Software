@@ -309,8 +309,17 @@
         const nextUserSig=JSON.stringify(currentUser||{});
         if(currentUser&&nextUserSig!==userSig){
           userSig=nextUserSig;setAuthUser(currentUser);
+          if(typeof uiUserCode==='function') {
+            window.CU = uiUserCode(currentUser);
+            try{setSess('smv_sess_user', window.CU);}catch(e){}
+          }
+          const ub = document.getElementById('UB');
+          if(ub && typeof userLabel==='function') {
+            ub.textContent = userLabel(currentUser, window.CU);
+          }
           try{if(typeof updateCollegeSwitchPill==='function')updateCollegeSwitchPill();}catch(e){}
           try{if(typeof window.installAdminUsers==='function')window.installAdminUsers();}catch(e){}
+          try{if(typeof setupRole==='function')setupRole(true);}catch(e){}
           try{if(typeof applyPermissionVisibility==='function')applyPermissionVisibility();}catch(e){}
         }
         if(Array.isArray(j.users)){
@@ -320,6 +329,7 @@
             usersSig=nextUsersSig;window.LIVE_USERS_LIST=users;
             try{if(typeof populateEditUserSelect==='function')populateEditUserSelect(users);}catch(e){}
             try{if(typeof renderUsersTableOnly==='function')renderUsersTableOnly();}catch(e){}
+            try{if(typeof populateUsersFilter==='function')populateUsersFilter();}catch(e){}
           }
         }
       }catch(e){

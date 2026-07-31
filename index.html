@@ -279,6 +279,7 @@
         <button class="btn bp bsm" type="button" onclick="renderMyVT()" title="Submit">Submit</button>
         <button class="btn bs bsm" type="button" onclick="clearMyVoucherFilters()" title="Clear Filters">Clear Filters</button>
         <button class="btn bg bsm" onclick="doExcelMine()" title="📥 Export My Excel">📥 Export My Excel</button>
+        <button class="btn bp bsm" onclick="doCashBook()" title="📒 Cash Book">📒 Cash Book</button>
       </div>
       <div class="twrap">
         <table><thead><tr>
@@ -455,7 +456,8 @@
           <option value="onaccount">On- Account</option>
           <option value="credit">Credit</option>
         </select>
-        <select id="FH"><option value="">All Heads</option></select>
+        <select id="FH" title="Filter by Head"><option value="">All Heads</option></select>
+        <select id="FU" onchange="renderVT()" title="Filter by User"><option value="">All Users</option></select>
         <button class="btn bp bsm" onclick="renderVT()" title="Submit">Submit</button>
         <button class="btn bg bsm" onclick="doExcel()" title="📥 Export Excel">📥 Export Excel</button>
         <button class="btn bp bsm" onclick="doCashBook()" title="📒 Cash Book">📒 Cash Book</button>

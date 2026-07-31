@@ -465,14 +465,17 @@ function _startLiveSync(){
 }
 function _stopLiveSync(){ if(_LIVE_TIMER){ clearInterval(_LIVE_TIMER); _LIVE_TIMER=null; } }
 
-function setupRole(){
-  const a1=CU==='admin1';
-  const a2=(CU==='admin2'||CU==='admin3');
-  document.getElementById('A1NAV').style.display=a1?'':'none';
-  document.getElementById('A2NAV').style.display=a2?'':'none';
-  if(a1){show('dashboard');}
-  else if(a2){show('mydashboard');}
-  else{show('create');}
+function setupRole(skipShow){
+  const user = window.getCurrentUser ? window.getCurrentUser() : null;
+  const isMainAdmin = user ? (user.username === 'admin' || user.username === 'admin1' || user.username === 'admin_stmw') : (CU === 'admin1');
+  const a1 = isMainAdmin;
+  const a2 = (CU === 'admin2' || CU === 'admin3');
+  
+  if(!skipShow) {
+    if(a1){show('dashboard');}
+    else if(a2){show('mydashboard');}
+    else{show('create');}
+  }
   
   document.querySelectorAll('.admin-only-add').forEach(el => {
     el.style.display = a1 ? 'inline' : 'none';
@@ -593,6 +596,34 @@ function populateHeads(){
   el.innerHTML='<option value="">All Heads</option>';
   HEADS.forEach(h=>el.innerHTML+=`<option>${h}</option>`);
 }
+function populateUsersFilter(){
+  const el=document.getElementById('FU');if(!el)return;
+  const currentVal=el.value;
+  const set=new Set();
+  (VS||[]).forEach(v=>{
+    const u=String(v.createdBy||v.created_by||'').trim();
+    if(u) set.add(u);
+  });
+  if(Array.isArray(window.LIVE_USERS_LIST)){
+    window.LIVE_USERS_LIST.forEach(u=>{
+      const uname=String(u.username||'').trim();
+      if(uname) set.add(uname);
+    });
+  }
+  const users=Array.from(set).sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'}));
+  let html='<option value="">All Users</option>';
+  users.forEach(u=>{
+    const escU=String(u).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    html+=`<option value="${escU}">${escU}</option>`;
+  });
+  if(el.innerHTML !== html){
+    el.innerHTML=html;
+    if(currentVal && users.includes(currentVal)){
+      el.value=currentVal;
+    }
+  }
+}
+window.populateUsersFilter=populateUsersFilter;
 
 async function addNewHead(type) {
   const name = prompt("Enter new Head Name:");
@@ -1500,12 +1531,13 @@ function renderDash(){
 
 // VOUCHER TABLE
 function getFilteredVS(){
-  const qEl=document.getElementById('SQ');const q=qEl?qEl.value.toLowerCase():'';
-  const ftEl=document.getElementById('FT2');const ft=ftEl?ftEl.value:'';
-  const fhEl=document.getElementById('FH');const fh=fhEl?fhEl.value:'';
+  const qEl=document.getElementById('SQ') || document.getElementById('MSQ');const q=qEl?qEl.value.toLowerCase():'';
+  const ftEl=document.getElementById('FT2') || document.getElementById('MFT2');const ft=ftEl?ftEl.value:'';
+  const fhEl=document.getElementById('FH') || document.getElementById('MFH');const fh=fhEl?fhEl.value:'';
   const fcEl=document.getElementById('FC');const fc=fcEl?fcEl.value:'';
-  const sdfEl=document.getElementById('SDF'),sdf=sdfEl?sdfEl.value:'';
-  const sdtEl=document.getElementById('SDT'),sdt=sdtEl?sdtEl.value:'';
+  const fuEl=document.getElementById('FU');const fu=fuEl?fuEl.value.toLowerCase():'';
+  const sdfEl=document.getElementById('SDF') || document.getElementById('MSDF'),sdf=sdfEl?sdfEl.value:'';
+  const sdtEl=document.getElementById('SDT') || document.getElementById('MSDT'),sdt=sdtEl?sdtEl.value:'';
   return VS.filter(v=>{
     const sq=!q||((v.party||'')+(v.paidTo||'')+(v.receivedFrom||'')+(v.head||'')+' '+(v.towards||'')).toLowerCase().includes(q);
     let dMatch=true;
@@ -1517,15 +1549,18 @@ function getFilteredVS(){
         if(sdt&&iso>sdt)dMatch=false;
       }else dMatch=false;
     }
-    return sq&&(!ft||v.type===ft)&&(!fh||v.head===fh)&&(!fc||v.college===fc)&&dMatch;
+    const uName=String(v.createdBy||v.created_by||'').trim().toLowerCase();
+    const uMatch=!fu||uName===fu;
+    return sq&&(!ft||v.type===ft)&&(!fh||v.head===fh)&&(!fc||v.college===fc)&&uMatch&&dMatch;
   });
 }
 function clearVoucherFilters(){
-  ['SDF','SDT','FC','SQ','FT2','FH'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['SDF','SDT','FC','SQ','FT2','FH','FU'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   syncDateFilterDisplay('SDF');syncDateFilterDisplay('SDT');
   renderVT();
 }
 function renderVT(){
+  try{if(typeof populateUsersFilter==='function')populateUsersFilter();}catch(e){}
   const f=getFilteredVS().sort((a,b)=>{
     const bt=Date.parse(b.createdAt||b.created_at||'')||0;
     const at=Date.parse(a.createdAt||a.created_at||'')||0;
@@ -1964,8 +1999,8 @@ function doCashBook(){
     const fcEl = document.getElementById('FC');
     const selectedInst = fcEl ? fcEl.value : '';
     const instKeysToProcess = selectedInst ? [selectedInst] : instKeys;
-    const fromDate = (document.getElementById('SDF')||{}).value || '';
-    const toDate = (document.getElementById('SDT')||{}).value || '';
+    const fromDate = (document.getElementById('SDF')||{}).value || (document.getElementById('MSDF')||{}).value || '';
+    const toDate = (document.getElementById('SDT')||{}).value || (document.getElementById('MSDT')||{}).value || '';
     const fmtFilterDate = value => {
       const parts = value.split('-');
       return parts.length===3 ? parts[2]+'-'+parts[1]+'-'+parts[0] : value;

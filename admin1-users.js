@@ -499,6 +499,55 @@
   window.toggleUserLive=async function(username,status){if(!confirm('Set '+username+' as '+status+'?'))return;try{await api('setUserStatus',{username:username,status:status});await renderUsersLive();}catch(e){alert(e.message||'Status update failed');}};
   window.deleteUserLive=async function(username){if(!confirm('Are you sure you want to completely delete '+username+'? This cannot be undone.'))return;try{await api('deleteUser',{username:username});await renderUsersLive();}catch(e){alert(e.message||'Deletion failed');}};
 
+  window.saveEditAccess = async function() {
+    const username = document.getElementById('LIVE_EDIT_USER').value;
+    if (!username) {
+      alert('Please select a user to edit.');
+      return;
+    }
+    const fullName = document.getElementById('LIVE_EDIT_FULLNAME').value.trim();
+    const role = document.getElementById('LIVE_EDIT_ROLE').value;
+    const college = document.getElementById('LIVE_EDIT_COLLEGE').value;
+
+    const collegeCbs = document.querySelectorAll('.LIVE_EDIT-college-cb');
+    const collegeAccess = Array.from(collegeCbs).filter(cb => cb.checked).map(cb => cb.value).join(',');
+
+    const permCbs = document.querySelectorAll('.LIVE_EDIT-perm-cb');
+    const permissions = Array.from(permCbs).filter(cb => cb.checked).map(cb => cb.value).join(',');
+
+    try {
+      await api('updateUserPermissions', {
+        username: username,
+        role: role,
+        fullName: fullName,
+        college: college,
+        collegeAccess: collegeAccess,
+        permissions: permissions
+      });
+      _toast('Permissions updated for ' + username, 'ok');
+      await renderUsersLive();
+      const me = getCurrentUser();
+      if (me && me.username === username) {
+        const fresh = await api('validateSession', {});
+        if (fresh && fresh.user) {
+          localStorage.setItem('smv_auth_user', JSON.stringify(fresh.user));
+          if (typeof uiUserCode === 'function') {
+            window.CU = uiUserCode(fresh.user);
+            try { sessionStorage.setItem('smv_sess_user', window.CU); localStorage.setItem('smv_sess_user', window.CU); } catch(e) {}
+          }
+          const ub = document.getElementById('UB');
+          if (ub && typeof userLabel === 'function') {
+            ub.textContent = userLabel(fresh.user, window.CU);
+          }
+          if (typeof setupRole === 'function') setupRole(true);
+          if (typeof applyPermissionVisibility === 'function') applyPermissionVisibility();
+        }
+      }
+    } catch (e) {
+      alert(e.message || 'Failed to update permissions');
+    }
+  };
+
   window.applyPermissionVisibility = function() {
     const user = getCurrentUser();
     if (!user) return;
@@ -518,7 +567,7 @@
 
     const niVouchers = document.getElementById('ni-vouchers');
     if (niVouchers) {
-      niVouchers.style.display = isVoucherAdmin ? 'flex' : 'none';
+      niVouchers.style.display = (isVoucherAdmin || has('view_all_vouchers')) ? 'flex' : 'none';
     }
 
     const niMyVouchers = document.getElementById('ni-myvouchers');
@@ -526,9 +575,31 @@
       niMyVouchers.style.display = has('view_own_vouchers') ? 'flex' : 'none';
     }
 
+    const niMyDashboard = document.getElementById('ni-mydashboard');
+    if (niMyDashboard) {
+      niMyDashboard.style.display = (!isMainAdmin && has('view_own_vouchers')) ? 'flex' : 'none';
+    }
+
+    const niDashboard = document.getElementById('ni-dashboard');
+    if (niDashboard) {
+      niDashboard.style.display = (isMainAdmin || has('view_dashboard')) ? 'flex' : 'none';
+    }
+
     const niAnalytics = document.getElementById('ni-analytics');
     if (niAnalytics) {
-      niAnalytics.style.display = has('view_analytics') ? 'flex' : 'none';
+      niAnalytics.style.display = (isMainAdmin || has('view_analytics')) ? 'flex' : 'none';
+    }
+
+    const a1Nav = document.getElementById('A1NAV');
+    if (a1Nav) {
+      const hasVisibleA1Item = [niDashboard, niAnalytics, niVouchers].some(el => el && el.style.display !== 'none');
+      a1Nav.style.display = hasVisibleA1Item ? '' : 'none';
+    }
+
+    const a2Nav = document.getElementById('A2NAV');
+    if (a2Nav) {
+      const hasVisibleA2Item = [niMyDashboard, niMyVouchers].some(el => el && el.style.display !== 'none');
+      a2Nav.style.display = hasVisibleA2Item ? '' : 'none';
     }
 
     const niExport = document.getElementById('ni-export');
@@ -536,10 +607,15 @@
       niExport.style.display = has('export_excel') ? 'flex' : 'none';
     }
 
-    const cashBookBtn = document.querySelector('button[onclick="doCashBook()"]');
-    if (cashBookBtn) {
-      cashBookBtn.style.display = has('cash_book') ? 'inline-block' : 'none';
+    const niExportLedger = document.getElementById('ni-export-ledger');
+    if (niExportLedger) {
+      niExportLedger.style.display = has('export_excel') ? 'flex' : 'none';
     }
+
+    const cashBookBtns = document.querySelectorAll('button[onclick="doCashBook()"]');
+    cashBookBtns.forEach(btn => {
+      btn.style.display = has('cash_book') ? 'inline-block' : 'none';
+    });
 
     const niPrinter = document.getElementById('ni-printersetup');
     if (niPrinter) {
@@ -593,7 +669,7 @@
       css += 'button[onclick="showAddHead()"] { display: none !important; }\n';
     }
     if (!has('export_excel')) {
-      css += '#ni-export-ledger, button[onclick="exportLedger()"], button[onclick="doExcel()"] { display: none !important; }\n';
+      css += '#ni-export-ledger, button[onclick="exportLedger()"], button[onclick="doExcel()"], button[onclick="doExcelMine()"] { display: none !important; }\n';
     }
     if (!has('print_voucher')) {
       css += 'button[onclick="previewV()"], button[onclick^="quickPrint("], button[onclick="doPrint()"], button[title="Print"] { display: none !important; }\n';
