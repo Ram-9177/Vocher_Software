@@ -641,6 +641,32 @@ tr:hover td {
   color: #880E4F;
 }
 
+.oa-status {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.oa-pending {
+  background: #FFF3CD;
+  color: #7A5200;
+  border: 1px solid #E8C968;
+}
+
+.oa-cleared {
+  background: #E4F5E9;
+  color: #176B36;
+  border: 1px solid #9BD0AA;
+}
+
+tr.oa-cleared-row td {
+  color: var(--G600);
+  background: #F7FAF7;
+}
+
 .bj {
   background: #E8F5E9;
   color: #1B5E20;

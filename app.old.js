@@ -151,6 +151,9 @@ async function autoSaveLinkedExcel(){
       'S.No':i+1,'Date':v.date||'','Voucher Type':typeLabel(v.type),
       'Account Name / Credit A/c':v.acName||'','Account Head / Debit A/c':v.head||'',
       'Received From':v.receivedFrom||'','Paid To':v.paidTo||'',
+      'Receiver Phone':v.recipientPhone||'',
+      'On Account Status':v.type==='onaccount'?(v.reversalDateISO||v.reversalDate?'Cleared':'Pending'):'',
+      'Reverse / Cleared Date':v.reversalDate||'',
       'Towards (Purpose)':v.towards||'',
       'Block':v.block||'',
       'Amount (Rs.)':Math.round(Number(v.amount)||0),
@@ -160,7 +163,7 @@ async function autoSaveLinkedExcel(){
       'Created At':v.createdAt?new Date(v.createdAt).toLocaleString('en-IN'):''
     }));
     const ws=XLSX.utils.json_to_sheet(rows);
-    ws['!cols']=[{wch:5},{wch:12},{wch:13},{wch:22},{wch:28},{wch:22},{wch:22},{wch:42},{wch:14},{wch:40},{wch:13},{wch:18},{wch:18},{wch:28},{wch:13},{wch:22}];
+    ws['!cols']=[{wch:5},{wch:12},{wch:13},{wch:22},{wch:28},{wch:22},{wch:22},{wch:18},{wch:18},{wch:20},{wch:42},{wch:14},{wch:14},{wch:40},{wch:13},{wch:18},{wch:18},{wch:28},{wch:13},{wch:22}];
     const wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb,ws,'Vouchers');
     const total=VS.reduce((s,v)=>s+(Number(v.amount)||0),0);
@@ -810,9 +813,11 @@ function saveV(){
   } else if(CVT==='onaccount'){
     v.head=getVal('fo_head');v.paidTo=getVal('fo_paidto');v.towards=getVal('fo_towards');v.block=getVal('fo_block');
     v.amount=parseFloat(document.getElementById('fo_amt').value)||0;v.amtWords=getVal('fo_words');
-    v.mode=getVal('fo_mode');v.cheque=getVal('fo_ref');v.party=v.paidTo;
+    v.mode=getVal('fo_mode');v.cheque=getVal('fo_ref');v.party=v.paidTo;v.recipientPhone=getVal('fo_phone');
+    v.reversalDateISO=getVal('fo_reversal_date');v.reversalDate=v.reversalDateISO?isoToDMY(v.reversalDateISO):'';
     if(!v.head||!v.paidTo||!v.towards||!v.amount){alert('Fill Account Head, Paid To, Towards and Amount.');return;}
   }
+  if(v.type==='onaccount'&&v.reversalDateISO&&v.reversalDateISO<dateISO){alert('Reverse / Cleared Date cannot be before the voucher date.');return;}
   if(editId){const i=VS.findIndex(x=>x.id===editId);if(i>-1){VS[i]=v;}editId=null;}
   else VS.push(v);
   v._u=new Date().toISOString();
@@ -833,7 +838,7 @@ function resetF(){
   { const sel=document.getElementById('f_college'); if(sel){ sel.value=CURRENT_COLLEGE||'smgg'; sel.disabled=true; } }
   ['fc_from','fc_words','fc_towards','fc_block','fc_cheque',
    'fd_head','fd_paidto','fd_towards','fd_block','fd_words','fd_cheque',
-   'fo_paidto','fo_towards','fo_block','fo_words','fo_ref',
+   'fo_paidto','fo_phone','fo_reversal_date','fo_towards','fo_block','fo_words','fo_ref',
    'fj_paidto','fj_towards','fj_words','fj_cheque',
    'f_prep','f_chk','f_rem'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   ['fc_amt','fd_amt','fo_amt','fj_amt'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -900,7 +905,7 @@ function getMyFilteredVS(){
   const fromEl=document.getElementById('MSDF'),from=fromEl?fromEl.value:'';
   const toEl=document.getElementById('MSDT'),to=toEl?toEl.value:'';
   return VS.filter(_isOwnVoucher).filter(v=>{
-    const text=[v.party,v.paidTo,v.receivedFrom,v.head,v.towards,v.block,v.cheque].filter(Boolean).join(' ').toLowerCase();
+    const text=[v.party,v.paidTo,v.receivedFrom,v.recipientPhone,v.head,v.towards,v.block,v.cheque,v.reversalDate,v.type==='onaccount'?(v.reversalDateISO||v.reversalDate?'cleared':'pending'):''].filter(Boolean).join(' ').toLowerCase();
     const dateISO=v.dateISO||dmyToISO(v.date||'');
     return (!q||text.includes(q))&&
       (!ft||v.type===ft)&&
@@ -918,6 +923,9 @@ function clearMyVoucherFilters(){
 function renderMyVT(){
   const ownCount=VS.filter(_isOwnVoucher).length;
   const f=getMyFilteredVS().sort((a,b)=>{
+    const ar=a.type==='onaccount'?(a.reversalDateISO||a.reversalDate?2:0):1;
+    const br=b.type==='onaccount'?(b.reversalDateISO||b.reversalDate?2:0):1;
+    if(ar!==br)return ar-br;
     const bt=Date.parse(b.createdAt||b.created_at||'')||0;
     const at=Date.parse(a.createdAt||a.created_at||'')||0;
     if(bt!==at)return bt-at;
@@ -928,10 +936,16 @@ function renderMyVT(){
   const rows=f.map(v=>{
     const amount=Math.round(Number(v.amount)||0);
     const mode=String(v.mode||'Cash').trim().toLowerCase();
-    return `<tr>
+    const cleared=v.type==='onaccount'&&Boolean(v.reversalDateISO||v.reversalDate);
+    const status=v.type!=='onaccount'?'–':cleared
+      ?`<span class="oa-status oa-cleared">CLEARED<br>${v.reversalDate||isoToDMY(v.reversalDateISO)||''}</span>`
+      :'<span class="oa-status oa-pending">PENDING</span>';
+    const phone=v.recipientPhone?`<small style="display:block;margin-top:3px;color:#555">☎ ${v.recipientPhone}</small>`:'';
+    return `<tr class="${cleared?'oa-cleared-row':''}">
     <td><strong>${v.date}</strong></td>
     <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
-    <td>${v.party||v.paidTo||v.receivedFrom||'–'}</td>
+    <td>${status}</td>
+    <td>${v.party||v.paidTo||v.receivedFrom||'–'}${phone}</td>
     <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
     <td>${v.mode||'Cash'}</td>
     <td style="font-weight:600">${mode==='cash'?'₹'+amount:'–'}</td>
@@ -951,13 +965,13 @@ function renderMyVT(){
   },0);
   const total=f.reduce((sum,v)=>sum+Math.round(Number(v.amount)||0),0);
   tb.innerHTML=rows+(f.length?`<tr>
-    <td colspan="5" style="text-align:right;font-weight:900;color:#000;padding-top:12px">MODE TOTALS:</td>
+    <td colspan="6" style="text-align:right;font-weight:900;color:#000;padding-top:12px">MODE TOTALS:</td>
     <td style="font-weight:900;color:#7B1D2E;padding-top:12px"><small style="display:block">CASH TOTAL</small>₹${cashTotal}</td>
     <td style="font-weight:900;color:#7B1D2E;padding-top:12px"><small style="display:block">CHEQUE TOTAL</small>₹${chequeTotal}</td>
     <td style="font-weight:900;color:#7B1D2E;padding-top:12px"><small style="display:block">OTHER TOTAL</small>₹${otherTotal}</td>
     <td></td>
   </tr><tr>
-    <td colspan="5" style="text-align:right;font-weight:900;font-size:15px;color:#000">GRAND TOTAL:</td>
+    <td colspan="6" style="text-align:right;font-weight:900;font-size:15px;color:#000">GRAND TOTAL:</td>
     <td colspan="3" style="font-weight:900;font-size:15px;color:#7B1D2E">₹${total}</td>
     <td></td>
   </tr>`:'');
@@ -981,6 +995,9 @@ function doExcelMine(){
     const rows=myVS.map(v=>({
       'Date':v.date,'Type':v.type,
       'Party/Account':v.party||v.paidTo||v.receivedFrom||'',
+      'Receiver Phone':v.recipientPhone||'',
+      'On Account Status':v.type==='onaccount'?(v.reversalDateISO||v.reversalDate?'Cleared':'Pending'):'',
+      'Reverse / Cleared Date':v.reversalDate||'',
       'Head':v.head||'','Towards':v.towards||'','Block':v.block||'','Amount':Math.round(v.amount),
       'Mode':v.mode||'','Prepared By':v.prepBy||'','Checked By':v.checkedBy||''
     }));
@@ -1081,10 +1098,12 @@ function buildPrint(v){
   } else {
     FIELDS += ROW(isOA ? 'On Account' : 'Debit A/c', isOA ? '' : (v.head||''));
     FIELDS += ROW('Paid to', v.paidTo||'');
+    if(isOA) FIELDS += ROW('Phone No.', v.recipientPhone||'');
     FIELDS += ROW('Rupees', v.amtWords||'');
     FIELDS += ROWT('Towards', v.towards||'');
     FIELDS += ROW('Block', v.block||'');
   }
+  if(isOA) FIELDS += ROW('Status', (v.reversalDateISO||v.reversalDate)?'CLEARED — '+(v.reversalDate||isoToDMY(v.reversalDateISO)||''):'PENDING');
   if(v.remarks) FIELDS += ROW('Remarks', v.remarks);
 
   return `<div style="width:148mm;background:${BG};border:2px solid #111;font-family:Arial,sans-serif;box-sizing:border-box;page-break-after:always">
@@ -1151,7 +1170,7 @@ function previewV(){
     prepBy:getVal('f_prep'),checkedBy:getVal('f_chk'),remarks:getVal('f_rem'),createdBy:CU};
   if(CVT==='credit'){v.acName=getVal('fc_acname');v.head=getVal('fc_head');v.receivedFrom=getVal('fc_from');v.towards=getVal('fc_towards');v.block=getVal('fc_block');v.amount=parseFloat(document.getElementById('fc_amt').value)||0;v.amtWords=getVal('fc_words');v.mode=getVal('fc_mode');v.cheque=getVal('fc_cheque');}
   else if(CVT==='debit'){v.head=getVal('fd_head');v.paidTo=getVal('fd_paidto');v.towards=getVal('fd_towards');v.block=getVal('fd_block');v.amount=parseFloat(document.getElementById('fd_amt').value)||0;v.amtWords=getVal('fd_words');v.mode=getVal('fd_mode');v.cheque=getVal('fd_cheque');}
-  else if(CVT==='onaccount'){v.head=getVal('fo_head');v.paidTo=getVal('fo_paidto');v.towards=getVal('fo_towards');v.block=getVal('fo_block');v.amount=parseFloat(document.getElementById('fo_amt').value)||0;v.amtWords=getVal('fo_words');v.mode=getVal('fo_mode');v.cheque=getVal('fo_ref');}
+  else if(CVT==='onaccount'){v.head=getVal('fo_head');v.paidTo=getVal('fo_paidto');v.recipientPhone=getVal('fo_phone');v.reversalDateISO=getVal('fo_reversal_date');v.reversalDate=v.reversalDateISO?isoToDMY(v.reversalDateISO):'';v.towards=getVal('fo_towards');v.block=getVal('fo_block');v.amount=parseFloat(document.getElementById('fo_amt').value)||0;v.amtWords=getVal('fo_words');v.mode=getVal('fo_mode');v.cheque=getVal('fo_ref');}
   openPM(v);
 }
 function openPM(v){
@@ -1539,7 +1558,7 @@ function getFilteredVS(){
   const sdfEl=document.getElementById('SDF') || document.getElementById('MSDF'),sdf=sdfEl?sdfEl.value:'';
   const sdtEl=document.getElementById('SDT') || document.getElementById('MSDT'),sdt=sdtEl?sdtEl.value:'';
   return VS.filter(v=>{
-    const sq=!q||((v.party||'')+(v.paidTo||'')+(v.receivedFrom||'')+(v.head||'')+' '+(v.towards||'')).toLowerCase().includes(q);
+    const sq=!q||[v.party,v.paidTo,v.receivedFrom,v.recipientPhone,v.head,v.towards,v.reversalDate,v.type==='onaccount'?(v.reversalDateISO||v.reversalDate?'cleared':'pending'):''].filter(Boolean).join(' ').toLowerCase().includes(q);
     let dMatch=true;
     if(sdf||sdt){
       const p=(v.date||'').split('-');
@@ -1562,6 +1581,9 @@ function clearVoucherFilters(){
 function renderVT(){
   try{if(typeof populateUsersFilter==='function')populateUsersFilter();}catch(e){}
   const f=getFilteredVS().sort((a,b)=>{
+    const ar=a.type==='onaccount'?(a.reversalDateISO||a.reversalDate?2:0):1;
+    const br=b.type==='onaccount'?(b.reversalDateISO||b.reversalDate?2:0):1;
+    if(ar!==br)return ar-br;
     const bt=Date.parse(b.createdAt||b.created_at||'')||0;
     const at=Date.parse(a.createdAt||a.created_at||'')||0;
     if(bt!==at)return bt-at;
@@ -1572,7 +1594,7 @@ function renderVT(){
   const bc={credit:'bc',debit:'bd',onaccount:'bo'};
   
   if (f.length === 0) {
-    document.getElementById('VTB').innerHTML = '<tr><td colspan="12" style="text-align:center;">No vouchers found.</td></tr>';
+    document.getElementById('VTB').innerHTML = '<tr><td colspan="13" style="text-align:center;">No vouchers found.</td></tr>';
     document.getElementById('VC').textContent=`Showing 0 of ${VS.length} vouchers`;
     return;
   }
@@ -1591,10 +1613,16 @@ function renderVT(){
       grandTotal += amount;
       const colName = v.college ? v.college.toUpperCase() : 'SMGG';
       const ts = v.createdAt ? new Date(v.createdAt).toLocaleString('en-IN') : '';
-      html += `<tr>
+      const cleared=v.type==='onaccount'&&Boolean(v.reversalDateISO||v.reversalDate);
+      const status=v.type!=='onaccount'?'–':cleared
+        ?`<span class="oa-status oa-cleared">CLEARED<br>${v.reversalDate||isoToDMY(v.reversalDateISO)||''}</span>`
+        :'<span class="oa-status oa-pending">PENDING</span>';
+      const phone=v.recipientPhone?`<small style="display:block;margin-top:3px;color:#555">☎ ${v.recipientPhone}</small>`:'';
+      html += `<tr class="${cleared?'oa-cleared-row':''}">
     <td><strong>${v.date}</strong></td>
     <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
-    <td>${v.party||v.paidTo||v.receivedFrom||'–'}</td>
+    <td>${status}</td>
+    <td>${v.party||v.paidTo||v.receivedFrom||'–'}${phone}</td>
     <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
     <td><span style="font-size:10px;background:#eef;padding:2px 4px;border-radius:3px;font-weight:600;color:#333;">${colName}</span></td>
     <td>${v.mode||'Cash'}</td>
@@ -1613,13 +1641,13 @@ function renderVT(){
   });
   
   html += `<tr>
-    <td colspan="6" style="text-align:right;font-weight:900;color:#000;padding-top:12px;">MODE TOTALS:</td>
+    <td colspan="7" style="text-align:right;font-weight:900;color:#000;padding-top:12px;">MODE TOTALS:</td>
     <td style="font-weight:900;color:#7B1D2E;padding-top:12px;"><small style="display:block">CASH TOTAL</small>₹${cashTotal}</td>
     <td style="font-weight:900;color:#7B1D2E;padding-top:12px;"><small style="display:block">CHEQUE TOTAL</small>₹${chequeTotal}</td>
     <td style="font-weight:900;color:#7B1D2E;padding-top:12px;"><small style="display:block">OTHER TOTAL</small>₹${otherTotal}</td>
     <td colspan="3"></td>
   </tr><tr>
-    <td colspan="6" style="text-align:right;font-weight:900;font-size:15px;color:#000;">GRAND TOTAL:</td>
+    <td colspan="7" style="text-align:right;font-weight:900;font-size:15px;color:#000;">GRAND TOTAL:</td>
     <td colspan="3" style="font-weight:900;font-size:15px;color:#7B1D2E;">₹${grandTotal}</td>
     <td colspan="3"></td>
   </tr>`;
@@ -1660,6 +1688,8 @@ function editV(id){
   } else if(v.type==='onaccount'){
     document.getElementById('fo_head').value=v.head||'';
     document.getElementById('fo_paidto').value=v.paidTo||'';
+    document.getElementById('fo_phone').value=v.recipientPhone||'';
+    document.getElementById('fo_reversal_date').value=v.reversalDateISO||dmyToISO(v.reversalDate||'');
     document.getElementById('fo_towards').value=v.towards||'';
     document.getElementById('fo_block').value=v.block||'';
     document.getElementById('fo_amt').value=v.amount||'';
@@ -1716,6 +1746,9 @@ function doExcel(silent=false){
       'Account Head / Debit A/c': v.head||'',
       'Received From': v.receivedFrom||'',
       'Paid To': v.paidTo||'',
+      'Receiver Phone': v.recipientPhone||'',
+      'On Account Status': v.type==='onaccount'?(v.reversalDateISO||v.reversalDate?'Cleared':'Pending'):'',
+      'Reverse / Cleared Date': v.reversalDate||'',
       'Towards (Purpose)': v.towards||'',
       'Block': v.block||'',
       'Amount (Rs.)': Math.round(Number(v.amount)||0),
@@ -1732,8 +1765,8 @@ function doExcel(silent=false){
 
     ws['!cols']=[
       {wch:5},{wch:12},{wch:13},
-      {wch:22},{wch:28},{wch:22},{wch:22},{wch:42},
-      {wch:14},{wch:40},{wch:13},{wch:18},
+      {wch:22},{wch:28},{wch:22},{wch:22},{wch:18},{wch:18},{wch:20},{wch:42},
+      {wch:14},{wch:14},{wch:40},{wch:13},{wch:18},
       {wch:18},{wch:28},{wch:13},{wch:22}
     ];
 
