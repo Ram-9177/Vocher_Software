@@ -7,7 +7,7 @@
   <link rel="icon" href="assets/logo_smgg.png">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="app.js?v=20260731-multi-superadmin-v26" defer></script>
+  <script src="app.js?v=20260801-onaccount-status-v27" defer></script>
 </head>
 <body>
 <script>
@@ -249,7 +249,7 @@
     <div class="sec" id="sec-myvouchers">
       <div class="ph"><h1 id="MVT_TITLE">My Vouchers</h1><p>Your vouchers — search, filter, print</p></div>
       <div class="sb2">
-        <input type="text" id="MSQ" placeholder="Search party, head, purpose...">
+        <input type="text" id="MSQ" placeholder="Search party, phone, status...">
         <div class="date-filter-field">
           <input type="text" id="MSDF_DISPLAY" class="date-filter-display" placeholder="DD/MM/YYYY" readonly onclick="openDateFilterPicker('MSDF')" title="From date (DD/MM/YYYY)">
           <input type="date" id="MSDF" class="date-filter-native" onchange="syncDateFilterDisplay('MSDF')" tabindex="-1" aria-hidden="true">
@@ -283,7 +283,7 @@
       </div>
       <div class="twrap">
         <table><thead><tr>
-          <th>Date</th><th>Type</th><th>Party/Account</th><th>Head</th><th>Payment Mode</th><th>Cash Amount</th><th>Cheque Amount</th><th>Other Amount</th><th>Actions</th>
+          <th>Date</th><th>Type</th><th>Status</th><th>Party/Account</th><th>Head</th><th>Payment Mode</th><th>Cash Amount</th><th>Cheque Amount</th><th>Other Amount</th><th>Actions</th>
         </tr></thead>
         <tbody id="MVTB"></tbody></table>
       </div>
@@ -399,6 +399,12 @@
             <div class="fi"><label>Towards (Purpose) *</label>
               <textarea id="fo_towards" placeholder="Purpose of transaction" style="min-height:42px"></textarea></div>
           </div>
+          <div class="fr">
+            <div class="fi"><label>Receiver Phone Number</label>
+              <input type="tel" id="fo_phone" maxlength="30" placeholder="Phone number of receiver"></div>
+            <div class="fi"><label>Reverse / Cleared Date</label>
+              <input type="date" id="fo_reversal_date" title="Leave blank while this On Account payment is pending"></div>
+          </div>
           <div class="fr f">
             <div class="fi"><label>Block <a href="javascript:void(0)" onclick="addNewBlock('onaccount')" class="admin-only-add add-new-btn">+ Add New</a></label>
               <input type="text" id="fo_block" placeholder="Enter or select block" list="DL_BLOCKS"></div>
@@ -433,7 +439,7 @@
     <div class="sec" id="sec-vouchers">
       <div class="ph"><h1>All Vouchers</h1><p>Search, filter, view, print and manage vouchers</p></div>
       <div class="sb2">
-        <input type="text" id="SQ" placeholder="Search party, head, purpose...">
+        <input type="text" id="SQ" placeholder="Search party, phone, status...">
         <select id="FC">
           <option value="">All Institutes</option>
           <option value="smgg">St. Mary's Group of Institutions Guntur (Chebrolu)</option>
@@ -465,7 +471,7 @@
       </div>
       <div class="twrap">
         <table><thead><tr>
-          <th>Date</th><th>Type</th><th>Party/Account</th><th>Head</th><th>Location</th><th>Payment Mode</th><th>Cash Amount</th><th>Cheque Amount</th><th>Other Amount</th><th>Entered By</th><th>Timestamp</th><th>Actions</th>
+          <th>Date</th><th>Type</th><th>Status</th><th>Party/Account</th><th>Head</th><th>Location</th><th>Payment Mode</th><th>Cash Amount</th><th>Cheque Amount</th><th>Other Amount</th><th>Entered By</th><th>Timestamp</th><th>Actions</th>
         </tr></thead>
         <tbody id="VTB"></tbody></table>
       </div>

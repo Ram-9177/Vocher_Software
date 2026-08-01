@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260731-multi-superadmin-v26';
+  var buildVersion = '20260801-onaccount-status-v27';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;

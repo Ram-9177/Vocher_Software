@@ -114,6 +114,9 @@
     } else if(CVT === 'onaccount'){
       v.head = getVal('fo_head');
       v.paidTo = getVal('fo_paidto');
+      v.recipientPhone = getVal('fo_phone');
+      v.reversalDateISO = getVal('fo_reversal_date');
+      v.reversalDate = v.reversalDateISO ? isoToDMY(v.reversalDateISO) : '';
       v.towards = getVal('fo_towards');
       v.block = getVal('fo_block');
       v.amount = parseFloat(document.getElementById('fo_amt').value) || 0;
@@ -122,6 +125,11 @@
       v.cheque = getVal('fo_ref');
       v.party = v.paidTo;
       if(!v.head || !v.paidTo || !v.towards || !v.amount){ alert('Fill Account Head, Paid To, Towards and Amount.'); return; }
+    }
+
+    if(v.type === 'onaccount' && v.reversalDateISO && v.reversalDateISO < dateISO){
+      alert('Reverse / Cleared Date cannot be before the voucher date.');
+      return;
     }
 
     const saveBtn = document.querySelector('.bp');
