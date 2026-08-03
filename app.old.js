@@ -480,8 +480,9 @@ function setupRole(skipShow){
     else{show('create');}
   }
   
+  const canManageHeads = a1 || (window.hasPermission && window.hasPermission(user, 'account_heads'));
   document.querySelectorAll('.admin-only-add').forEach(el => {
-    el.style.display = a1 ? 'inline' : 'none';
+    el.style.display = canManageHeads ? 'inline' : 'none';
   });
 }
 
