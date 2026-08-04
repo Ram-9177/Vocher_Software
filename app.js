@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260801-onaccount-status-v27';
+  var buildVersion = '20260804-onaccount-table-status-v28';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;

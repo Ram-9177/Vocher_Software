@@ -557,14 +557,16 @@ function today(){
 }
 function todayISO(){return new Date().toISOString().split('T')[0];}
 function setDate(){
-  document.getElementById('f_date').value=todayISO();
+  const el = document.getElementById('f_date');
+  if(el) el.value=todayISO();
+  syncDateFilterDisplay('f_date');
 }
 function isoToDMY(s){if(!s)return'';const p=s.split('-');if(p.length!==3)return s;return p[2]+'-'+p[1]+'-'+p[0];}
 function dmyToISO(s){if(!s)return'';const p=s.split('-');if(p.length!==3)return s;return p[2]+'-'+p[1]+'-'+p[0];}
 function formatDateFilterDisplay(iso){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(iso||''))return'';
   const p=iso.split('-');
-  return p[2]+'/'+p[1]+'/'+p[0];
+  return p[2]+'-'+p[1]+'-'+p[0];
 }
 function syncDateFilterDisplay(id){
   const input=document.getElementById(id);
@@ -815,7 +817,18 @@ function saveV(){
     v.head=getVal('fo_head');v.paidTo=getVal('fo_paidto');v.towards=getVal('fo_towards');v.block=getVal('fo_block');
     v.amount=parseFloat(document.getElementById('fo_amt').value)||0;v.amtWords=getVal('fo_words');
     v.mode=getVal('fo_mode');v.cheque=getVal('fo_ref');v.party=v.paidTo;v.recipientPhone=getVal('fo_phone');
-    v.reversalDateISO=getVal('fo_reversal_date');v.reversalDate=v.reversalDateISO?isoToDMY(v.reversalDateISO):'';
+    const oldV = editId ? VS.find(x => x.id === editId) : null;
+    const revEl = document.getElementById('fo_reversal_date');
+    if(revEl && revEl.value){
+      v.reversalDateISO = revEl.value;
+      v.reversalDate = isoToDMY(v.reversalDateISO);
+    } else if(oldV){
+      v.reversalDateISO = oldV.reversalDateISO || dmyToISO(oldV.reversalDate||'');
+      v.reversalDate = oldV.reversalDate || (v.reversalDateISO ? isoToDMY(v.reversalDateISO) : '');
+    } else {
+      v.reversalDateISO = '';
+      v.reversalDate = '';
+    }
     if(!v.head||!v.paidTo||!v.towards||!v.amount){alert('Fill Account Head, Paid To, Towards and Amount.');return;}
   }
   if(v.type==='onaccount'&&v.reversalDateISO&&v.reversalDateISO<dateISO){alert('Reverse / Cleared Date cannot be before the voucher date.');return;}
@@ -938,15 +951,22 @@ function renderMyVT(){
     const amount=Math.round(Number(v.amount)||0);
     const mode=String(v.mode||'Cash').trim().toLowerCase();
     const cleared=v.type==='onaccount'&&Boolean(v.reversalDateISO||v.reversalDate);
-    const status=v.type!=='onaccount'?'–':cleared
-      ?`<span class="oa-status oa-cleared">CLEARED<br>${v.reversalDate||isoToDMY(v.reversalDateISO)||''}</span>`
-      :'<span class="oa-status oa-pending">PENDING</span>';
-    const phone=v.recipientPhone?`<small style="display:block;margin-top:3px;color:#555">☎ ${v.recipientPhone}</small>`:'';
+    const revDateISO = v.reversalDateISO || (v.reversalDate ? dmyToISO(v.reversalDate) : '');
+    const vDateISO = v.dateISO || (v.date ? dmyToISO(v.date) : '');
+    const phoneHtml = v.recipientPhone ? `<div style="font-size:11px;color:#555;margin-top:2px;white-space:nowrap;font-weight:500;">☎ ${v.recipientPhone}</div>` : '';
+    const status = v.type !== 'onaccount' ? '–' : `
+      <div class="oa-status-cell" style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;">
+        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+          <span class="oa-status ${cleared?'oa-cleared':'oa-pending'}">${cleared?'CLEAR':'PENDING'}</span>
+          <input type="date" class="oa-rev-date-picker" value="${revDateISO}" min="${vDateISO}" onchange="updateOAReverseDate(${v.id}, this.value)" title="Select Reverse Date to set status as Clear" style="padding:2px 4px;font-size:11px;border:1.5px solid #d0d5dd;border-radius:5px;background:#fff;color:#333;cursor:pointer;max-width:115px;">
+        </div>
+        ${phoneHtml}
+      </div>`;
     return `<tr class="${cleared?'oa-cleared-row':''}">
     <td><strong>${v.date}</strong></td>
     <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
     <td>${status}</td>
-    <td>${v.party||v.paidTo||v.receivedFrom||'–'}${phone}</td>
+    <td>${v.party||v.paidTo||v.receivedFrom||'–'}</td>
     <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
     <td>${v.mode||'Cash'}</td>
     <td style="font-weight:600">${mode==='cash'?'₹'+amount:'–'}</td>
@@ -1099,12 +1119,15 @@ function buildPrint(v){
   } else {
     FIELDS += ROW(isOA ? 'On Account' : 'Debit A/c', isOA ? '' : (v.head||''));
     FIELDS += ROW('Paid to', v.paidTo||'');
-    if(isOA) FIELDS += ROW('Phone No.', v.recipientPhone||'');
     FIELDS += ROW('Rupees', v.amtWords||'');
     FIELDS += ROWT('Towards', v.towards||'');
     FIELDS += ROW('Block', v.block||'');
   }
-  if(isOA) FIELDS += ROW('Status', (v.reversalDateISO||v.reversalDate)?'CLEARED — '+(v.reversalDate||isoToDMY(v.reversalDateISO)||''):'PENDING');
+  if(isOA) {
+    const statusStr = (v.reversalDateISO||v.reversalDate)?'CLEAR — '+(v.reversalDate||isoToDMY(v.reversalDateISO)||''):'PENDING';
+    const phoneStr = v.recipientPhone ? ' / Ph: ' + v.recipientPhone : '';
+    FIELDS += ROW('Status', statusStr + phoneStr);
+  }
   if(v.remarks) FIELDS += ROW('Remarks', v.remarks);
 
   return `<div style="width:148mm;background:${BG};border:2px solid #111;font-family:Arial,sans-serif;box-sizing:border-box;page-break-after:always">
@@ -1615,15 +1638,22 @@ function renderVT(){
       const colName = v.college ? v.college.toUpperCase() : 'SMGG';
       const ts = v.createdAt ? new Date(v.createdAt).toLocaleString('en-IN') : '';
       const cleared=v.type==='onaccount'&&Boolean(v.reversalDateISO||v.reversalDate);
-      const status=v.type!=='onaccount'?'–':cleared
-        ?`<span class="oa-status oa-cleared">CLEARED<br>${v.reversalDate||isoToDMY(v.reversalDateISO)||''}</span>`
-        :'<span class="oa-status oa-pending">PENDING</span>';
-      const phone=v.recipientPhone?`<small style="display:block;margin-top:3px;color:#555">☎ ${v.recipientPhone}</small>`:'';
+      const revDateISO = v.reversalDateISO || (v.reversalDate ? dmyToISO(v.reversalDate) : '');
+      const vDateISO = v.dateISO || (v.date ? dmyToISO(v.date) : '');
+      const phoneHtml = v.recipientPhone ? `<div style="font-size:11px;color:#555;margin-top:2px;white-space:nowrap;font-weight:500;">☎ ${v.recipientPhone}</div>` : '';
+      const status = v.type !== 'onaccount' ? '–' : `
+        <div class="oa-status-cell" style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;">
+          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+            <span class="oa-status ${cleared?'oa-cleared':'oa-pending'}">${cleared?'CLEAR':'PENDING'}</span>
+            <input type="date" class="oa-rev-date-picker" value="${revDateISO}" min="${vDateISO}" onchange="updateOAReverseDate(${v.id}, this.value)" title="Select Reverse Date to set status as Clear" style="padding:2px 4px;font-size:11px;border:1.5px solid #d0d5dd;border-radius:5px;background:#fff;color:#333;cursor:pointer;max-width:115px;">
+          </div>
+          ${phoneHtml}
+        </div>`;
       html += `<tr class="${cleared?'oa-cleared-row':''}">
     <td><strong>${v.date}</strong></td>
     <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
     <td>${status}</td>
-    <td>${v.party||v.paidTo||v.receivedFrom||'–'}${phone}</td>
+    <td>${v.party||v.paidTo||v.receivedFrom||'–'}</td>
     <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
     <td><span style="font-size:10px;background:#eef;padding:2px 4px;border-radius:3px;font-weight:600;color:#333;">${colName}</span></td>
     <td>${v.mode||'Cash'}</td>
@@ -1657,12 +1687,53 @@ function renderVT(){
   document.getElementById('VC').textContent=`Showing ${f.length} of ${VS.length} vouchers`;
 }
 function delV(id){if(!confirm('Delete this voucher?'))return;VS=VS.filter(v=>v.id!==id);_deleteVoucherFromCloud(id);renderVT();}
+window.updateOAReverseDate = async function(id, newDateISO) {
+  const v = VS.find(x => x.id === id);
+  if (!v) return;
+
+  if (newDateISO) {
+    const vDateISO = v.dateISO || (v.date ? dmyToISO(v.date) : '');
+    if (vDateISO && newDateISO < vDateISO) {
+      alert('Reverse / Cleared Date (' + isoToDMY(newDateISO) + ') cannot be before the voucher date (' + (v.date || vDateISO) + ').');
+      if (typeof renderVT === 'function') renderVT();
+      if (typeof renderMyVT === 'function') renderMyVT();
+      return;
+    }
+    v.reversalDateISO = newDateISO;
+    v.reversalDate = isoToDMY(newDateISO);
+  } else {
+    v.reversalDateISO = '';
+    v.reversalDate = '';
+  }
+
+  try {
+    if (typeof _saveVoucherToCloud === 'function') {
+      await _saveVoucherToCloud(v);
+    }
+    if (typeof XLHandle !== 'undefined' && XLHandle && typeof autoSaveLinkedExcel === 'function') {
+      await autoSaveLinkedExcel();
+    }
+    if (v.reversalDate) {
+      if (typeof _toast === 'function') _toast('✅ Voucher #' + (v.voucherNo || v.id) + ' marked as Clear (' + v.reversalDate + ')', 'ok');
+    } else {
+      if (typeof _toast === 'function') _toast('Voucher #' + (v.voucherNo || v.id) + ' status set to Pending', 'info');
+    }
+  } catch (e) {
+    console.error('Failed to update reverse date:', e);
+    if (typeof _toast === 'function') _toast('Failed to update status: ' + (e.message || ''), 'err');
+  }
+
+  if (typeof renderVT === 'function') renderVT();
+  if (typeof renderMyVT === 'function') renderMyVT();
+};
+
 function editV(id){
   const v=VS.find(x=>x.id===id);if(!v)return;
   show('create');CVT=v.type;
   document.querySelectorAll('.vtc').forEach(c=>{c.classList.remove('sel');if(c.dataset.t===v.type)c.classList.add('sel');});
   selVT(document.querySelector(`.vtc[data-t="${v.type}"]`),v.type);
   document.getElementById('f_date').value=dmyToISO(v.date);
+  syncDateFilterDisplay('f_date');
   { const sel=document.getElementById('f_college'); if(sel) sel.value=v.college||'smgg'; }
   document.getElementById('f_prep').value=v.prepBy||'';
   document.getElementById('f_chk').value=v.checkedBy||'';
@@ -1690,7 +1761,7 @@ function editV(id){
     document.getElementById('fo_head').value=v.head||'';
     document.getElementById('fo_paidto').value=v.paidTo||'';
     document.getElementById('fo_phone').value=v.recipientPhone||'';
-    document.getElementById('fo_reversal_date').value=v.reversalDateISO||dmyToISO(v.reversalDate||'');
+    const elRev = document.getElementById('fo_reversal_date'); if(elRev) elRev.value=v.reversalDateISO||dmyToISO(v.reversalDate||'');
     document.getElementById('fo_towards').value=v.towards||'';
     document.getElementById('fo_block').value=v.block||'';
     document.getElementById('fo_amt').value=v.amount||'';

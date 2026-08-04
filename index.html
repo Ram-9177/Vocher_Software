@@ -7,7 +7,7 @@
   <link rel="icon" href="assets/logo_smgg.png">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="app.js?v=20260801-onaccount-status-v27" defer></script>
+  <script src="app.js?v=20260804-onaccount-table-status-v28" defer></script>
 </head>
 <body>
 <script>
@@ -251,12 +251,12 @@
       <div class="sb2">
         <input type="text" id="MSQ" placeholder="Search party, phone, status...">
         <div class="date-filter-field">
-          <input type="text" id="MSDF_DISPLAY" class="date-filter-display" placeholder="DD/MM/YYYY" readonly onclick="openDateFilterPicker('MSDF')" title="From date (DD/MM/YYYY)">
+          <input type="text" id="MSDF_DISPLAY" class="date-filter-display" placeholder="DD-MM-YYYY" readonly onclick="openDateFilterPicker('MSDF')" title="From date (DD-MM-YYYY)">
           <input type="date" id="MSDF" class="date-filter-native" onchange="syncDateFilterDisplay('MSDF')" tabindex="-1" aria-hidden="true">
           <button type="button" class="date-filter-button" onclick="openDateFilterPicker('MSDF')" aria-label="Select from date">📅</button>
         </div>
         <div class="date-filter-field">
-          <input type="text" id="MSDT_DISPLAY" class="date-filter-display" placeholder="DD/MM/YYYY" readonly onclick="openDateFilterPicker('MSDT')" title="To date (DD/MM/YYYY)">
+          <input type="text" id="MSDT_DISPLAY" class="date-filter-display" placeholder="DD-MM-YYYY" readonly onclick="openDateFilterPicker('MSDT')" title="To date (DD-MM-YYYY)">
           <input type="date" id="MSDT" class="date-filter-native" onchange="syncDateFilterDisplay('MSDT')" tabindex="-1" aria-hidden="true">
           <button type="button" class="date-filter-button" onclick="openDateFilterPicker('MSDT')" aria-label="Select to date">📅</button>
         </div>
@@ -314,7 +314,12 @@
         </div>
         <div class="fr f">
           <div class="fi"><label>Date *</label>
-            <input type="date" id="f_date"></div>
+            <div class="date-filter-field" style="width:100%;">
+              <input type="text" id="f_date_DISPLAY" class="date-filter-display" style="width:100%;background:#fff;" placeholder="DD-MM-YYYY" readonly onclick="openDateFilterPicker('f_date')" title="Select Date (DD-MM-YYYY)">
+              <input type="date" id="f_date" class="date-filter-native" onchange="syncDateFilterDisplay('f_date')" tabindex="-1" aria-hidden="true">
+              <button type="button" class="date-filter-button" onclick="openDateFilterPicker('f_date')" aria-label="Select date">📅</button>
+            </div>
+          </div>
           <div class="fi"><label>College / Institution *</label>
             <select id="f_college">
               <option value="smgg">St. Mary's Group of Institutions Guntur (Chebrolu)</option>
@@ -399,11 +404,9 @@
             <div class="fi"><label>Towards (Purpose) *</label>
               <textarea id="fo_towards" placeholder="Purpose of transaction" style="min-height:42px"></textarea></div>
           </div>
-          <div class="fr">
+          <div class="fr f">
             <div class="fi"><label>Receiver Phone Number</label>
               <input type="tel" id="fo_phone" maxlength="30" placeholder="Phone number of receiver"></div>
-            <div class="fi"><label>Reverse / Cleared Date</label>
-              <input type="date" id="fo_reversal_date" title="Leave blank while this On Account payment is pending"></div>
           </div>
           <div class="fr f">
             <div class="fi"><label>Block <a href="javascript:void(0)" onclick="addNewBlock('onaccount')" class="admin-only-add add-new-btn">+ Add New</a></label>
@@ -446,12 +449,12 @@
           <option value="smwec">St. Mary's Women's Engineering College, Budampadu</option>
         </select>
         <div class="date-filter-field">
-          <input type="text" id="SDF_DISPLAY" class="date-filter-display" placeholder="DD/MM/YYYY" readonly onclick="openDateFilterPicker('SDF')" title="From date (DD/MM/YYYY)">
+          <input type="text" id="SDF_DISPLAY" class="date-filter-display" placeholder="DD-MM-YYYY" readonly onclick="openDateFilterPicker('SDF')" title="From date (DD-MM-YYYY)">
           <input type="date" id="SDF" class="date-filter-native" onchange="syncDateFilterDisplay('SDF')" tabindex="-1" aria-hidden="true">
           <button type="button" class="date-filter-button" onclick="openDateFilterPicker('SDF')" aria-label="Select from date">📅</button>
         </div>
         <div class="date-filter-field">
-          <input type="text" id="SDT_DISPLAY" class="date-filter-display" placeholder="DD/MM/YYYY" readonly onclick="openDateFilterPicker('SDT')" title="To date (DD/MM/YYYY)">
+          <input type="text" id="SDT_DISPLAY" class="date-filter-display" placeholder="DD-MM-YYYY" readonly onclick="openDateFilterPicker('SDT')" title="To date (DD-MM-YYYY)">
           <input type="date" id="SDT" class="date-filter-native" onchange="syncDateFilterDisplay('SDT')" tabindex="-1" aria-hidden="true">
           <button type="button" class="date-filter-button" onclick="openDateFilterPicker('SDT')" aria-label="Select to date">📅</button>
         </div>

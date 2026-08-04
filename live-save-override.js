@@ -115,8 +115,18 @@
       v.head = getVal('fo_head');
       v.paidTo = getVal('fo_paidto');
       v.recipientPhone = getVal('fo_phone');
-      v.reversalDateISO = getVal('fo_reversal_date');
-      v.reversalDate = v.reversalDateISO ? isoToDMY(v.reversalDateISO) : '';
+      const oldV = editId ? VS.find(x => x.id === editId) : null;
+      const revEl = document.getElementById('fo_reversal_date');
+      if(revEl && revEl.value){
+        v.reversalDateISO = revEl.value;
+        v.reversalDate = isoToDMY(v.reversalDateISO);
+      } else if(oldV){
+        v.reversalDateISO = oldV.reversalDateISO || dmyToISO(oldV.reversalDate||'');
+        v.reversalDate = oldV.reversalDate || (v.reversalDateISO ? isoToDMY(v.reversalDateISO) : '');
+      } else {
+        v.reversalDateISO = '';
+        v.reversalDate = '';
+      }
       v.towards = getVal('fo_towards');
       v.block = getVal('fo_block');
       v.amount = parseFloat(document.getElementById('fo_amt').value) || 0;
