@@ -443,7 +443,7 @@ async function listVouchers(DB, user, body) {
   const showAll = isVoucherAdmin(user);
   const q = showAll ?
     DB.prepare('SELECT * FROM vouchers WHERE deleted_at IS NULL AND college=? ORDER BY date DESC,id DESC').bind(college) :
-    DB.prepare('SELECT * FROM vouchers WHERE deleted_at IS NULL AND college=? AND created_by=? ORDER BY date DESC,id DESC').bind(college, user.username);
+    DB.prepare('SELECT * FROM vouchers WHERE deleted_at IS NULL AND college=? AND (created_by=? OR type=\'onaccount\') ORDER BY date DESC,id DESC').bind(college, user.username);
   const r = await q.all();
   return send({ vouchers: (r.results || []).map(voucherToOld), version: API_VERSION });
 }
@@ -459,7 +459,7 @@ async function syncData(DB,user,body){
   if (canView) {
     const metaQuery = showAll ?
       DB.prepare('SELECT COUNT(id) as c, MAX(updated_at) as m FROM vouchers WHERE deleted_at IS NULL AND college=?').bind(college) :
-      DB.prepare('SELECT COUNT(id) as c, MAX(updated_at) as m FROM vouchers WHERE deleted_at IS NULL AND college=? AND created_by=?').bind(college,user.username);
+      DB.prepare('SELECT COUNT(id) as c, MAX(updated_at) as m FROM vouchers WHERE deleted_at IS NULL AND college=? AND (created_by=? OR type=\'onaccount\')').bind(college,user.username);
     const meta = await metaQuery.first();
     serverHash = (meta.c || 0) + '|' + (meta.m || '');
     if (body.vouchersHash && serverHash === body.vouchersHash) {
@@ -470,7 +470,7 @@ async function syncData(DB,user,body){
 
   const voucherRequest=!fetchVouchers?Promise.resolve({results:[]}):(showAll?
     DB.prepare('SELECT * FROM vouchers WHERE deleted_at IS NULL AND college=? ORDER BY date DESC,id DESC').bind(college).all():
-    DB.prepare('SELECT * FROM vouchers WHERE deleted_at IS NULL AND college=? AND created_by=? ORDER BY date DESC,id DESC').bind(college,user.username).all());
+    DB.prepare('SELECT * FROM vouchers WHERE deleted_at IS NULL AND college=? AND (created_by=? OR type=\'onaccount\') ORDER BY date DESC,id DESC').bind(college,user.username).all());
     
   const results=await Promise.all([
     voucherRequest,
@@ -494,7 +494,7 @@ async function syncData(DB,user,body){
   });
 }
 function voucherToOld(v) { const dateISO = isoFromAny(v.date); const reversalDateISO=v.reversal_date?isoFromAny(v.reversal_date):''; return { id:Number(v.id||0), voucherNo:v.voucher_no||'', voucher_no:v.voucher_no||'', date:dmyFromIso(dateISO), dateISO:dateISO, type:v.type||'debit', college:(v.college==='smg'?'smgg':v.college)||'smgg', head:v.head||'', acName:v.ac_name||'', ac_name:v.ac_name||'', receivedFrom:v.received_from||'', received_from:v.received_from||'', paidTo:v.paid_to||'', paid_to:v.paid_to||'', recipientPhone:v.recipient_phone||'', recipient_phone:v.recipient_phone||'', reversalDate:reversalDateISO?dmyFromIso(reversalDateISO):'', reversalDateISO:reversalDateISO, reversal_date:reversalDateISO, towards:v.towards||'', block:v.block||'', amount:Number(v.amount||0), amtWords:v.amt_words||'', amt_words:v.amt_words||'', mode:v.mode||'Cash', cheque:v.cheque||'', prepBy:v.prep_by||'', prep_by:v.prep_by||'', checkedBy:v.checked_by||'', checked_by:v.checked_by||'', remarks:v.remarks||'', createdBy:uiUsername(v.created_by||''), created_by:v.created_by||'', createdAt:v.created_at||'', created_at:v.created_at||'', _u:v.updated_at||v.created_at||'', party:v.paid_to||v.received_from||v.ac_name||'' }; }
-function isoFromAny(s) { s = clean(s,20); if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; const p=s.split('-'); if(p.length===3) return p[2]+'-'+p[1]+'-'+p[0]; return s || new Date().toISOString().slice(0,10); }
+function isoFromAny(s) { s = clean(s,20).replace(/\//g, '-'); if(!s) return ''; if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; const p=s.split('-'); if(p.length===3) { if(p[0].length===4) return p[0]+'-'+p[1].padStart(2,'0')+'-'+p[2].padStart(2,'0'); return p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0'); } return s; }
 function dmyFromIso(s) { if(/^\d{4}-\d{2}-\d{2}$/.test(s)){ const p=s.split('-'); return p[2]+'-'+p[1]+'-'+p[0]; } return s; }
 function normalizeVoucher(v,user) { const type=clean(v.type,20); if(['debit','onaccount','credit'].indexOf(type)===-1) throwError('Invalid voucher type',400); const reversalRaw=clean(v.reversal_date||v.reversalDateISO||v.reversalDate,20); return { college:allowedCollege(user,v.college), type:type, date:isoFromAny(v.dateISO||v.date), head:clean(v.head,250), ac_name:clean(v.ac_name||v.acName,250), received_from:clean(v.received_from||v.receivedFrom,250), paid_to:clean(v.paid_to||v.paidTo,250), recipient_phone:type==='onaccount'?clean(v.recipient_phone||v.recipientPhone,30):'', reversal_date:type==='onaccount'&&reversalRaw?isoFromAny(reversalRaw):'', towards:clean(v.towards,500), block:clean(v.block,250), amount:amount(v.amount), amt_words:clean(v.amt_words||v.amtWords,500), mode:clean(v.mode||'Cash',50), cheque:clean(v.cheque,120), prep_by:clean(v.prep_by||v.prepBy,120), checked_by:clean(v.checked_by||v.checkedBy,120), remarks:clean(v.remarks,500) }; }
 async function saveVoucher(DB,user,v,ip) {
@@ -504,8 +504,8 @@ async function saveVoucher(DB,user,v,ip) {
   if(row.reversal_date&&row.reversal_date<row.date) throwError('Reverse / cleared date cannot be before the voucher date',400);
   const id=Number(v.id||0), canUpdate=id>0&&id<100000000000;
   if(canUpdate){
-    if(user.username!=='admin' && !hasPermission(user,'edit_voucher')) throwError('Only authorized users can edit vouchers',403);
     const existing=await getActiveVoucher(DB,id);
+    if(user.username!=='admin' && !hasPermission(user,'edit_voucher') && existing.type!=='onaccount') throwError('Only authorized users can edit vouchers',403);
     ensureVoucherMutationAccess(user,existing);
     await DB.prepare('UPDATE vouchers SET college=?,type=?,date=?,head=?,ac_name=?,received_from=?,paid_to=?,recipient_phone=?,reversal_date=?,towards=?,block=?,amount=?,amt_words=?,mode=?,cheque=?,prep_by=?,checked_by=?,remarks=?,updated_by=?,updated_at=? WHERE id=? AND deleted_at IS NULL AND college=?').bind(row.college,row.type,row.date,row.head,row.ac_name,row.received_from,row.paid_to,row.recipient_phone,row.reversal_date,row.towards,row.block,row.amount,row.amt_words,row.mode,row.cheque,row.prep_by,row.checked_by,row.remarks,user.username,now(),id,existing.college).run();
     await audit(DB,user.username,'update_voucher','voucher',String(id),JSON.stringify({amount:row.amount,head:row.head}),ip);
@@ -518,8 +518,8 @@ async function saveVoucher(DB,user,v,ip) {
   return send({ok:true,id:newId,voucher_no:voucherNo,version:API_VERSION});
 }
 function voucherNumber(college,type,id){const p={debit:'DV',onaccount:'OA',credit:'CV'}[type]||'VO';return String(college||'SMGG').toUpperCase()+'-'+p+'-'+new Date().getFullYear()+'-'+String(id).padStart(5,'0');}
-async function getActiveVoucher(DB,id){const row=await DB.prepare('SELECT id,college,created_by FROM vouchers WHERE id=? AND deleted_at IS NULL').bind(id).first();if(!row)throwError('Voucher not found',404);return row;}
-function ensureVoucherMutationAccess(user,v){const college=clean(v.college||'smgg',20);if(allowedCollege(user,college)!==college)throwError('Access denied. Voucher is outside your college access.',403);if(!isVoucherAdmin(user)&&v.created_by!==user.username)throwError('Access denied. You can only modify your own vouchers.',403);}
+async function getActiveVoucher(DB,id){const row=await DB.prepare('SELECT id,college,created_by,type FROM vouchers WHERE id=? AND deleted_at IS NULL').bind(id).first();if(!row)throwError('Voucher not found',404);return row;}
+function ensureVoucherMutationAccess(user,v){const college=clean(v.college||'smgg',20);if(allowedCollege(user,college)!==college)throwError('Access denied. Voucher is outside your college access.',403);if(!isVoucherAdmin(user)&&v.created_by!==user.username&&v.type!=='onaccount')throwError('Access denied. You can only modify your own vouchers.',403);}
 async function deleteVoucher(DB,user,id,ip){id=Number(id||0);if(!id)throwError('Invalid voucher id',400);const existing=await getActiveVoucher(DB,id);ensureVoucherMutationAccess(user,existing);await DB.prepare('UPDATE vouchers SET deleted_at=?,deleted_by=?,updated_by=?,updated_at=? WHERE id=? AND deleted_at IS NULL AND college=?').bind(now(),user.username,user.username,now(),id,existing.college).run();await audit(DB,user.username,'delete_voucher','voucher',String(id),'Soft delete',ip);return send({ok:true,version:API_VERSION});}
 async function listHeads(DB,user,body){const r=await DB.prepare('SELECT * FROM account_heads WHERE active=1 ORDER BY name').all();return send({heads:r.results||[],version:API_VERSION});}
 async function addHead(DB,user,body,ip){const name=clean(body.name,250);if(!name)throwError('Head name required',400);const type=['debit','onaccount','credit','common'].indexOf(body.type)!==-1?body.type:'common';const college=allowedCollege(user,body.college);await DB.prepare('INSERT OR IGNORE INTO account_heads(name,name_norm,type,college,created_by,created_at,active) VALUES(?,?,?,?,?,?,1)').bind(name,norm(name),type,college,user.username,now()).run();await audit(DB,user.username,'add_account_head','account_head',name,JSON.stringify({type:type,college:college}),ip);return await listHeads(DB,user,body);}

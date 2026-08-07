@@ -401,6 +401,7 @@ function _authUserFromStorage(){
   try{const s=localStorage.getItem('smv_auth_user');return s?JSON.parse(s):null;}catch(e){return null;}
 }
 function _isOwnVoucher(v){
+  if(v && v.type === 'onaccount') return true;
   const u=_authUserFromStorage();
   const identities=[u&&u.username,CU].filter(Boolean).map(x=>String(x).toLowerCase());
   const owners=[v&&v.created_by,v&&v.createdBy].filter(Boolean).map(x=>String(x).toLowerCase());
@@ -896,15 +897,18 @@ function renderMyDash(){
   rb.innerHTML=rec.map(v=>{
     const amount=Math.round(Number(v.amount)||0);
     const mode=String(v.mode||'Cash').trim().toLowerCase();
+    const isCredit = v.type === 'credit';
+    const isCheque = !isCredit && mode === 'cheque';
+    const isCash = !isCredit && !isCheque;
     return `<tr>
     <td><strong>${v.date}</strong></td>
     <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
     <td>${v.party||v.paidTo||v.receivedFrom||'–'}</td>
     <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
     <td>${v.mode||'Cash'}</td>
-    <td style="font-weight:600">${mode==='cash'?'₹'+amount:'–'}</td>
-    <td style="font-weight:600">${mode==='cheque'?'₹'+amount:'–'}</td>
-    <td style="font-weight:600">${mode!=='cash'&&mode!=='cheque'?'₹'+amount:'–'}</td>
+    <td style="font-weight:600">${isCash?'₹'+amount:'–'}</td>
+    <td style="font-weight:600">${isCheque?'₹'+amount:'–'}</td>
+    <td style="font-weight:600">${isCredit?'₹'+amount:'–'}</td>
     <td><button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="Print">🖨</button></td>
   </tr>`;
   }).join('');
@@ -950,6 +954,9 @@ function renderMyVT(){
   const rows=f.map(v=>{
     const amount=Math.round(Number(v.amount)||0);
     const mode=String(v.mode||'Cash').trim().toLowerCase();
+    const isCredit = v.type === 'credit';
+    const isCheque = !isCredit && mode === 'cheque';
+    const isCash = !isCredit && !isCheque;
     const cleared=v.type==='onaccount'&&Boolean(v.reversalDateISO||v.reversalDate);
     const revDateISO = v.reversalDateISO || (v.reversalDate ? dmyToISO(v.reversalDate) : '');
     const vDateISO = v.dateISO || (v.date ? dmyToISO(v.date) : '');
@@ -960,36 +967,32 @@ function renderMyVT(){
           <span class="oa-status ${cleared?'oa-cleared':'oa-pending'}">${cleared?'CLEAR':'PENDING'}</span>
           <input type="date" class="oa-rev-date-picker" value="${revDateISO}" min="${vDateISO}" onchange="updateOAReverseDate(${v.id}, this.value)" title="Select Reverse Date to set status as Clear" style="padding:2px 4px;font-size:11px;border:1.5px solid #d0d5dd;border-radius:5px;background:#fff;color:#333;cursor:pointer;max-width:115px;">
         </div>
-        ${phoneHtml}
       </div>`;
     return `<tr class="${cleared?'oa-cleared-row':''}">
     <td><strong>${v.date}</strong></td>
     <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
     <td>${status}</td>
-    <td>${v.party||v.paidTo||v.receivedFrom||'–'}</td>
+    <td>${v.party||v.paidTo||v.receivedFrom||'–'}${phoneHtml}</td>
     <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
     <td>${v.mode||'Cash'}</td>
-    <td style="font-weight:600">${mode==='cash'?'₹'+amount:'–'}</td>
-    <td style="font-weight:600">${mode==='cheque'?'₹'+amount:'–'}</td>
-    <td style="font-weight:600">${mode!=='cash'&&mode!=='cheque'?'₹'+amount:'–'}</td>
+    <td style="font-weight:600">${isCash?'₹'+amount:'–'}</td>
+    <td style="font-weight:600">${isCheque?'₹'+amount:'–'}</td>
+    <td style="font-weight:600">${isCredit?'₹'+amount:'–'}</td>
     <td><div style="display:flex;gap:4px">
       <button class="btn bp bsm" onclick="quickPrint(${v.id})" title="Print">🖨</button>
       <button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="View">👁</button>
     </div></td>
   </tr>`;
   }).join('');
-  const cashTotal=f.reduce((sum,v)=>String(v.mode||'Cash').trim().toLowerCase()==='cash'?sum+Math.round(Number(v.amount)||0):sum,0);
-  const chequeTotal=f.reduce((sum,v)=>String(v.mode||'Cash').trim().toLowerCase()==='cheque'?sum+Math.round(Number(v.amount)||0):sum,0);
-  const otherTotal=f.reduce((sum,v)=>{
-    const mode=String(v.mode||'Cash').trim().toLowerCase();
-    return mode!=='cash'&&mode!=='cheque'?sum+Math.round(Number(v.amount)||0):sum;
-  },0);
+  const cashTotal=f.reduce((sum,v)=>v.type!=='credit'&&String(v.mode||'Cash').trim().toLowerCase()!=='cheque'?sum+Math.round(Number(v.amount)||0):sum,0);
+  const chequeTotal=f.reduce((sum,v)=>v.type!=='credit'&&String(v.mode||'Cash').trim().toLowerCase()==='cheque'?sum+Math.round(Number(v.amount)||0):sum,0);
+  const creditTotal=f.reduce((sum,v)=>v.type==='credit'?sum+Math.round(Number(v.amount)||0):sum,0);
   const total=f.reduce((sum,v)=>sum+Math.round(Number(v.amount)||0),0);
   tb.innerHTML=rows+(f.length?`<tr>
     <td colspan="6" style="text-align:right;font-weight:900;color:#000;padding-top:12px">MODE TOTALS:</td>
     <td style="font-weight:900;color:#7B1D2E;padding-top:12px"><small style="display:block">CASH TOTAL</small>₹${cashTotal}</td>
     <td style="font-weight:900;color:#7B1D2E;padding-top:12px"><small style="display:block">CHEQUE TOTAL</small>₹${chequeTotal}</td>
-    <td style="font-weight:900;color:#7B1D2E;padding-top:12px"><small style="display:block">OTHER TOTAL</small>₹${otherTotal}</td>
+    <td style="font-weight:900;color:#7B1D2E;padding-top:12px"><small style="display:block">CREDIT TOTAL</small>₹${creditTotal}</td>
     <td></td>
   </tr><tr>
     <td colspan="6" style="text-align:right;font-weight:900;font-size:15px;color:#000">GRAND TOTAL:</td>
@@ -1625,16 +1628,21 @@ function renderVT(){
 
   let cashTotal = 0;
   let chequeTotal = 0;
-  let otherTotal = 0;
+  let creditTotal = 0;
   let grandTotal = 0;
   let html = '';
   f.forEach(v => {
       const amount = Math.round(Number(v.amount) || 0);
       const mode = String(v.mode || 'Cash').trim().toLowerCase();
-      if(mode === 'cash') cashTotal += amount;
-      if(mode === 'cheque') chequeTotal += amount;
-      if(mode !== 'cash' && mode !== 'cheque') otherTotal += amount;
+      const isCredit = v.type === 'credit';
+      const isCheque = !isCredit && mode === 'cheque';
+      const isCash = !isCredit && !isCheque;
+
+      if(isCredit) creditTotal += amount;
+      else if(isCheque) chequeTotal += amount;
+      else cashTotal += amount;
       grandTotal += amount;
+
       const colName = v.college ? v.college.toUpperCase() : 'SMGG';
       const ts = v.createdAt ? new Date(v.createdAt).toLocaleString('en-IN') : '';
       const cleared=v.type==='onaccount'&&Boolean(v.reversalDateISO||v.reversalDate);
@@ -1647,19 +1655,18 @@ function renderVT(){
             <span class="oa-status ${cleared?'oa-cleared':'oa-pending'}">${cleared?'CLEAR':'PENDING'}</span>
             <input type="date" class="oa-rev-date-picker" value="${revDateISO}" min="${vDateISO}" onchange="updateOAReverseDate(${v.id}, this.value)" title="Select Reverse Date to set status as Clear" style="padding:2px 4px;font-size:11px;border:1.5px solid #d0d5dd;border-radius:5px;background:#fff;color:#333;cursor:pointer;max-width:115px;">
           </div>
-          ${phoneHtml}
         </div>`;
       html += `<tr class="${cleared?'oa-cleared-row':''}">
     <td><strong>${v.date}</strong></td>
     <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
     <td>${status}</td>
-    <td>${v.party||v.paidTo||v.receivedFrom||'–'}</td>
+    <td>${v.party||v.paidTo||v.receivedFrom||'–'}${phoneHtml}</td>
     <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
     <td><span style="font-size:10px;background:#eef;padding:2px 4px;border-radius:3px;font-weight:600;color:#333;">${colName}</span></td>
     <td>${v.mode||'Cash'}</td>
-    <td style="font-weight:600">${mode==='cash'?'₹'+amount:'–'}</td>
-    <td style="font-weight:600">${mode==='cheque'?'₹'+amount:'–'}</td>
-    <td style="font-weight:600">${mode!=='cash'&&mode!=='cheque'?'₹'+amount:'–'}</td>
+    <td style="font-weight:600">${isCash?'₹'+amount:'–'}</td>
+    <td style="font-weight:600">${isCheque?'₹'+amount:'–'}</td>
+    <td style="font-weight:600">${isCredit?'₹'+amount:'–'}</td>
     <td style="font-size:11px">${v.createdBy||'–'}</td>
     <td style="font-size:10px;color:#666">${ts}</td>
     <td><div style="display:flex;gap:4px">
@@ -1675,7 +1682,7 @@ function renderVT(){
     <td colspan="7" style="text-align:right;font-weight:900;color:#000;padding-top:12px;">MODE TOTALS:</td>
     <td style="font-weight:900;color:#7B1D2E;padding-top:12px;"><small style="display:block">CASH TOTAL</small>₹${cashTotal}</td>
     <td style="font-weight:900;color:#7B1D2E;padding-top:12px;"><small style="display:block">CHEQUE TOTAL</small>₹${chequeTotal}</td>
-    <td style="font-weight:900;color:#7B1D2E;padding-top:12px;"><small style="display:block">OTHER TOTAL</small>₹${otherTotal}</td>
+    <td style="font-weight:900;color:#7B1D2E;padding-top:12px;"><small style="display:block">CREDIT TOTAL</small>₹${creditTotal}</td>
     <td colspan="3"></td>
   </tr><tr>
     <td colspan="7" style="text-align:right;font-weight:900;font-size:15px;color:#000;">GRAND TOTAL:</td>
@@ -1691,6 +1698,9 @@ window.updateOAReverseDate = async function(id, newDateISO) {
   const v = VS.find(x => x.id === id);
   if (!v) return;
 
+  const oldISO = v.reversalDateISO || v.reversal_date || '';
+  const oldDMY = v.reversalDate || '';
+
   if (newDateISO) {
     const vDateISO = v.dateISO || (v.date ? dmyToISO(v.date) : '');
     if (vDateISO && newDateISO < vDateISO) {
@@ -1701,9 +1711,11 @@ window.updateOAReverseDate = async function(id, newDateISO) {
     }
     v.reversalDateISO = newDateISO;
     v.reversalDate = isoToDMY(newDateISO);
+    v.reversal_date = newDateISO;
   } else {
     v.reversalDateISO = '';
     v.reversalDate = '';
+    v.reversal_date = '';
   }
 
   try {
@@ -1720,6 +1732,9 @@ window.updateOAReverseDate = async function(id, newDateISO) {
     }
   } catch (e) {
     console.error('Failed to update reverse date:', e);
+    v.reversalDateISO = oldISO;
+    v.reversal_date = oldISO;
+    v.reversalDate = oldDMY;
     if (typeof _toast === 'function') _toast('Failed to update status: ' + (e.message || ''), 'err');
   }
 
@@ -1989,8 +2004,8 @@ function exportLedger(silent=false){
     
     const row7 = [];
     row7[6] = 'All Heads';
-    row7[7] = 'Amount';
-    row7[8] = 'Amount';
+    row7[7] = 'Cash Amount';
+    row7[8] = 'Cheque Amount';
     allHeadsData[6] = row7;
 
     const isCashMode = v => String(v.mode || 'Cash').trim().toLowerCase() === 'cash';
@@ -2005,9 +2020,18 @@ function exportLedger(silent=false){
       headRow5[2] = dateRangeStr;
       hData[4] = headRow5;
 
-      let totDr = 0, totCr = 0, totCash = 0, totBank = 0;
+      const headHeaderRow = [];
+      headHeaderRow[0] = 'Date';
+      headHeaderRow[1] = 'Head';
+      headHeaderRow[2] = 'Particulars';
+      headHeaderRow[3] = 'Cash Amount';
+      headHeaderRow[4] = 'Cheque Amount';
+      hData[5] = headHeaderRow;
+
+      let totCash = 0, totBank = 0;
       heads[h].forEach(v => {
         const row = [];
+        row[0] = v.date || '';
         row[1] = h;
         const pOrR = v.type === 'credit' ? (v.receivedFrom||'') : (v.paidTo||'');
         const tw = v.towards||'';
@@ -2015,14 +2039,14 @@ function exportLedger(silent=false){
         row[2] = particulars;
         
         const amt = Number(v.amount)||0;
-        if(isCashMode(v)) totCash += amt;
-        else totBank += amt;
-        if(v.type === 'credit') {
-          row[4] = amt; 
-          totCr += amt;
+        if(isCashMode(v)) {
+          totCash += amt;
+          row[3] = amt;
+          row[4] = '';
         } else {
-          row[3] = amt; 
-          totDr += amt;
+          totBank += amt;
+          row[3] = '';
+          row[4] = amt;
         }
         hData.push(row);
       });
@@ -2030,12 +2054,13 @@ function exportLedger(silent=false){
       hData.push([]);
       hData.push([]);
       const totRow = [];
-      totRow[3] = totDr || 0;
-      totRow[4] = totCr || 0;
+      totRow[2] = 'Total';
+      totRow[3] = totCash || 0;
+      totRow[4] = totBank || 0;
       hData.push(totRow);
 
       const wsHead = XLSX.utils.aoa_to_sheet(hData);
-      wsHead['!cols'] = [{wch:5}, {wch:25}, {wch:60}, {wch:12}, {wch:12}];
+      wsHead['!cols'] = [{wch:14}, {wch:25}, {wch:60}, {wch:14}, {wch:14}];
       
       let shName = h.substring(0, 31).replace(/[\\/?*\[\]:]/g, ' ').trim();
       if(!shName) shName = 'Unknown';
