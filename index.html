@@ -135,37 +135,37 @@
   <nav class="sb" id="SIDEBAR">
     <div class="ns" id="A1NAV" style="display:none">
       <p>Overview</p>
-      <button class="ni" onclick="show('dashboard')" id="ni-dashboard" title="Dashboard">
+      <a href="#dashboard" class="ni" onclick="show('dashboard'); return false;" id="ni-dashboard" title="Dashboard">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         Dashboard
-      </button>
-      <button class="ni" onclick="show('analytics')" id="ni-analytics" title="Analytics">
+      </a>
+      <a href="#analytics" class="ni" onclick="show('analytics'); return false;" id="ni-analytics" title="Analytics">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
         Analytics
-      </button>
-      <button class="ni" onclick="show('vouchers')" id="ni-vouchers" title="All Vouchers">
+      </a>
+      <a href="#vouchers" class="ni" onclick="show('vouchers'); return false;" id="ni-vouchers" title="All Vouchers">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
         All Vouchers
-      </button>
+      </a>
     </div>
     <!-- admin2/admin3 nav -->
     <div class="ns" id="A2NAV" style="display:none">
       <p>Overview</p>
-      <button class="ni" onclick="show('mydashboard')" id="ni-mydashboard" title="My Dashboard">
+      <a href="#mydashboard" class="ni" onclick="show('mydashboard'); return false;" id="ni-mydashboard" title="My Dashboard">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         My Dashboard
-      </button>
-      <button class="ni" onclick="show('myvouchers')" id="ni-myvouchers" title="My Vouchers">
+      </a>
+      <a href="#myvouchers" class="ni" onclick="show('myvouchers'); return false;" id="ni-myvouchers" title="My Vouchers">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
         My Vouchers
-      </button>
+      </a>
     </div>
     <div class="ns">
       <p>Create</p>
-      <button class="ni" onclick="show('create')" id="ni-create" title="New Voucher">
+      <a href="#create" class="ni" onclick="show('create'); return false;" id="ni-create" title="New Voucher">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
         New Voucher
-      </button>
+      </a>
     </div>
     <div class="ns">
       <p>Export</p>
@@ -180,10 +180,10 @@
     </div>
     <div class="ns">
       <p>Settings</p>
-      <button class="ni" onclick="show('printersetup')" id="ni-printersetup" title="Printer Setup">
+      <a href="#printersetup" class="ni" onclick="show('printersetup'); return false;" id="ni-printersetup" title="Printer Setup">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6,9 6,2 18,2 18,9"/><path d="M6,18H4a2,2,0,0,1-2-2V11a2,2,0,0,1,2-2H20a2,2,0,0,1,2,2v5a2,2,0,0,1-2,2H18"/><rect x="6" y="14" width="12" height="8"/></svg>
         Printer Setup
-      </button>
+      </a>
     </div>
   </nav>
 
@@ -239,7 +239,7 @@
           <button class="btn bs bsm" onclick="show('myvouchers')" title="View All →">View All →</button>
         </div>
         <div class="twrap"><table>
-          <thead><tr><th>Date</th><th>Type</th><th>Account</th><th>Head</th><th>Payment Mode</th><th>Cash Amount</th><th>Cheque Amount</th><th>Credit Amount</th><th>Action</th></tr></thead>
+          <thead><tr><th>Date</th><th>Type</th><th>Account</th><th>Head</th><th>Payment Mode</th><th>Cash Amount</th><th>Cheque Amount</th><th>Credit</th><th>Action</th></tr></thead>
           <tbody id="MRB"></tbody>
         </table></div>
       </div>
@@ -283,7 +283,7 @@
       </div>
       <div class="twrap">
         <table><thead><tr>
-          <th>Date</th><th>Type</th><th>Status</th><th>Party/Account</th><th>Head</th><th>Payment Mode</th><th>Cash Amount</th><th>Cheque Amount</th><th>Credit Amount</th><th>Actions</th>
+          <th>Date</th><th>Type</th><th>Status</th><th>Party/Account</th><th>Head</th><th>Payment Mode</th><th>Cash Amount</th><th>Cheque Amount</th><th>Credit</th><th>Actions</th>
         </tr></thead>
         <tbody id="MVTB"></tbody></table>
       </div>
@@ -474,7 +474,7 @@
       </div>
       <div class="twrap">
         <table><thead><tr>
-          <th>Date</th><th>Type</th><th>Status</th><th>Party/Account</th><th>Head</th><th>Location</th><th>Payment Mode</th><th>Cash Amount</th><th>Cheque Amount</th><th>Credit Amount</th><th>Entered By</th><th>Timestamp</th><th>Actions</th>
+          <th>Date</th><th>Type</th><th>Status</th><th>Party/Account</th><th>Head</th><th>Location</th><th>Payment Mode</th><th>Cash Amount</th><th>Cheque Amount</th><th>Credit</th><th>Entered By</th><th>Timestamp</th><th>Actions</th>
         </tr></thead>
         <tbody id="VTB"></tbody></table>
       </div>

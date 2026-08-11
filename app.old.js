@@ -476,7 +476,10 @@ function setupRole(skipShow){
   const a2 = (CU === 'admin2' || CU === 'admin3');
   
   if(!skipShow) {
-    if(a1){show('dashboard');}
+    const hash = window.location.hash.replace('#', '');
+    if (hash && document.getElementById('sec-' + hash)) {
+      show(hash);
+    } else if(a1){show('dashboard');}
     else if(a2){show('mydashboard');}
     else{show('create');}
   }
@@ -718,7 +721,17 @@ async function addNewBlock(type) {
 }
 
 // NAVIGATION
+window.addEventListener('hashchange', function() {
+  const hash = window.location.hash.replace('#', '');
+  if (hash && document.getElementById('sec-' + hash)) {
+    show(hash);
+  }
+});
+
 function show(id){
+  if (window.location.hash !== '#' + id) {
+    window.history.pushState(null, null, '#' + id);
+  }
   document.querySelectorAll('.sec').forEach(s=>s.classList.remove('act'));
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('act'));
   const s=document.getElementById('sec-'+id);if(s)s.classList.add('act');
@@ -987,7 +1000,7 @@ function renderMyVT(){
   const cashTotal=f.reduce((sum,v)=>v.type!=='credit'&&String(v.mode||'Cash').trim().toLowerCase()!=='cheque'?sum+Math.round(Number(v.amount)||0):sum,0);
   const chequeTotal=f.reduce((sum,v)=>v.type!=='credit'&&String(v.mode||'Cash').trim().toLowerCase()==='cheque'?sum+Math.round(Number(v.amount)||0):sum,0);
   const creditTotal=f.reduce((sum,v)=>v.type==='credit'?sum+Math.round(Number(v.amount)||0):sum,0);
-  const total=f.reduce((sum,v)=>sum+Math.round(Number(v.amount)||0),0);
+  const debitTotal = cashTotal + chequeTotal;
   tb.innerHTML=rows+(f.length?`<tr>
     <td colspan="6" style="text-align:right;font-weight:900;color:#000;padding-top:12px">MODE TOTALS:</td>
     <td style="font-weight:900;color:#7B1D2E;padding-top:12px"><small style="display:block">CASH TOTAL</small>₹${cashTotal}</td>
@@ -996,7 +1009,8 @@ function renderMyVT(){
     <td></td>
   </tr><tr>
     <td colspan="6" style="text-align:right;font-weight:900;font-size:15px;color:#000">GRAND TOTAL:</td>
-    <td colspan="3" style="font-weight:900;font-size:15px;color:#7B1D2E">₹${total}</td>
+    <td colspan="2" style="font-weight:900;font-size:15px;color:#7B1D2E">DEBIT: ₹${debitTotal}</td>
+    <td style="font-weight:900;font-size:15px;color:#7B1D2E">CREDIT: ₹${creditTotal}</td>
     <td></td>
   </tr>`:'');
   const emp=document.getElementById('MVT_EMPTY');if(emp)emp.style.display=f.length?'none':'block';
@@ -1641,7 +1655,6 @@ function renderVT(){
       if(isCredit) creditTotal += amount;
       else if(isCheque) chequeTotal += amount;
       else cashTotal += amount;
-      grandTotal += amount;
 
       const colName = v.college ? v.college.toUpperCase() : 'SMGG';
       const ts = v.createdAt ? new Date(v.createdAt).toLocaleString('en-IN') : '';
@@ -1678,6 +1691,7 @@ function renderVT(){
   </tr>`;
   });
   
+  const debitTotal = cashTotal + chequeTotal;
   html += `<tr>
     <td colspan="7" style="text-align:right;font-weight:900;color:#000;padding-top:12px;">MODE TOTALS:</td>
     <td style="font-weight:900;color:#7B1D2E;padding-top:12px;"><small style="display:block">CASH TOTAL</small>₹${cashTotal}</td>
@@ -1686,7 +1700,8 @@ function renderVT(){
     <td colspan="3"></td>
   </tr><tr>
     <td colspan="7" style="text-align:right;font-weight:900;font-size:15px;color:#000;">GRAND TOTAL:</td>
-    <td colspan="3" style="font-weight:900;font-size:15px;color:#7B1D2E;">₹${grandTotal}</td>
+    <td colspan="2" style="font-weight:900;font-size:15px;color:#7B1D2E;">DEBIT: ₹${debitTotal}</td>
+    <td style="font-weight:900;font-size:15px;color:#7B1D2E;">CREDIT: ₹${creditTotal}</td>
     <td colspan="3"></td>
   </tr>`;
 
@@ -2560,7 +2575,10 @@ window.addEventListener('DOMContentLoaded', async function(){
     _updateXLPill();
     _startLiveSync();
     // Navigate to last active page or dashboard
-    if(sessPage){
+    const hash = window.location.hash.replace('#', '');
+    if(hash && document.getElementById('sec-' + hash)){
+      setTimeout(function(){ show(hash); }, 0);
+    } else if(sessPage){
       setTimeout(function(){ show(sessPage); }, 0);
     } else {
       setTimeout(function(){ show('dashboard'); }, 0);
