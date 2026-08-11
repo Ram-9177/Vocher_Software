@@ -938,16 +938,18 @@ function getMyFilteredVS(){
   return VS.filter(_isOwnVoucher).filter(v=>{
     const text=[v.party,v.paidTo,v.receivedFrom,v.recipientPhone,v.head,v.towards,v.block,v.cheque,v.reversalDate,v.type==='onaccount'?(v.reversalDateISO||v.reversalDate?'cleared':'pending'):''].filter(Boolean).join(' ').toLowerCase();
     const dateISO=v.dateISO||dmyToISO(v.date||'');
+    const moaEl=document.getElementById('M_OA_STATUS');const moa=moaEl?moaEl.value:'';
     return (!q||text.includes(q))&&
       (!ft||v.type===ft)&&
       (!fh||v.head===fh)&&
       (!fm||String(v.mode||'Cash').toLowerCase()===fm)&&
       (!from||dateISO>=from)&&
-      (!to||dateISO<=to);
+      (!to||dateISO<=to)&&
+      (!moa||(v.type==='onaccount'&&(moa==='cleared'?(v.reversalDateISO||v.reversalDate):!(v.reversalDateISO||v.reversalDate))));
   });
 }
 function clearMyVoucherFilters(){
-  ['MSQ','MSDF','MSDT','MFT2','MFH','MFM'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['MSQ','MSDF','MSDT','MFT2','MFH','MFM','M_OA_STATUS'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   syncDateFilterDisplay('MSDF');syncDateFilterDisplay('MSDT');
   renderMyVT();
 }
@@ -1598,6 +1600,7 @@ function getFilteredVS(){
   const fuEl=document.getElementById('FU');const fu=fuEl?fuEl.value.toLowerCase():'';
   const sdfEl=document.getElementById('SDF') || document.getElementById('MSDF'),sdf=sdfEl?sdfEl.value:'';
   const sdtEl=document.getElementById('SDT') || document.getElementById('MSDT'),sdt=sdtEl?sdtEl.value:'';
+  const foaEl=document.getElementById('F_OA_STATUS');const foa=foaEl?foaEl.value:'';
   return VS.filter(v=>{
     const sq=!q||[v.party,v.paidTo,v.receivedFrom,v.recipientPhone,v.head,v.towards,v.reversalDate,v.type==='onaccount'?(v.reversalDateISO||v.reversalDate?'cleared':'pending'):''].filter(Boolean).join(' ').toLowerCase().includes(q);
     let dMatch=true;
@@ -1611,13 +1614,32 @@ function getFilteredVS(){
     }
     const uName=String(v.createdBy||v.created_by||'').trim().toLowerCase();
     const uMatch=!fu||uName===fu;
-    return sq&&(!ft||v.type===ft)&&(!fh||v.head===fh)&&(!fc||v.college===fc)&&uMatch&&dMatch;
+    const oaMatch=!foa||(v.type==='onaccount'&&(foa==='cleared'?(v.reversalDateISO||v.reversalDate):!(v.reversalDateISO||v.reversalDate)));
+    return sq&&(!ft||v.type===ft)&&(!fh||v.head===fh)&&(!fc||v.college===fc)&&uMatch&&dMatch&&oaMatch;
   });
 }
 function clearVoucherFilters(){
-  ['SDF','SDT','FC','SQ','FT2','FH','FU'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['SDF','SDT','FC','SQ','FT2','FH','FU','F_OA_STATUS'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   syncDateFilterDisplay('SDF');syncDateFilterDisplay('SDT');
   renderVT();
+}
+function handleOAStatusChange(selectEl, view) {
+  const val = selectEl.value;
+  if (val) {
+    const typeSelect = document.getElementById(view === 'all' ? 'FT2' : 'MFT2');
+    if (typeSelect) typeSelect.value = 'onaccount';
+    
+    const df = document.getElementById(view === 'all' ? 'SDF' : 'MSDF');
+    const dt = document.getElementById(view === 'all' ? 'SDT' : 'MSDT');
+    if(df) { df.value = ''; syncDateFilterDisplay(df.id); }
+    if(dt) { dt.value = ''; syncDateFilterDisplay(dt.id); }
+  }
+  
+  if (view === 'all') {
+    if(typeof renderVT==='function') renderVT();
+  } else {
+    if(typeof renderMyVT==='function') renderMyVT();
+  }
 }
 function renderVT(){
   try{if(typeof populateUsersFilter==='function')populateUsersFilter();}catch(e){}

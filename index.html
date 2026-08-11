@@ -266,6 +266,11 @@
           <option value="onaccount">On- Account</option>
           <option value="credit">Credit</option>
         </select>
+        <select id="M_OA_STATUS" onchange="handleOAStatusChange(this, 'my')" title="Filter by On Account Status">
+          <option value="">All OA Statuses</option>
+          <option value="pending">OA - Pending</option>
+          <option value="cleared">OA - Cleared</option>
+        </select>
         <select id="MFH"><option value="">All Heads</option></select>
         <select id="MFM">
           <option value="">All Payment Modes</option>
@@ -464,6 +469,11 @@
           <option value="debit">Debit</option>
           <option value="onaccount">On- Account</option>
           <option value="credit">Credit</option>
+        </select>
+        <select id="F_OA_STATUS" onchange="handleOAStatusChange(this, 'all')" title="Filter by On Account Status">
+          <option value="">All OA Statuses</option>
+          <option value="pending">OA - Pending</option>
+          <option value="cleared">OA - Cleared</option>
         </select>
         <select id="FH" title="Filter by Head"><option value="">All Heads</option></select>
         <select id="FU" onchange="renderVT()" title="Filter by User"><option value="">All Users</option></select>
