@@ -17,3 +17,4 @@ yarn-error.log*
 
 # Node (in case package manager is introduced later)
 node_modules/
+.wrangler/
