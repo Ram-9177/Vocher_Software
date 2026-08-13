@@ -160,7 +160,7 @@ async function autoSaveLinkedExcel(){
       'Amount in Words':v.amtWords||'','Payment Mode':v.mode||'',
       'Cheque / Ref No.':v.cheque||'','Checked By':v.checkedBy||'',
       'Remarks':v.remarks||'','Created By':v.createdBy||'',
-      'Created At':v.createdAt?new Date(v.createdAt).toLocaleString('en-IN'):''
+      'Created At':v.createdAt?fmtDt(v.createdAt):''
     }));
     const ws=XLSX.utils.json_to_sheet(rows);
     ws['!cols']=[{wch:5},{wch:12},{wch:13},{wch:22},{wch:28},{wch:22},{wch:22},{wch:18},{wch:18},{wch:20},{wch:42},{wch:14},{wch:14},{wch:40},{wch:13},{wch:18},{wch:18},{wch:28},{wch:13},{wch:22}];
@@ -548,7 +548,7 @@ function initApp(){
   fetchDynamicBlocks();
   setupCustomHeadDropdowns();
   populateHeads();populateMyHeads();setDate();renderDash();renderMyDash();
-  const today_str=new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const today_str=fmtDt(new Date().toISOString(), true);
   const el=document.getElementById('DD');if(el)el.textContent='Today: '+today_str;
   const mel=document.getElementById('MDD');if(mel)mel.textContent='Today: '+today_str;
 }
@@ -566,6 +566,17 @@ function setDate(){
   syncDateFilterDisplay('f_date');
 }
 function isoToDMY(s){if(!s)return'';const p=s.split('-');if(p.length!==3)return s;return p[2]+'-'+p[1]+'-'+p[0];}
+function fmtDt(iso, dateOnly=false){
+  if(!iso) return '';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return iso;
+  const p = n => String(n).padStart(2,'0');
+  const str = p(d.getDate())+'-'+p(d.getMonth()+1)+'-'+d.getFullYear();
+  if(dateOnly) return str;
+  let h = d.getHours(), m = p(d.getMinutes()), am = h>=12?'PM':'AM';
+  h = h%12||12;
+  return str+' '+p(h)+':'+m+' '+am;
+}
 function dmyToISO(s){if(!s)return'';const p=s.split('-');if(p.length!==3)return s;return p[2]+'-'+p[1]+'-'+p[0];}
 function formatDateFilterDisplay(iso){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(iso||''))return'';
@@ -1679,7 +1690,7 @@ function renderVT(){
       else cashTotal += amount;
 
       const colName = v.college ? v.college.toUpperCase() : 'SMGG';
-      const ts = v.createdAt ? new Date(v.createdAt).toLocaleString('en-IN') : '';
+      const ts = v.createdAt ? fmtDt(v.createdAt) : '';
       const cleared=v.type==='onaccount'&&Boolean(v.reversalDateISO||v.reversalDate);
       const revDateISO = v.reversalDateISO || (v.reversalDate ? dmyToISO(v.reversalDate) : '');
       const vDateISO = v.dateISO || (v.date ? dmyToISO(v.date) : '');
@@ -1882,7 +1893,7 @@ function doExcel(silent=false){
       'Checked By': v.checkedBy||'',
       'Remarks': v.remarks||'',
       'Created By': v.createdBy||'',
-      'Created At': v.createdAt?new Date(v.createdAt).toLocaleString('en-IN'):''
+      'Created At':v.createdAt?fmtDt(v.createdAt):''
     }));
 
     const ws = XLSX.utils.json_to_sheet(rows);

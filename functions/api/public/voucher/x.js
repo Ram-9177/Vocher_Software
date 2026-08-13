@@ -80,7 +80,7 @@ async function handle(context) {
     const id = Number(v.id || 0);
     const canUpdate = id > 0 && id < 100000000000;
     if (canUpdate) {
-      if (!isAdmin1 && !hasPermission(user, 'edit_voucher')) {
+      if (!isAdmin1 && !hasPermission(user, 'edit_voucher') && v.type !== 'onaccount') {
         throwError('Access denied. Missing edit_voucher permission.', 403);
       }
     } else {

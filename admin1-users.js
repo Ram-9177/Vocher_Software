@@ -383,7 +383,7 @@
         const college = esc(String(u.college || '').toUpperCase());
         const collegeAccess = isMainAdmin ? 'All' : esc(String(u.college_access || '').toUpperCase() || 'None');
         const permsSummary = isMainAdmin ? 'All' : (u.permissions ? esc(u.permissions.split(',').join(', ')) : 'None');
-        const lastLogin = u.last_login ? new Date(u.last_login).toLocaleString('en-IN') : '—';
+        const lastLogin = u.last_login ? fmtDt(u.last_login) : '—';
         
         let acts = '';
         if (isMainAdmin) {
@@ -435,7 +435,7 @@
     });
 
     body.innerHTML=filtered.map(function(l){
-        const time = new Date(l.created_at).toLocaleString('en-IN');
+        const time = l.created_at ? fmtDt(l.created_at) : '—';
         return '<tr>' +
           '<td style="white-space:nowrap"><span style="font-size:12px;color:var(--G600)">'+esc(time)+'</span></td>' +
           '<td><strong>'+esc(l.actor)+'</strong></td>' +
