@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260804-onaccount-table-status-v28';
+  var buildVersion = '20260814-phone-required-v31';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;

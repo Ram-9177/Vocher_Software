@@ -134,7 +134,7 @@
       v.mode = getVal('fo_mode');
       v.cheque = getVal('fo_ref');
       v.party = v.paidTo;
-      if(!v.head || !v.paidTo || !v.towards || !v.amount){ alert('Fill Account Head, Paid To, Towards and Amount.'); return; }
+      if(!v.head || !v.paidTo || !v.towards || !v.amount || !v.recipientPhone){ alert('Please fill Account Head, Paid To, Towards, Amount, and Receiver Phone Number.'); return; }
     }
 
     if(v.type === 'onaccount' && v.reversalDateISO && v.reversalDateISO < dateISO){

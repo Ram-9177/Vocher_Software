@@ -501,6 +501,7 @@ async function saveVoucher(DB,user,v,ip) {
   if(!v||typeof v!=='object') throwError('Invalid voucher',400);
   const row=normalizeVoucher(v,user);
   if(!row.date||!row.head||!row.towards||!row.amount) throwError('Date, head, towards and amount are required',400);
+  if(row.type==='onaccount'&&!row.recipient_phone) throwError('Receiver phone number is required for On Account vouchers',400);
   if(row.reversal_date&&row.reversal_date<row.date) throwError('Reverse / cleared date cannot be before the voucher date',400);
   const id=Number(v.id||0), canUpdate=id>0&&id<100000000000;
   if(canUpdate){

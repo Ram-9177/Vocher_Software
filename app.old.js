@@ -543,11 +543,41 @@ async function fetchDynamicBlocks() {
   }
 }
 
+function updatePhoneSuggestions(){
+  const dl = document.getElementById('DL_PHONES');
+  if(!dl) return;
+  const phones = [];
+  if(Array.isArray(VS)){
+    VS.forEach(v => {
+      const p = String(v.recipientPhone || v.recipient_phone || '').trim();
+      if(p && !phones.includes(p)){
+        phones.push(p);
+      }
+    });
+  }
+  dl.innerHTML = phones.map(p => `<option value="${p}"></option>`).join('');
+}
+
+window.onPhoneSelected = function(val){
+  if(!val) return;
+  const cleaned = String(val).trim();
+  if(!cleaned) return;
+  const found = (VS||[]).find(v => (v.recipientPhone && String(v.recipientPhone).trim() === cleaned) || (v.recipient_phone && String(v.recipient_phone).trim() === cleaned));
+  if(found){
+    const paidToEl = document.getElementById('fo_paidto');
+    if(paidToEl && !paidToEl.value.trim()){
+      paidToEl.value = found.paidTo || found.paid_to || found.party || '';
+    }
+  }
+};
+
 function initApp(){
   fetchDynamicHeads();
   fetchDynamicBlocks();
   setupCustomHeadDropdowns();
   populateHeads();populateMyHeads();setDate();renderDash();renderMyDash();
+  updatePhoneSuggestions();
+  ['DBF','DBT','MDBF','MDBT','MSDF','MSDT','SDF','SDT','f_date'].forEach(id => syncDateFilterDisplay(id));
   const today_str=fmtDt(new Date().toISOString(), true);
   const el=document.getElementById('DD');if(el)el.textContent='Today: '+today_str;
   const mel=document.getElementById('MDD');if(mel)mel.textContent='Today: '+today_str;
@@ -565,9 +595,22 @@ function setDate(){
   if(el) el.value=todayISO();
   syncDateFilterDisplay('f_date');
 }
-function isoToDMY(s){if(!s)return'';const p=s.split('-');if(p.length!==3)return s;return p[2]+'-'+p[1]+'-'+p[0];}
+function isoToDMY(s){
+  if(!s) return '';
+  s = String(s).trim().replace(/\//g, '-');
+  const p = s.split('-');
+  if(p.length !== 3) return s;
+  if(p[0].length === 4) {
+    return p[2].padStart(2,'0') + '-' + p[1].padStart(2,'0') + '-' + p[0];
+  }
+  if(p[2].length === 4) {
+    return p[0].padStart(2,'0') + '-' + p[1].padStart(2,'0') + '-' + p[2];
+  }
+  return s;
+}
 function fmtDt(iso, dateOnly=false){
   if(!iso) return '';
+  if(/^\d{2}-\d{2}-\d{4}$/.test(String(iso).trim())) return iso;
   const d = new Date(iso);
   if(isNaN(d.getTime())) return iso;
   const p = n => String(n).padStart(2,'0');
@@ -577,11 +620,21 @@ function fmtDt(iso, dateOnly=false){
   h = h%12||12;
   return str+' '+p(h)+':'+m+' '+am;
 }
-function dmyToISO(s){if(!s)return'';const p=s.split('-');if(p.length!==3)return s;return p[2]+'-'+p[1]+'-'+p[0];}
+function dmyToISO(s){
+  if(!s) return '';
+  s = String(s).trim().replace(/\//g, '-');
+  const p = s.split('-');
+  if(p.length !== 3) return s;
+  if(p[2].length === 4) {
+    return p[2] + '-' + p[1].padStart(2,'0') + '-' + p[0].padStart(2,'0');
+  }
+  if(p[0].length === 4) {
+    return p[0] + '-' + p[1].padStart(2,'0') + '-' + p[2].padStart(2,'0');
+  }
+  return s;
+}
 function formatDateFilterDisplay(iso){
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(iso||''))return'';
-  const p=iso.split('-');
-  return p[2]+'-'+p[1]+'-'+p[0];
+  return isoToDMY(iso);
 }
 function syncDateFilterDisplay(id){
   const input=document.getElementById(id);
@@ -601,6 +654,14 @@ function openDateFilterPicker(id){
     else{input.focus();input.click();}
   }catch(e){input.focus();input.click();}
 }
+window.openOADatePicker = function(textEl){
+  const dateEl = textEl.parentElement ? textEl.parentElement.querySelector('input[type="date"]') : null;
+  if (!dateEl) return;
+  try{
+    if(typeof dateEl.showPicker==='function')dateEl.showPicker();
+    else{dateEl.focus();dateEl.click();}
+  }catch(e){dateEl.focus();dateEl.click();}
+};
 function autoDate(el){
   let v=el.value.replace(/[^0-9]/g,'');
   if(v.length>2&&v.length<=4)v=v.slice(0,2)+'-'+v.slice(2);
@@ -608,9 +669,18 @@ function autoDate(el){
   el.value=v;
 }
 function parseDMY(s){
-  const p=s.split('-');if(p.length!==3)return null;
-  const d=parseInt(p[0]),m=parseInt(p[1])-1,y=parseInt(p[2]);
-  return new Date(y,m,d);
+  if(!s) return null;
+  s = String(s).trim().replace(/\//g, '-');
+  const p = s.split('-');
+  if(p.length !== 3) return null;
+  let d, m, y;
+  if(p[0].length === 4) {
+    y = parseInt(p[0]); m = parseInt(p[1]) - 1; d = parseInt(p[2]);
+  } else {
+    d = parseInt(p[0]); m = parseInt(p[1]) - 1; y = parseInt(p[2]);
+  }
+  if(isNaN(d) || isNaN(m) || isNaN(y)) return null;
+  return new Date(y, m, d);
 }
 function populateHeads(){
   const el=document.getElementById('FH');if(!el)return;
@@ -854,11 +924,15 @@ function saveV(){
       v.reversalDateISO = '';
       v.reversalDate = '';
     }
-    if(!v.head||!v.paidTo||!v.towards||!v.amount){alert('Fill Account Head, Paid To, Towards and Amount.');return;}
+    if(!v.head||!v.paidTo||!v.towards||!v.amount||!v.recipientPhone){
+      alert('Please fill Account Head, Paid To, Towards, Amount, and Receiver Phone Number.');
+      return;
+    }
   }
   if(v.type==='onaccount'&&v.reversalDateISO&&v.reversalDateISO<dateISO){alert('Reverse / Cleared Date cannot be before the voucher date.');return;}
   if(editId){const i=VS.findIndex(x=>x.id===editId);if(i>-1){VS[i]=v;}editId=null;}
   else VS.push(v);
+  updatePhoneSuggestions();
   v._u=new Date().toISOString();
   _saveVoucherToCloud(v);
   const saveBtn=document.querySelector('.bp');
@@ -894,14 +968,10 @@ function renderMyDash(){
   let myVS=VS.filter(_isOwnVoucher);
   if(mdbf || mdbt) {
     myVS = myVS.filter(v => {
-      const p = (v.date||'').split('-');
-      if(p.length === 3) {
-        const iso = p[2] + '-' + p[1] + '-' + p[0];
-        if (mdbf && iso < mdbf) return false;
-        if (mdbt && iso > mdbt) return false;
-        return true;
-      }
-      return false;
+      const iso = v.dateISO || dmyToISO(v.date || '');
+      if (mdbf && iso < mdbf) return false;
+      if (mdbt && iso > mdbt) return false;
+      return true;
     });
   }
   const lbl=ADMINS[CU]?ADMINS[CU].label:CU;
@@ -991,7 +1061,10 @@ function renderMyVT(){
       <div class="oa-status-cell" style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
           <span class="oa-status ${cleared?'oa-cleared':'oa-pending'}">${cleared?'CLEAR':'PENDING'}</span>
-          <input type="date" class="oa-rev-date-picker" value="${revDateISO}" min="${vDateISO}" onchange="updateOAReverseDate(${v.id}, this.value)" title="Select Reverse Date to set status as Clear" style="padding:2px 4px;font-size:11px;border:1.5px solid #d0d5dd;border-radius:5px;background:#fff;color:#333;cursor:pointer;max-width:115px;">
+          <div class="oa-rev-date-wrap" style="position:relative;display:inline-flex;align-items:center;">
+            <input type="text" value="${revDateISO ? isoToDMY(revDateISO) : ''}" placeholder="DD-MM-YYYY" readonly onclick="openOADatePicker(this)" style="padding:2px 4px;font-size:11px;border:1.5px solid #d0d5dd;border-radius:5px;background:#fff;color:#333;cursor:pointer;width:105px;text-align:center;box-sizing:border-box;">
+            <input type="date" class="oa-rev-date-picker" value="${revDateISO}" min="${vDateISO}" onchange="updateOAReverseDate(${v.id}, this.value)" title="Select Reverse Date to set status as Clear" style="position:absolute;right:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;">
+          </div>
         </div>
       </div>`;
     return `<tr class="${cleared?'oa-cleared-row':''}">
@@ -1180,7 +1253,7 @@ function buildPrint(v){
     </div>
     <div style="width:200px;flex-shrink:0;display:flex;justify-content:flex-start;align-items:center;padding:4px 8px;border-left:2px solid #111">
       <span style="font-size:10pt;font-weight:700;letter-spacing:0.5px;font-family:Arial,sans-serif;margin-right:8px">Date :</span>
-      <span style="font-size:10pt;font-weight:400;font-family:Arial,sans-serif;border-bottom:1.5px dotted #555;flex:1;text-align:center">${v.date||''}</span>
+      <span style="font-size:10pt;font-weight:400;font-family:Arial,sans-serif;border-bottom:1.5px dotted #555;flex:1;text-align:center">${v.date ? isoToDMY(v.date) : ''}</span>
     </div>
   </div>
 
@@ -1571,14 +1644,10 @@ function renderDash(){
   let fvs = VS;
   if(dbf || dbt) {
     fvs = VS.filter(v => {
-      const p = (v.date||'').split('-');
-      if(p.length === 3) {
-        const iso = p[2] + '-' + p[1] + '-' + p[0];
-        if (dbf && iso < dbf) return false;
-        if (dbt && iso > dbt) return false;
-        return true;
-      }
-      return false;
+      const iso = v.dateISO || dmyToISO(v.date || '');
+      if (dbf && iso < dbf) return false;
+      if (dbt && iso > dbt) return false;
+      return true;
     });
   }
   const tot=fvs.length,totAmt=fvs.reduce((s,v)=>s+v.amount,0),tod=fvs.filter(v=>v.date===today()).length;
@@ -1616,12 +1685,9 @@ function getFilteredVS(){
     const sq=!q||[v.party,v.paidTo,v.receivedFrom,v.recipientPhone,v.head,v.towards,v.reversalDate,v.type==='onaccount'?(v.reversalDateISO||v.reversalDate?'cleared':'pending'):''].filter(Boolean).join(' ').toLowerCase().includes(q);
     let dMatch=true;
     if(sdf||sdt){
-      const p=(v.date||'').split('-');
-      if(p.length===3){
-        const iso=p[2]+'-'+p[1]+'-'+p[0];
-        if(sdf&&iso<sdf)dMatch=false;
-        if(sdt&&iso>sdt)dMatch=false;
-      }else dMatch=false;
+      const iso = v.dateISO || dmyToISO(v.date || '');
+      if(sdf&&iso<sdf)dMatch=false;
+      if(sdt&&iso>sdt)dMatch=false;
     }
     const uName=String(v.createdBy||v.created_by||'').trim().toLowerCase();
     const uMatch=!fu||uName===fu;
@@ -1654,6 +1720,7 @@ function handleOAStatusChange(selectEl, view) {
 }
 function renderVT(){
   try{if(typeof populateUsersFilter==='function')populateUsersFilter();}catch(e){}
+  try{if(typeof updatePhoneSuggestions==='function')updatePhoneSuggestions();}catch(e){}
   const f=getFilteredVS().sort((a,b)=>{
     const ar=a.type==='onaccount'?(a.reversalDateISO||a.reversalDate?2:0):1;
     const br=b.type==='onaccount'?(b.reversalDateISO||b.reversalDate?2:0):1;
@@ -1699,7 +1766,10 @@ function renderVT(){
         <div class="oa-status-cell" style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;">
           <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
             <span class="oa-status ${cleared?'oa-cleared':'oa-pending'}">${cleared?'CLEAR':'PENDING'}</span>
-            <input type="date" class="oa-rev-date-picker" value="${revDateISO}" min="${vDateISO}" onchange="updateOAReverseDate(${v.id}, this.value)" title="Select Reverse Date to set status as Clear" style="padding:2px 4px;font-size:11px;border:1.5px solid #d0d5dd;border-radius:5px;background:#fff;color:#333;cursor:pointer;max-width:115px;">
+            <div class="oa-rev-date-wrap" style="position:relative;display:inline-flex;align-items:center;">
+              <input type="text" value="${revDateISO ? isoToDMY(revDateISO) : ''}" placeholder="DD-MM-YYYY" readonly onclick="openOADatePicker(this)" style="padding:2px 4px;font-size:11px;border:1.5px solid #d0d5dd;border-radius:5px;background:#fff;color:#333;cursor:pointer;width:105px;text-align:center;box-sizing:border-box;">
+              <input type="date" class="oa-rev-date-picker" value="${revDateISO}" min="${vDateISO}" onchange="updateOAReverseDate(${v.id}, this.value)" title="Select Reverse Date to set status as Clear" style="position:absolute;right:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;">
+            </div>
           </div>
         </div>`;
       html += `<tr class="${cleared?'oa-cleared-row':''}">
@@ -1851,7 +1921,7 @@ function renderAnalytics(){
   const tvals=[types.debit,types.onaccount,types.credit];let cum=0;
   const segs=tvals.map((val,i)=>{const p=val/tot*100;const s=`<circle cx="55" cy="55" r="38" fill="none" stroke="${cols[i]}" stroke-width="20" stroke-dasharray="${p*2.39} ${(100-p)*2.39}" stroke-dashoffset="${-cum*2.39+59.8}" transform="rotate(-90 55 55)"/>`;cum+=p;return s;});
   document.getElementById('TC').innerHTML=`<div class="dw"><svg width="110" height="110" viewBox="0 0 110 110"><circle cx="55" cy="55" r="38" fill="none" stroke="#eee" stroke-width="20"/>${segs.join('')}<text x="55" y="60" text-anchor="middle" font-size="14" font-weight="700" fill="#7B1D2E">${VS.length}</text></svg><div class="ll">${lbs.map((l,i)=>`<div style="display:flex;align-items:center;gap:6px"><div class="ld" style="background:${cols[i]}"></div><span>${l}: ${tvals[i]}</span></div>`).join('')}</div></div>`;
-  const months={};VS.forEach(v=>{let m='?';if(v.date&&v.date.length>=7){const p=v.date.split('-');if(p.length===3)m=p[2]+'-'+p[1];else m=v.date.substring(0,7);}months[m]=(months[m]||0)+1;});
+  const months={};VS.forEach(v=>{let m='?'; const iso = v.dateISO || dmyToISO(v.date||''); if(iso && iso.length >= 7){ m=iso.substring(0,7); } months[m]=(months[m]||0)+1;});
   const ms=Object.entries(months).sort((a,b)=>a[0].localeCompare(b[0])).slice(-8);
   const mm=ms[0]?Math.max(...ms.map(e=>e[1])):1;
   document.getElementById('MC').innerHTML=ms.map(([m,c])=>`<div class="bar-row"><div class="bar-lbl">${m}</div><div class="bar-trk"><div class="bar-fill" style="width:${Math.round(c/mm*100)}%;background:#B8960C">${c}</div></div></div>`).join('')||'<p style="color:#9A9488;font-size:12px">No data yet</p>';
@@ -1875,7 +1945,7 @@ function doExcel(silent=false){
 
     const rows=EXPVS.map((v,i)=>({
       'S.No': i+1,
-      'Date': v.date||'',
+      'Date': v.date ? isoToDMY(v.date) : '',
       'Voucher Type': typeLabel(v.type),
       'Account Name / Credit A/c': v.acName||'',
       'Account Head / Debit A/c': v.head||'',
@@ -1883,7 +1953,7 @@ function doExcel(silent=false){
       'Paid To': v.paidTo||'',
       'Receiver Phone': v.recipientPhone||'',
       'On Account Status': v.type==='onaccount'?(v.reversalDateISO||v.reversalDate?'Cleared':'Pending'):'',
-      'Reverse / Cleared Date': v.reversalDate||'',
+      'Reverse / Cleared Date': v.reversalDate ? isoToDMY(v.reversalDate) : '',
       'Towards (Purpose)': v.towards||'',
       'Block': v.block||'',
       'Amount (Rs.)': Math.round(Number(v.amount)||0),
@@ -2182,10 +2252,7 @@ function doCashBook(scope){
     const instKeysToProcess = selectedInst ? [selectedInst] : instKeys;
     const fromDate = (document.getElementById(isMine ? 'MSDF' : 'SDF')||{}).value || '';
     const toDate = (document.getElementById(isMine ? 'MSDT' : 'SDT')||{}).value || '';
-    const fmtFilterDate = value => {
-      const parts = value.split('-');
-      return parts.length===3 ? parts[2]+'-'+parts[1]+'-'+parts[0] : value;
-    };
+    const fmtFilterDate = value => isoToDMY(value);
     const periodLabel = fromDate && toDate
       ? 'Period: '+fmtFilterDate(fromDate)+' – '+fmtFilterDate(toDate)
       : fromDate

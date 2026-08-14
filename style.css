@@ -706,14 +706,14 @@ tr.oa-cleared-row td {
   min-width: 160px;
 }
 
-.sb2 .date-filter-display {
+.date-filter-display {
   width: 100%;
   min-width: 0;
   padding-right: 38px;
   cursor: pointer;
 }
 
-.sb2 .date-filter-native {
+.date-filter-native {
   position: absolute;
   right: 8px;
   bottom: 2px;
