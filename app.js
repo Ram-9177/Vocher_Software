@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260814-phone-required-v31';
+  var buildVersion = '20260817-ddmmyyyy-slash-v32';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;

@@ -1,7 +1,7 @@
 const SESSION_DAYS = 3650;
 const PBKDF2_ITERATIONS = 100000;
 const LEGACY_SHA256 = 'legacy-sha256';
-const API_VERSION = 'voucher-api-onaccount-status-v15';
+const API_VERSION = 'voucher-api-ddmmyyyy-slash-v16';
 
 // Permission constants
 const VIEW_DASHBOARD = 'view_dashboard';
@@ -495,7 +495,7 @@ async function syncData(DB,user,body){
 }
 function voucherToOld(v) { const dateISO = isoFromAny(v.date); const reversalDateISO=v.reversal_date?isoFromAny(v.reversal_date):''; return { id:Number(v.id||0), voucherNo:v.voucher_no||'', voucher_no:v.voucher_no||'', date:dmyFromIso(dateISO), dateISO:dateISO, type:v.type||'debit', college:(v.college==='smg'?'smgg':v.college)||'smgg', head:v.head||'', acName:v.ac_name||'', ac_name:v.ac_name||'', receivedFrom:v.received_from||'', received_from:v.received_from||'', paidTo:v.paid_to||'', paid_to:v.paid_to||'', recipientPhone:v.recipient_phone||'', recipient_phone:v.recipient_phone||'', reversalDate:reversalDateISO?dmyFromIso(reversalDateISO):'', reversalDateISO:reversalDateISO, reversal_date:reversalDateISO, towards:v.towards||'', block:v.block||'', amount:Number(v.amount||0), amtWords:v.amt_words||'', amt_words:v.amt_words||'', mode:v.mode||'Cash', cheque:v.cheque||'', prepBy:v.prep_by||'', prep_by:v.prep_by||'', checkedBy:v.checked_by||'', checked_by:v.checked_by||'', remarks:v.remarks||'', createdBy:uiUsername(v.created_by||''), created_by:v.created_by||'', createdAt:v.created_at||'', created_at:v.created_at||'', _u:v.updated_at||v.created_at||'', party:v.paid_to||v.received_from||v.ac_name||'' }; }
 function isoFromAny(s) { s = clean(s,20).replace(/\//g, '-'); if(!s) return ''; if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; const p=s.split('-'); if(p.length===3) { if(p[0].length===4) return p[0]+'-'+p[1].padStart(2,'0')+'-'+p[2].padStart(2,'0'); return p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0'); } return s; }
-function dmyFromIso(s) { if(/^\d{4}-\d{2}-\d{2}$/.test(s)){ const p=s.split('-'); return p[2]+'-'+p[1]+'-'+p[0]; } return s; }
+function dmyFromIso(s) { if(/^\d{4}-\d{2}-\d{2}$/.test(s)){ const p=s.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; } return s; }
 function normalizeVoucher(v,user) { const type=clean(v.type,20); if(['debit','onaccount','credit'].indexOf(type)===-1) throwError('Invalid voucher type',400); const reversalRaw=clean(v.reversal_date||v.reversalDateISO||v.reversalDate,20); return { college:allowedCollege(user,v.college), type:type, date:isoFromAny(v.dateISO||v.date), head:clean(v.head,250), ac_name:clean(v.ac_name||v.acName,250), received_from:clean(v.received_from||v.receivedFrom,250), paid_to:clean(v.paid_to||v.paidTo,250), recipient_phone:type==='onaccount'?clean(v.recipient_phone||v.recipientPhone,30):'', reversal_date:type==='onaccount'&&reversalRaw?isoFromAny(reversalRaw):'', towards:clean(v.towards,500), block:clean(v.block,250), amount:amount(v.amount), amt_words:clean(v.amt_words||v.amtWords,500), mode:clean(v.mode||'Cash',50), cheque:clean(v.cheque,120), prep_by:clean(v.prep_by||v.prepBy,120), checked_by:clean(v.checked_by||v.checkedBy,120), remarks:clean(v.remarks,500) }; }
 async function saveVoucher(DB,user,v,ip) {
   if(!v||typeof v!=='object') throwError('Invalid voucher',400);

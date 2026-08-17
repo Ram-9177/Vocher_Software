@@ -155,7 +155,7 @@
       if(saveBtn) saveBtn.classList.remove('saving');
       if(XLHandle && excelOk) _toast('✅ Saved live & updated ' + XLName, 'ok');
       else if(XLHandle && !excelOk) _toast('Voucher saved live — Excel update failed', 'warn');
-      else _toast('✅ Voucher saved live on ' + v.date, 'ok');
+      else _toast('✅ Voucher saved live on ' + isoToDMY(v.date||v.dateISO||''), 'ok');
 
       editId = null;
       resetF();

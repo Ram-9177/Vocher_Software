@@ -148,12 +148,12 @@ async function autoSaveLinkedExcel(){
     // Build the same workbook as doExcel but write to handle
     const typeLabel=t=>t==='credit'?'Credit':t==='debit'?'Debit':'On- Account';
     const rows=VS.map((v,i)=>({
-      'S.No':i+1,'Date':v.date||'','Voucher Type':typeLabel(v.type),
+      'S.No':i+1,'Date':isoToDMY(v.date||v.dateISO||''),'Voucher Type':typeLabel(v.type),
       'Account Name / Credit A/c':v.acName||'','Account Head / Debit A/c':v.head||'',
       'Received From':v.receivedFrom||'','Paid To':v.paidTo||'',
       'Receiver Phone':v.recipientPhone||'',
       'On Account Status':v.type==='onaccount'?(v.reversalDateISO||v.reversalDate?'Cleared':'Pending'):'',
-      'Reverse / Cleared Date':v.reversalDate||'',
+      'Reverse / Cleared Date':isoToDMY(v.reversalDate||v.reversalDateISO||''),
       'Towards (Purpose)':v.towards||'',
       'Block':v.block||'',
       'Amount (Rs.)':Math.round(Number(v.amount)||0),
@@ -587,7 +587,7 @@ function today(){
   const d=String(t.getDate()).padStart(2,'0');
   const m=String(t.getMonth()+1).padStart(2,'0');
   const y=t.getFullYear();
-  return d+'-'+m+'-'+y;
+  return d+'/'+m+'/'+y;
 }
 function todayISO(){return new Date().toISOString().split('T')[0];}
 function setDate(){
@@ -601,20 +601,20 @@ function isoToDMY(s){
   const p = s.split('-');
   if(p.length !== 3) return s;
   if(p[0].length === 4) {
-    return p[2].padStart(2,'0') + '-' + p[1].padStart(2,'0') + '-' + p[0];
+    return p[2].padStart(2,'0') + '/' + p[1].padStart(2,'0') + '/' + p[0];
   }
   if(p[2].length === 4) {
-    return p[0].padStart(2,'0') + '-' + p[1].padStart(2,'0') + '-' + p[2];
+    return p[0].padStart(2,'0') + '/' + p[1].padStart(2,'0') + '/' + p[2];
   }
   return s;
 }
 function fmtDt(iso, dateOnly=false){
   if(!iso) return '';
-  if(/^\d{2}-\d{2}-\d{4}$/.test(String(iso).trim())) return iso;
+  if(/^\d{2}[\/-]\d{2}[\/-]\d{4}$/.test(String(iso).trim())) return isoToDMY(iso);
   const d = new Date(iso);
   if(isNaN(d.getTime())) return iso;
   const p = n => String(n).padStart(2,'0');
-  const str = p(d.getDate())+'-'+p(d.getMonth()+1)+'-'+d.getFullYear();
+  const str = p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear();
   if(dateOnly) return str;
   let h = d.getHours(), m = p(d.getMinutes()), am = h>=12?'PM':'AM';
   h = h%12||12;
@@ -664,8 +664,8 @@ window.openOADatePicker = function(textEl){
 };
 function autoDate(el){
   let v=el.value.replace(/[^0-9]/g,'');
-  if(v.length>2&&v.length<=4)v=v.slice(0,2)+'-'+v.slice(2);
-  else if(v.length>4)v=v.slice(0,2)+'-'+v.slice(2,4)+'-'+v.slice(4,8);
+  if(v.length>2&&v.length<=4)v=v.slice(0,2)+'/'+v.slice(2);
+  else if(v.length>4)v=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4,8);
   el.value=v;
 }
 function parseDMY(s){
@@ -943,7 +943,7 @@ function saveV(){
     if(saveBtn) saveBtn.classList.remove('saving');
     if(XLHandle && ok) _toast('✅ Saved & updated '+XLName,'ok');
     else if(XLHandle && !ok) _toast('Voucher saved locally — Excel update failed','warn');
-    else _toast('✅ Voucher saved on '+v.date+' — link an Excel file to auto-update','ok');
+    else _toast('✅ Voucher saved on '+isoToDMY(v.date||v.dateISO||'')+' — link an Excel file to auto-update','ok');
     resetF();show(CU==='admin1'?'vouchers':'myvouchers');
   })();
 }
@@ -976,7 +976,7 @@ function renderMyDash(){
   }
   const lbl=ADMINS[CU]?ADMINS[CU].label:CU;
   const t=document.getElementById('MDB_TITLE');if(t)t.textContent=lbl+' — Dashboard';
-  const tot=myVS.length,totAmt=myVS.reduce((s,v)=>s+v.amount,0),tod=myVS.filter(v=>v.date===today()).length;
+  const tot=myVS.length,totAmt=myVS.reduce((s,v)=>s+v.amount,0),tod=myVS.filter(v=>isoToDMY(v.date||v.dateISO||'')===today()).length;
   const sg=document.getElementById('MSG');if(!sg)return;
   sg.innerHTML=`
     <div class="sc"><div class="lbl">My Vouchers</div><div class="val">${tot}</div><div class="sub">${mdbf||mdbt ? 'Filtered' : 'All time'}</div></div>
@@ -995,7 +995,7 @@ function renderMyDash(){
     const isCheque = !isCredit && mode === 'cheque';
     const isCash = !isCredit && !isCheque;
     return `<tr>
-    <td><strong>${v.date}</strong></td>
+    <td><strong>${isoToDMY(v.date||v.dateISO||'')}</strong></td>
     <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
     <td>${v.party||v.paidTo||v.receivedFrom||'–'}</td>
     <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
@@ -1062,13 +1062,13 @@ function renderMyVT(){
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
           <span class="oa-status ${cleared?'oa-cleared':'oa-pending'}">${cleared?'CLEAR':'PENDING'}</span>
           <div class="oa-rev-date-wrap" style="position:relative;display:inline-flex;align-items:center;">
-            <input type="text" value="${revDateISO ? isoToDMY(revDateISO) : ''}" placeholder="DD-MM-YYYY" readonly onclick="openOADatePicker(this)" style="padding:2px 4px;font-size:11px;border:1.5px solid #d0d5dd;border-radius:5px;background:#fff;color:#333;cursor:pointer;width:105px;text-align:center;box-sizing:border-box;">
+            <input type="text" value="${revDateISO ? isoToDMY(revDateISO) : ''}" placeholder="DD/MM/YYYY" readonly onclick="openOADatePicker(this)" style="padding:2px 4px;font-size:11px;border:1.5px solid #d0d5dd;border-radius:5px;background:#fff;color:#333;cursor:pointer;width:105px;text-align:center;box-sizing:border-box;">
             <input type="date" class="oa-rev-date-picker" value="${revDateISO}" min="${vDateISO}" onchange="updateOAReverseDate(${v.id}, this.value)" title="Select Reverse Date to set status as Clear" style="position:absolute;right:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;">
           </div>
         </div>
       </div>`;
     return `<tr class="${cleared?'oa-cleared-row':''}">
-    <td><strong>${v.date}</strong></td>
+    <td><strong>${isoToDMY(v.date||v.dateISO||'')}</strong></td>
     <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
     <td>${status}</td>
     <td>${v.party||v.paidTo||v.receivedFrom||'–'}${phoneHtml}</td>
@@ -1117,11 +1117,11 @@ function doExcelMine(){
     if(!myVS.length){alert('No vouchers to export.');return;}
     const wb=XLSX.utils.book_new();
     const rows=myVS.map(v=>({
-      'Date':v.date,'Type':v.type,
+      'Date':isoToDMY(v.date||v.dateISO||''),'Type':v.type,
       'Party/Account':v.party||v.paidTo||v.receivedFrom||'',
       'Receiver Phone':v.recipientPhone||'',
       'On Account Status':v.type==='onaccount'?(v.reversalDateISO||v.reversalDate?'Cleared':'Pending'):'',
-      'Reverse / Cleared Date':v.reversalDate||'',
+      'Reverse / Cleared Date':isoToDMY(v.reversalDate||v.reversalDateISO||''),
       'Head':v.head||'','Towards':v.towards||'','Block':v.block||'','Amount':Math.round(v.amount),
       'Mode':v.mode||'','Prepared By':v.prepBy||'','Checked By':v.checkedBy||''
     }));
@@ -1227,7 +1227,7 @@ function buildPrint(v){
     FIELDS += ROW('Block', v.block||'');
   }
   if(isOA) {
-    const statusStr = (v.reversalDateISO||v.reversalDate)?'CLEAR — '+(v.reversalDate||isoToDMY(v.reversalDateISO)||''):'PENDING';
+    const statusStr = (v.reversalDateISO||v.reversalDate)?'CLEAR — '+isoToDMY(v.reversalDateISO||v.reversalDate):'PENDING';
     const phoneStr = v.recipientPhone ? ' / Ph: ' + v.recipientPhone : '';
     FIELDS += ROW('Status', statusStr + phoneStr);
   }
@@ -1253,7 +1253,7 @@ function buildPrint(v){
     </div>
     <div style="width:200px;flex-shrink:0;display:flex;justify-content:flex-start;align-items:center;padding:4px 8px;border-left:2px solid #111">
       <span style="font-size:10pt;font-weight:700;letter-spacing:0.5px;font-family:Arial,sans-serif;margin-right:8px">Date :</span>
-      <span style="font-size:10pt;font-weight:400;font-family:Arial,sans-serif;border-bottom:1.5px dotted #555;flex:1;text-align:center">${v.date ? isoToDMY(v.date) : ''}</span>
+      <span style="font-size:10pt;font-weight:400;font-family:Arial,sans-serif;border-bottom:1.5px dotted #555;flex:1;text-align:center">${isoToDMY(v.date||v.dateISO||'')}</span>
     </div>
   </div>
 
@@ -1302,7 +1302,7 @@ function previewV(){
 }
 function openPM(v){
   const labels={credit:'CREDIT VOUCHER',debit:'DEBIT VOUCHER',onaccount:'ON- ACCOUNT VOUCHER'};
-  document.getElementById('PMT').textContent=(v.date||'Preview')+' – '+labels[v.type];
+  document.getElementById('PMT').textContent=(isoToDMY(v.date||v.dateISO||'')||'Preview')+' – '+labels[v.type];
   const _pa=document.getElementById('PA'); _pa.dataset.vid=String(v.id); _pa.innerHTML=buildPrint(v);
   document.getElementById('PM').classList.remove('h');
   updatePrintInfo();
@@ -1650,7 +1650,7 @@ function renderDash(){
       return true;
     });
   }
-  const tot=fvs.length,totAmt=fvs.reduce((s,v)=>s+v.amount,0),tod=fvs.filter(v=>v.date===today()).length;
+  const tot=fvs.length,totAmt=fvs.reduce((s,v)=>s+v.amount,0),tod=fvs.filter(v=>isoToDMY(v.date||v.dateISO||'')===today()).length;
   document.getElementById('SG').innerHTML=`
     <div class="sc"><div class="lbl">Total Vouchers</div><div class="val">${tot}</div><div class="sub">${dbf||dbt ? 'Filtered' : 'All time'}</div></div>
     <div class="sc"><div class="lbl">Total Amount</div><div class="val">₹${Math.round(totAmt)}</div><div class="sub">${dbf||dbt ? 'Filtered' : 'All vouchers'}</div></div>
@@ -1661,7 +1661,7 @@ function renderDash(){
   const rec=[...fvs].sort((a,b)=>(Date.parse(b.createdAt||b.created_at||'')||Number(b.id||0))-(Date.parse(a.createdAt||a.created_at||'')||Number(a.id||0))).slice(0,10);
   const bc={credit:'bc',debit:'bd',onaccount:'bo'};
   document.getElementById('RB').innerHTML=rec.map(v=>`<tr>
-    <td><strong>${v.date}</strong></td>
+    <td><strong>${isoToDMY(v.date||v.dateISO||'')}</strong></td>
     <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
     <td>${v.party||v.paidTo||v.receivedFrom||'–'}</td>
     <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
@@ -1767,13 +1767,13 @@ function renderVT(){
           <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
             <span class="oa-status ${cleared?'oa-cleared':'oa-pending'}">${cleared?'CLEAR':'PENDING'}</span>
             <div class="oa-rev-date-wrap" style="position:relative;display:inline-flex;align-items:center;">
-              <input type="text" value="${revDateISO ? isoToDMY(revDateISO) : ''}" placeholder="DD-MM-YYYY" readonly onclick="openOADatePicker(this)" style="padding:2px 4px;font-size:11px;border:1.5px solid #d0d5dd;border-radius:5px;background:#fff;color:#333;cursor:pointer;width:105px;text-align:center;box-sizing:border-box;">
+              <input type="text" value="${revDateISO ? isoToDMY(revDateISO) : ''}" placeholder="DD/MM/YYYY" readonly onclick="openOADatePicker(this)" style="padding:2px 4px;font-size:11px;border:1.5px solid #d0d5dd;border-radius:5px;background:#fff;color:#333;cursor:pointer;width:105px;text-align:center;box-sizing:border-box;">
               <input type="date" class="oa-rev-date-picker" value="${revDateISO}" min="${vDateISO}" onchange="updateOAReverseDate(${v.id}, this.value)" title="Select Reverse Date to set status as Clear" style="position:absolute;right:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;">
             </div>
           </div>
         </div>`;
       html += `<tr class="${cleared?'oa-cleared-row':''}">
-    <td><strong>${v.date}</strong></td>
+    <td><strong>${isoToDMY(v.date||v.dateISO||'')}</strong></td>
     <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
     <td>${status}</td>
     <td>${v.party||v.paidTo||v.receivedFrom||'–'}${phoneHtml}</td>
@@ -1822,7 +1822,7 @@ window.updateOAReverseDate = async function(id, newDateISO) {
   if (newDateISO) {
     const vDateISO = v.dateISO || (v.date ? dmyToISO(v.date) : '');
     if (vDateISO && newDateISO < vDateISO) {
-      alert('Reverse / Cleared Date (' + isoToDMY(newDateISO) + ') cannot be before the voucher date (' + (v.date || vDateISO) + ').');
+      alert('Reverse / Cleared Date (' + isoToDMY(newDateISO) + ') cannot be before the voucher date (' + isoToDMY(v.date || vDateISO) + ').');
       if (typeof renderVT === 'function') renderVT();
       if (typeof renderMyVT === 'function') renderMyVT();
       return;
@@ -1945,7 +1945,7 @@ function doExcel(silent=false){
 
     const rows=EXPVS.map((v,i)=>({
       'S.No': i+1,
-      'Date': v.date ? isoToDMY(v.date) : '',
+      'Date': isoToDMY(v.date||v.dateISO||''),
       'Voucher Type': typeLabel(v.type),
       'Account Name / Credit A/c': v.acName||'',
       'Account Head / Debit A/c': v.head||'',
@@ -1953,7 +1953,7 @@ function doExcel(silent=false){
       'Paid To': v.paidTo||'',
       'Receiver Phone': v.recipientPhone||'',
       'On Account Status': v.type==='onaccount'?(v.reversalDateISO||v.reversalDate?'Cleared':'Pending'):'',
-      'Reverse / Cleared Date': v.reversalDate ? isoToDMY(v.reversalDate) : '',
+      'Reverse / Cleared Date': isoToDMY(v.reversalDate||v.reversalDateISO||''),
       'Towards (Purpose)': v.towards||'',
       'Block': v.block||'',
       'Amount (Rs.)': Math.round(Number(v.amount)||0),
@@ -2049,7 +2049,7 @@ function doExcel(silent=false){
     ws2['!cols']=[{wch:38},{wch:14},{wch:20}];
     XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
 
-    const fname = 'StMarys_Vouchers_'+today()+'.xlsx';
+    const fname = 'StMarys_Vouchers_'+today().replace(/\//g,'-')+'.xlsx';
     XLSX.writeFile(wb, fname, {bookType:'xlsx', type:'binary'});
     if(!silent){_toast('✅ Excel exported: '+fname,'ok'); if(!XLHandle) _toast('Tip: click 📎 Link Excel to auto-update on every Save','warn');}
 
@@ -2071,12 +2071,12 @@ function exportLedger(silent=false){
     const EXPVS = (typeof getFilteredVS==='function') ? getFilteredVS() : VS;
     if(!EXPVS.length){if(!silent) alert('No vouchers match the current filter to export.');return;}
 
-    // Determine min/max date using ISO values, then display as DD-MM-YYYY.
+    // Determine min/max date using ISO values, then display as DD/MM/YYYY.
     const ledgerDateISO = v => {
       const raw = String(v.dateISO || v.date || '').trim();
       if(/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-      if(/^\d{2}-\d{2}-\d{4}$/.test(raw)) {
-        const [day,month,year] = raw.split('-');
+      if(/^\d{2}[\/-]\d{2}[\/-]\d{4}$/.test(raw)) {
+        const [day,month,year] = raw.replace(/\//g, '-').split('-');
         return `${year}-${month}-${day}`;
       }
       return '';
@@ -2095,7 +2095,7 @@ function exportLedger(silent=false){
     const fmtDate = (d) => {
       if(!d || d==='-') return '';
       const [y,m,day] = d.split('-');
-      return `${day}-${m}-${y}`;
+      return `${day}/${m}/${y}`;
     };
     const dateRangeStr = `Date ${fmtDate(minDate)} to ${fmtDate(maxDate)}`;
 
@@ -2149,7 +2149,7 @@ function exportLedger(silent=false){
       let totCash = 0, totBank = 0;
       heads[h].forEach(v => {
         const row = [];
-        row[0] = v.date || '';
+        row[0] = isoToDMY(v.date||v.dateISO||'');
         row[1] = h;
         const pOrR = v.type === 'credit' ? (v.receivedFrom||'') : (v.paidTo||'');
         const tw = v.towards||'';
@@ -2214,7 +2214,7 @@ function exportLedger(silent=false){
     XLSX.utils.book_append_sheet(wb, wsAll, 'All Heads');
     wb.SheetNames.unshift(wb.SheetNames.pop());
 
-    const fname = 'Ledger_Report_'+today()+'.xlsx';
+    const fname = 'Ledger_Report_'+today().replace(/\//g,'-')+'.xlsx';
     XLSX.writeFile(wb, fname, {bookType:'xlsx', type:'binary'});
     if(!silent) _toast('✅ Ledger Report exported: '+fname,'ok');
 
@@ -2386,7 +2386,7 @@ function doCashBook(scope){
       XLSX.utils.book_append_sheet(wb, ws, sheetName);
     });
 
-    const fname = 'CashBook_AllInstitutions_'+today()+'.xlsx';
+    const fname = 'CashBook_AllInstitutions_'+today().replace(/\//g,'-')+'.xlsx';
     XLSX.writeFile(wb, fname, {bookType:'xlsx', type:'binary'});
     _toast('✅ Cash Book exported: '+fname,'ok');
   }catch(err){
