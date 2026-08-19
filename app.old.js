@@ -992,8 +992,8 @@ function renderMyDash(){
     const amount=Math.round(Number(v.amount)||0);
     const mode=String(v.mode||'Cash').trim().toLowerCase();
     const isCredit = v.type === 'credit';
-    const isCheque = !isCredit && mode === 'cheque';
-    const isCash = !isCredit && !isCheque;
+    const isCash = !isCredit && mode === 'cash';
+    const isCheque = !isCredit && !isCash;
     return `<tr>
     <td><strong>${isoToDMY(v.date||v.dateISO||'')}</strong></td>
     <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
@@ -1018,14 +1018,18 @@ function getMyFilteredVS(){
   const toEl=document.getElementById('MSDT'),to=toEl?toEl.value:'';
   return VS.filter(_isOwnVoucher).filter(v=>{
     const text=[v.party,v.paidTo,v.receivedFrom,v.recipientPhone,v.head,v.towards,v.block,v.cheque,v.reversalDate,v.type==='onaccount'?(v.reversalDateISO||v.reversalDate?'cleared':'pending'):''].filter(Boolean).join(' ').toLowerCase();
-    const dateISO=v.dateISO||dmyToISO(v.date||'');
+    const matchQ=!q||text.includes(q);
+    let matchD=true;
+    if(from||to){
+      const iso = v.dateISO || dmyToISO(v.date || '');
+      if(from&&iso<from)matchD=false;
+      if(to&&iso>to)matchD=false;
+    }
     const moaEl=document.getElementById('M_OA_STATUS');const moa=moaEl?moaEl.value:'';
-    return (!q||text.includes(q))&&
+    return matchQ&&matchD&&
       (!ft||v.type===ft)&&
       (!fh||v.head===fh)&&
       (!fm||String(v.mode||'Cash').toLowerCase()===fm)&&
-      (!from||dateISO>=from)&&
-      (!to||dateISO<=to)&&
       (!moa||(v.type==='onaccount'&&(moa==='cleared'?(v.reversalDateISO||v.reversalDate):!(v.reversalDateISO||v.reversalDate))));
   });
 }
@@ -1051,8 +1055,8 @@ function renderMyVT(){
     const amount=Math.round(Number(v.amount)||0);
     const mode=String(v.mode||'Cash').trim().toLowerCase();
     const isCredit = v.type === 'credit';
-    const isCheque = !isCredit && mode === 'cheque';
-    const isCash = !isCredit && !isCheque;
+    const isCash = !isCredit && mode === 'cash';
+    const isCheque = !isCredit && !isCash;
     const cleared=v.type==='onaccount'&&Boolean(v.reversalDateISO||v.reversalDate);
     const revDateISO = v.reversalDateISO || (v.reversalDate ? dmyToISO(v.reversalDate) : '');
     const vDateISO = v.dateISO || (v.date ? dmyToISO(v.date) : '');
@@ -1083,8 +1087,8 @@ function renderMyVT(){
     </div></td>
   </tr>`;
   }).join('');
-  const cashTotal=f.reduce((sum,v)=>v.type!=='credit'&&String(v.mode||'Cash').trim().toLowerCase()!=='cheque'?sum+Math.round(Number(v.amount)||0):sum,0);
-  const chequeTotal=f.reduce((sum,v)=>v.type!=='credit'&&String(v.mode||'Cash').trim().toLowerCase()==='cheque'?sum+Math.round(Number(v.amount)||0):sum,0);
+  const cashTotal=f.reduce((sum,v)=>v.type!=='credit'&&String(v.mode||'Cash').trim().toLowerCase()==='cash'?sum+Math.round(Number(v.amount)||0):sum,0);
+  const chequeTotal=f.reduce((sum,v)=>v.type!=='credit'&&String(v.mode||'Cash').trim().toLowerCase()!=='cash'?sum+Math.round(Number(v.amount)||0):sum,0);
   const creditTotal=f.reduce((sum,v)=>v.type==='credit'?sum+Math.round(Number(v.amount)||0):sum,0);
   const debitTotal = cashTotal + chequeTotal;
   tb.innerHTML=rows+(f.length?`<tr>
@@ -1749,12 +1753,12 @@ function renderVT(){
       const amount = Math.round(Number(v.amount) || 0);
       const mode = String(v.mode || 'Cash').trim().toLowerCase();
       const isCredit = v.type === 'credit';
-      const isCheque = !isCredit && mode === 'cheque';
-      const isCash = !isCredit && !isCheque;
+      const isCash = !isCredit && mode === 'cash';
+      const isCheque = !isCredit && !isCash;
 
       if(isCredit) creditTotal += amount;
-      else if(isCheque) chequeTotal += amount;
-      else cashTotal += amount;
+      else if(isCash) cashTotal += amount;
+      else chequeTotal += amount;
 
       const colName = v.college ? v.college.toUpperCase() : 'SMGG';
       const ts = v.createdAt ? fmtDt(v.createdAt) : '';

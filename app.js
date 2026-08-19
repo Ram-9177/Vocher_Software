@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260817-ddmmyyyy-slash-v32';
+  var buildVersion = '20260819-payment-modes-v33';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;

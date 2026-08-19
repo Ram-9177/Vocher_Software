@@ -7,7 +7,7 @@
   <link rel="icon" href="assets/logo_smgg.png">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="app.js?v=20260817-ddmmyyyy-slash-v32" defer></script>
+  <script src="app.js?v=20260819-payment-modes-v33" defer></script>
 </head>
 <body>
 <script>
@@ -211,7 +211,7 @@
           <button class="btn bs bsm" onclick="show('vouchers')" title="View All →">View All →</button>
         </div>
         <div class="twrap"><table>
-          <thead><tr><th>Date</th><th>Type</th><th>Account</th><th>Head</th><th>Cash Mode</th><th>Amount</th><th>Action</th></tr></thead>
+          <thead><tr><th>Date</th><th>Type</th><th>Account</th><th>Head</th><th>Payment Mode</th><th>Amount</th><th>Action</th></tr></thead>
           <tbody id="RB"></tbody>
         </table></div>
       </div>
@@ -292,6 +292,7 @@
           <option value="RTGS">RTGS</option>
           <option value="UPI">UPI</option>
           <option value="DD">DD</option>
+          <option value="PhonePe">PhonePe</option>
         </select>
         <button class="btn bp bsm" type="button" onclick="renderMyVT()" title="Submit">Submit</button>
         <button class="btn bs bsm" type="button" onclick="clearMyVoucherFilters()" title="Clear Filters">Clear Filters</button>
@@ -369,7 +370,7 @@
           </div>
           <div class="fr">
             <div class="fi"><label>Mode</label>
-              <select id="fc_mode"><option>Cash</option><option>Cheque</option><option>NEFT</option><option>RTGS</option><option>UPI</option><option>DD</option></select></div>
+              <select id="fc_mode"><option>Cash</option><option>Cheque</option><option>NEFT</option><option>RTGS</option><option>UPI</option><option>DD</option><option>PhonePe</option></select></div>
             <div class="fi"><label>Cheque / Ref No.</label>
               <input type="text" id="fc_cheque" placeholder="Cheque or reference no."></div>
           </div>
@@ -398,7 +399,7 @@
           </div>
           <div class="fr">
             <div class="fi"><label>Mode</label>
-              <select id="fd_mode"><option>Cash</option><option>Cheque</option><option>NEFT</option><option>RTGS</option><option>UPI</option><option>DD</option></select></div>
+              <select id="fd_mode"><option>Cash</option><option>Cheque</option><option>NEFT</option><option>RTGS</option><option>UPI</option><option>DD</option><option>PhonePe</option></select></div>
             <div class="fi"><label>Cheque / Ref No.</label>
               <input type="text" id="fd_cheque" placeholder="Cheque or reference no."></div>
           </div>
@@ -431,7 +432,7 @@
           </div>
           <div class="fr">
             <div class="fi"><label>Mode</label>
-              <select id="fo_mode"><option>Cash</option><option>Cheque</option><option>NEFT</option><option>RTGS</option><option>UPI</option><option>DD</option></select></div>
+              <select id="fo_mode"><option>Cash</option><option>Cheque</option><option>NEFT</option><option>RTGS</option><option>UPI</option><option>DD</option><option>PhonePe</option></select></div>
             <div class="fi"><label>Cheque / Ref No.</label>
               <input type="text" id="fo_ref" placeholder="Reference no."></div>
           </div>
