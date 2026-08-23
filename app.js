@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260823-vendor-sync-v37';
+  var buildVersion = '20260823-compact-nav-v38';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;

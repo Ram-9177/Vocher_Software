@@ -413,19 +413,23 @@ body {
 /* ===VOUCHER TYPE PILLS=== */
 .vtg {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 7px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
   margin-bottom: .8rem;
 }
 
 .vtc {
   background: var(--W);
-  border: 2px solid var(--G100);
+  border: 1.5px solid var(--G100);
   border-radius: 8px;
-  padding: .5rem .4rem;
+  padding: .45rem .35rem;
   cursor: pointer;
   transition: all .2s;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .vtc:hover {
@@ -438,14 +442,26 @@ body {
 }
 
 .vtc .vi {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 4px;
-  font-size: 14px;
+  margin: 0 auto 3px;
+  font-size: 13px;
+}
+
+.vtc .vi.vi-debit { background: #FFF3D6; }
+.vtc .vi.vi-onaccount { background: #E0F2FE; }
+.vtc .vi.vi-credit { background: #F1F5F9; }
+.vtc .vi.vi-vendor { background: #E8EEF9; }
+
+.vtc-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
 }
 
 .vtc h3 {
@@ -453,11 +469,27 @@ body {
   font-weight: 600;
   color: var(--T);
   margin-bottom: 1px;
+  line-height: 1.2;
 }
 
 .vtc p {
   font-size: 9px;
   color: var(--G600);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.vtc.vtc-action {
+  background: #FAFBFE;
+  border-color: #CBD5E1;
+}
+
+.vtc.vtc-action:hover {
+  border-color: #002D72;
+}
+
+.vtc.vtc-action h3 {
+  color: #002D72;
 }
 
 /* ===FORM=== */
@@ -1654,28 +1686,93 @@ tbody tr {
   }
 
   .vtg {
-    gap: 10px;
-    margin-bottom: 14px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 9px;
+    margin-bottom: 12px;
   }
 
   .vtc {
-    min-height: 88px;
+    min-height: 70px;
     border-radius: 8px;
-    padding: 12px 10px;
+    padding: 8px 8px;
     background: var(--surface-soft);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border: 1.5px solid var(--line);
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background-color .18s ease;
+  }
+
+  .vtc:hover {
+    border-color: var(--M);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(123, 29, 46, 0.08);
   }
 
   .vtc.sel {
-    background: #fff7f2;
+    border-color: var(--M);
+    background: #FFF5F6;
+    box-shadow: 0 2px 8px rgba(123, 29, 46, 0.12);
+  }
+
+  .vtc .vi {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 4px;
+    font-size: 13px;
+  }
+
+  .vtc .vi.vi-debit { background: #FFF3D6; }
+  .vtc .vi.vi-onaccount { background: #E0F2FE; }
+  .vtc .vi.vi-credit { background: #F1F5F9; }
+  .vtc .vi.vi-vendor { background: #E8EEF9; }
+
+  .vtc-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
   }
 
   .vtc h3 {
-    font-size: 12px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--T);
+    margin-bottom: 2px;
+    line-height: 1.2;
+  }
+
+  .vtc.sel h3 {
+    color: var(--M);
   }
 
   .vtc p {
-    font-size: 10.5px;
-    line-height: 1.3;
+    font-size: 9.5px;
+    color: var(--G600);
+    line-height: 1.2;
+    margin: 0;
+  }
+
+  .vtc.vtc-action {
+    background: #FAFBFE;
+    border-color: #CBD5E1;
+  }
+
+  .vtc.vtc-action:hover {
+    border-color: #002D72;
+    background: #F0F5FF;
+    box-shadow: 0 4px 12px rgba(0, 45, 114, 0.1);
+  }
+
+  .vtc.vtc-action h3 {
+    color: #002D72;
   }
 
   .fr,
@@ -1940,6 +2037,11 @@ tbody tr {
 
   .sg {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .vtg {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
   }
 }
 
@@ -2687,7 +2789,6 @@ tbody tr {
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    color-adjust: exact !important;
   }
   body {
     background: #fff !important;

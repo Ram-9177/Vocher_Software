@@ -7,7 +7,7 @@
   <link rel="icon" href="assets/logo_smgg.png">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="app.js?v=20260823-vendor-sync-v37" defer></script>
+  <script src="app.js?v=20260823-compact-nav-v38" defer></script>
 </head>
 <body>
 <script>
@@ -328,30 +328,35 @@
     </div>
 
     <div class="sec" id="sec-create">
-      <div class="create-nav-tabs">
-        <button type="button" class="create-nav-tab active" onclick="show('create'); return false;">
-          💳 New Voucher
-        </button>
-        <button type="button" class="create-nav-tab" onclick="show('vendor'); return false;">
-          🏢 Vendor Form
-        </button>
-        <button type="button" class="create-nav-tab" onclick="show('vendorledger'); return false;">
-          📒 Vendor Ledger
-        </button>
-      </div>
       <div class="ph" style="margin-bottom:.8rem"><h1 style="font-size:20px">New Voucher</h1><p>Select voucher type and fill in details</p></div>
       <div class="vtg">
-        <div class="vtc sel" onclick="selVT('debit')" data-t="debit" role="button" tabindex="0" aria-controls="R_debit" aria-selected="true">
-          <div class="vi" style="background:#FFF8E8">💳</div>
-          <h3>Debit Voucher</h3><p>St. Mary's — payment made</p>
+        <div class="vtc sel" onclick="selVT('debit')" data-t="debit" role="button" tabindex="0" aria-controls="R_debit" aria-selected="true" title="Debit Voucher — payment made">
+          <div class="vi vi-debit">💳</div>
+          <div class="vtc-body">
+            <h3>Debit Voucher</h3>
+            <p>St. Mary's — payment made</p>
+          </div>
         </div>
-        <div class="vtc" onclick="selVT('onaccount')" data-t="onaccount" role="button" tabindex="0" aria-controls="R_onaccount" aria-selected="false">
-          <div class="vi" style="background:#f0f0f0">🔄</div>
-          <h3>On- Account Voucher</h3><p>St. Mary's — account transaction</p>
+        <div class="vtc" onclick="selVT('onaccount')" data-t="onaccount" role="button" tabindex="0" aria-controls="R_onaccount" aria-selected="false" title="On-Account Voucher — account transaction">
+          <div class="vi vi-onaccount">🔄</div>
+          <div class="vtc-body">
+            <h3>On- Account Voucher</h3>
+            <p>St. Mary's — account transaction</p>
+          </div>
         </div>
-        <div class="vtc" onclick="selVT('credit')" data-t="credit" role="button" tabindex="0" aria-controls="R_credit" aria-selected="false">
-          <div class="vi" style="background:#f0f0f0">🧾</div>
-          <h3>Credit Voucher</h3><p>St. Mary's — money received</p>
+        <div class="vtc" onclick="selVT('credit')" data-t="credit" role="button" tabindex="0" aria-controls="R_credit" aria-selected="false" title="Credit Voucher — money received">
+          <div class="vi vi-credit">🧾</div>
+          <div class="vtc-body">
+            <h3>Credit Voucher</h3>
+            <p>St. Mary's — money received</p>
+          </div>
+        </div>
+        <div class="vtc vtc-action" onclick="show('vendor'); return false;" data-t="vendor" role="button" tabindex="0" title="Vendor Form — Register & manage vendor master">
+          <div class="vi vi-vendor">🏢</div>
+          <div class="vtc-body">
+            <h3>Vendor Form</h3>
+            <p>Vendor details &amp; agreements</p>
+          </div>
         </div>
       </div>
       <div class="card">

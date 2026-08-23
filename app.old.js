@@ -880,7 +880,11 @@ document.addEventListener('keydown',function(e){
   const card=e.target.closest&&e.target.closest('.vtc[data-t]');
   if(card&&(e.key==='Enter'||e.key===' ')){
     e.preventDefault();
-    selVT(card.dataset.t);
+    if(card.dataset.t==='vendor'){
+      show('vendor');
+    } else {
+      selVT(card.dataset.t);
+    }
   }
 });
 
