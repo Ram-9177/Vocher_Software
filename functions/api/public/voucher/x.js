@@ -25,6 +25,8 @@ const MANAGE_PERMISSIONS = 'manage_permissions';
 const MANAGE_COLLEGES = 'manage_colleges';
 const CHANGE_ADMIN_KEY = 'change_admin_key';
 const VIEW_AUDIT = 'view_audit';
+const VIEW_VENDOR_LEDGER = 'view_vendor_ledger';
+const MANAGE_VENDORS = 'manage_vendors';
 const USERNAME_RE = /^[a-z0-9._@-]{1,64}$/;
 
 export async function onRequest(context) {
@@ -199,8 +201,8 @@ function parsePerms(user) {
   let permsStr = user.permissions || '';
   if (!permsStr) {
     permsStr = user.role === 'admin' ? 
-      'view_dashboard,view_analytics,create_voucher,view_own_vouchers,view_all_vouchers,edit_voucher,print_voucher,export_excel,cash_book,link_excel,printer_setup,account_heads,create_users,reset_passwords,block_users' :
-      'create_voucher,view_own_vouchers,print_voucher';
+      'view_dashboard,view_analytics,create_voucher,view_own_vouchers,view_all_vouchers,edit_voucher,print_voucher,export_excel,cash_book,link_excel,printer_setup,account_heads,view_vendor_ledger,manage_vendors,create_users,reset_passwords,block_users' :
+      'create_voucher,view_own_vouchers,print_voucher,view_vendor_ledger';
   }
   return permsStr.split(',').map(p => p.trim()).filter(Boolean);
 }
@@ -237,7 +239,7 @@ function publicUser(u) {
   const allPerms = [
     'view_dashboard', 'view_analytics', 'create_voucher', 'view_own_vouchers', 'view_all_vouchers',
     'edit_voucher', 'delete_voucher', 'print_voucher', 'export_excel', 'cash_book', 'link_excel',
-    'printer_setup', 'account_heads', 'create_users', 'reset_passwords', 'block_users', 'create_admin',
+    'printer_setup', 'account_heads', 'view_vendor_ledger', 'manage_vendors', 'create_users', 'reset_passwords', 'block_users', 'create_admin',
     'manage_permissions', 'manage_colleges', 'change_admin_key', 'view_audit'
   ].join(',');
   return {

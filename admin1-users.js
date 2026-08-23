@@ -15,6 +15,8 @@
     { key: 'link_excel', label: 'Link Excel' },
     { key: 'printer_setup', label: 'Printer Setup' },
     { key: 'account_heads', label: 'Account Heads' },
+    { key: 'view_vendor_ledger', label: 'View Vendor Ledger' },
+    { key: 'manage_vendors', label: 'Manage Vendors & Agreements' },
     { key: 'create_users', label: 'Create Users' },
     { key: 'reset_passwords', label: 'Reset Passwords' },
     { key: 'block_users', label: 'Block Users' },
@@ -25,7 +27,7 @@
     { key: 'view_audit', label: 'View Audit' }
   ];
 
-  const USER_DEFAULTS = ['create_voucher', 'view_own_vouchers', 'print_voucher'];
+  const USER_DEFAULTS = ['create_voucher', 'view_own_vouchers', 'print_voucher', 'view_vendor_ledger'];
   const ADMIN_DEFAULTS = [
     'view_dashboard',
     'view_analytics',
@@ -39,6 +41,8 @@
     'link_excel',
     'printer_setup',
     'account_heads',
+    'view_vendor_ledger',
+    'manage_vendors',
     'create_users',
     'reset_passwords',
     'block_users'
@@ -573,17 +577,17 @@
 
     const niVendor = document.getElementById('ni-vendor');
     if (niVendor) {
-      niVendor.style.display = has('create_voucher') ? 'flex' : 'none';
+      niVendor.style.display = (has('manage_vendors') || has('create_voucher')) ? 'flex' : 'none';
     }
 
     const niVendorLedger = document.getElementById('ni-vendorledger');
     if (niVendorLedger) {
-      niVendorLedger.style.display = (isVoucherAdmin || has('view_all_vouchers') || has('create_voucher')) ? 'flex' : 'none';
+      niVendorLedger.style.display = (isVoucherAdmin || has('view_vendor_ledger') || has('view_all_vouchers') || has('create_voucher')) ? 'flex' : 'none';
     }
 
     const niVendorLedgerA2 = document.getElementById('ni-vendorledger-a2');
     if (niVendorLedgerA2) {
-      niVendorLedgerA2.style.display = (isVoucherAdmin || has('view_all_vouchers') || has('create_voucher') || has('view_own_vouchers')) ? 'flex' : 'none';
+      niVendorLedgerA2.style.display = (isVoucherAdmin || has('view_vendor_ledger') || has('view_all_vouchers') || has('create_voucher') || has('view_own_vouchers')) ? 'flex' : 'none';
     }
 
     const niVouchers = document.getElementById('ni-vouchers');
@@ -613,13 +617,13 @@
 
     const a1Nav = document.getElementById('A1NAV');
     if (a1Nav) {
-      const hasVisibleA1Item = [niDashboard, niAnalytics, niVouchers].some(el => el && el.style.display !== 'none');
+      const hasVisibleA1Item = [niDashboard, niAnalytics, niVouchers, niVendorLedger].some(el => el && el.style.display !== 'none');
       a1Nav.style.display = hasVisibleA1Item ? '' : 'none';
     }
 
     const a2Nav = document.getElementById('A2NAV');
     if (a2Nav) {
-      const hasVisibleA2Item = [niMyDashboard, niMyVouchers].some(el => el && el.style.display !== 'none');
+      const hasVisibleA2Item = [niMyDashboard, niMyVouchers, niVendorLedgerA2].some(el => el && el.style.display !== 'none');
       a2Nav.style.display = hasVisibleA2Item ? '' : 'none';
     }
 
