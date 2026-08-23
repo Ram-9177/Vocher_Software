@@ -7,7 +7,7 @@
   <link rel="icon" href="assets/logo_smgg.png">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="app.js?v=20260823-delete-btn-v35" defer></script>
+  <script src="app.js?v=20260823-vendor-sync-v37" defer></script>
 </head>
 <body>
 <script>
@@ -543,36 +543,34 @@
               <input type="email" id="f_v_email" placeholder="Enter email address (optional)">
             </div>
           </div>
-          <div class="fr f">
+          <div class="fr">
             <div class="fi">
               <label>Vendor Address</label>
-              <textarea id="f_v_address" placeholder="Enter complete address" style="min-height:55px;"></textarea>
+              <textarea id="f_v_address" placeholder="Enter complete address" style="min-height:65px;"></textarea>
+            </div>
+            <div class="fi">
+              <label>Work Description *</label>
+              <textarea id="f_v_work_desc" placeholder="Enter work description / scope of work" style="min-height:65px;"></textarea>
             </div>
           </div>
         </div>
 
-        <!-- 2. WORK DETAILS -->
+        <!-- 2. AGREEMENT & ATTACHMENTS -->
         <div class="vendor-sec-block">
-          <div class="vendor-sec-tag">2. WORK DETAILS</div>
-          <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:1.2rem;">
-            <div class="fi" style="display:flex;flex-direction:column;">
-              <label>Work Description *</label>
-              <textarea id="f_v_work_desc" placeholder="Enter work description / scope of work" style="flex:1;min-height:190px;"></textarea>
-            </div>
+          <div class="vendor-sec-tag">2. AGREEMENT &amp; ATTACHMENTS</div>
+          <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:1.2rem;align-items:start;">
             <div>
               <div class="fi" style="margin-bottom:8px;">
-                <label>Vendor Agreements (Upload up to 3 files)</label>
+                <label>Vendor Agreement Documents (Upload up to 3 files)</label>
               </div>
               <div class="vendor-file-slots-grid">
                 <div id="VENDOR_FILE_SLOT_0" class="vendor-file-slot"></div>
                 <div id="VENDOR_FILE_SLOT_1" class="vendor-file-slot"></div>
                 <div id="VENDOR_FILE_SLOT_2" class="vendor-file-slot"></div>
               </div>
-              <div style="display:flex;gap:8px;margin-bottom:12px;">
-                <button type="button" class="vendor-btn-outline" style="flex:1;justify-content:center;padding:5px;" onclick="previewVendorAgreement()">👁 Preview</button>
-                <button type="button" class="vendor-btn-outline" style="flex:1;justify-content:center;padding:5px;" onclick="resetVendorForm()">✏ Edit</button>
-              </div>
-              <div class="fr" style="margin-bottom:0;">
+            </div>
+            <div>
+              <div class="fr" style="margin-bottom:10px;">
                 <div class="fi">
                   <label>Agreement Start Date *</label>
                   <div class="date-filter-field" style="width:100%;">
@@ -589,6 +587,10 @@
                     <button type="button" class="date-filter-button" onclick="openDateFilterPicker('f_v_period_end')" aria-label="Select end date">📅</button>
                   </div>
                 </div>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button type="button" class="vendor-btn-outline" style="flex:1;justify-content:center;padding:7px;" onclick="previewVendorAgreement()">👁 Preview Agreement</button>
+                <button type="button" class="vendor-btn-outline" style="flex:1;justify-content:center;padding:7px;" onclick="resetVendorForm()">✏ Clear / Reset</button>
               </div>
             </div>
           </div>

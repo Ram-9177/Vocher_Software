@@ -236,6 +236,8 @@
     try{
       const j=await cloud('listVouchers',{college});
       VS=Array.isArray(j.vouchers)?j.vouchers:[];
+      window.VS = VS;
+      if (typeof reloadVendorModule === 'function') reloadVendorModule();
     }catch(e){
       console.error('listVouchers',e);
       if(/Login required|Session expired|Invalid session/i.test(e.message||'')){ window.logout(); }
@@ -296,11 +298,12 @@
           const next=Array.isArray(j.vouchers)?j.vouchers:[];
           const nextSig=next.length+'|'+next.map(function(v){return v.id+':'+(v._u||v.dateISO||'');}).join(',');
           if(nextSig!==_LIVE_SIG){
-            VS=next; _LIVE_SIG=nextSig;
+            VS=next; window.VS=VS; _LIVE_SIG=nextSig;
             try{ if(typeof renderVT==='function') renderVT(); }catch(e){}
             try{ if(typeof renderDash==='function') renderDash(); }catch(e){}
             try{ if(typeof renderMyDash==='function') renderMyDash(); }catch(e){}
             try{ if(typeof renderMyVT==='function') renderMyVT(); }catch(e){}
+            try{ if(typeof reloadVendorModule==='function') reloadVendorModule(); }catch(e){}
           }
         }
         syncNamedList(j,'heads',HEADS,'DL_HEADS');

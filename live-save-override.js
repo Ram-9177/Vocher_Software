@@ -149,6 +149,8 @@
     try{
       await _saveVoucherToCloud(v);
       await _loadVouchersFromCloud();
+      if(typeof VS !== 'undefined') window.VS = VS;
+      if(typeof reloadVendorModule === 'function') reloadVendorModule();
 
       let excelOk = false;
       if(XLHandle) excelOk = await autoSaveLinkedExcel();

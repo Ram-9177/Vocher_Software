@@ -64,6 +64,7 @@ async function _hashPassword(pw){
 }
 // =============================================
 let VS=[];
+window.VS = VS;
 let CU=null,CVT='debit',editId=null;
 function _setSess(k,v){try{sessionStorage.setItem(k,v);localStorage.setItem(k,v);}catch(e){}}
 function _getSess(k){try{return sessionStorage.getItem(k)||localStorage.getItem(k)||'';}catch(e){return'';}}
@@ -428,6 +429,8 @@ async function _loadVouchersFromCloud(){
   try{
     const j=await _api('listVouchers',{college});
     VS=Array.isArray(j.vouchers)?j.vouchers:[];
+    window.VS = VS;
+    if (typeof reloadVendorModule === 'function') reloadVendorModule();
   }catch(e){ console.error('listVouchers',e); }
 }
 async function _saveVoucherToCloud(v){

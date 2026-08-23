@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260823-delete-btn-v35';
+  var buildVersion = '20260823-vendor-sync-v37';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;
