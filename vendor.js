@@ -1367,59 +1367,23 @@
 
     var collegeName = (v.college === 'smwec')
       ? "ST. MARY'S WOMEN'S ENGINEERING COLLEGE, BUDAMPADU"
-      : "St. Mary's Group of Institutions, Guntur for Women";
+      : "St. Mary's Group of Institutions Guntur for Women";
 
     var companyUpper = (v.companyName || v.company || 'GOPI SUPPLIERS').toUpperCase();
     var vendorNameVal = v.vendorName || v.name || 'G. Gopi';
     var wordsVal = v.amountInWords || v.amtWords || 'Rupees Only';
     if (wordsVal && wordsVal.indexOf('(') === -1) wordsVal = '(' + wordsVal + ')';
 
-    var fin = window.getVendorFinancials(v.vendorId || v.id) || {
-      agreedAmount: parseFloat(v.agreedAmount || v.amount) || 0,
-      totalPaid: 0,
-      balance: parseFloat(v.agreedAmount || v.amount) || 0,
-      vouchersCount: 0,
-      paidPercent: 0
-    };
-
-    var financialRowsHtml = '';
-    if (fin && fin.totalPaid > 0) {
-      financialRowsHtml =
-        '<tr style="background:#eff6ff;">' +
-          '<td style="padding:4px 8px;border:1px solid #cbd5e1;font-weight:700;color:#1e293b;">Vendor Amount (Agreed)</td>' +
-          '<td style="padding:4px 3px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">:</td>' +
-          '<td style="padding:4px 8px;border:1px solid #cbd5e1;">' +
-            '<span style="font-weight:700;color:#b91c1c;font-size:12px;margin-right:6px;">' + formatCurrency(fin.agreedAmount) + '</span>' +
-            '<span style="font-size:10.5px;color:#334155;font-weight:500;">' + sanitize(wordsVal) + '</span>' +
-          '</td>' +
-        '</tr>' +
-        '<tr style="background:#f0fdf4;">' +
-          '<td style="padding:4px 8px;border:1px solid #cbd5e1;font-weight:700;color:#166534;">Part Payments Disbursed</td>' +
-          '<td style="padding:4px 3px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">:</td>' +
-          '<td style="padding:4px 8px;border:1px solid #cbd5e1;">' +
-            '<span style="font-weight:700;color:#15803d;font-size:12px;margin-right:6px;">' + formatCurrency(fin.totalPaid) + '</span>' +
-            '<span style="font-size:10.5px;color:#166534;font-weight:600;">(' + fin.vouchersCount + ' Debit ' + (fin.vouchersCount === 1 ? 'Voucher' : 'Vouchers') + ' Paid &bull; ' + fin.paidPercent + '% Complete)</span>' +
-          '</td>' +
-        '</tr>' +
-        '<tr style="background:#fffbeb;">' +
-          '<td style="padding:4px 8px;border:1px solid #cbd5e1;font-weight:700;color:#92400e;">Net Balance Outstanding</td>' +
-          '<td style="padding:4px 3px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">:</td>' +
-          '<td style="padding:4px 8px;border:1px solid #cbd5e1;">' +
-            '<span style="font-weight:800;color:' + (fin.balance <= 0 ? '#15803d' : '#b45309') + ';font-size:12px;margin-right:6px;">' + formatCurrency(fin.balance) + '</span>' +
-            '<span style="font-size:10.5px;color:#78350f;font-weight:600;">(' + (fin.balance <= 0 ? '✓ Contract Fully Settled' : 'Pending Remaining Payment') + ')</span>' +
-          '</td>' +
-        '</tr>';
-    } else {
-      financialRowsHtml =
-        '<tr style="background:#eff6ff;">' +
-          '<td style="padding:4px 8px;border:1px solid #cbd5e1;font-weight:700;color:#1e293b;">Vendor Amount (Agreed)</td>' +
-          '<td style="padding:4px 3px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">:</td>' +
-          '<td style="padding:4px 8px;border:1px solid #cbd5e1;">' +
-            '<span style="font-weight:700;color:#b91c1c;font-size:12px;margin-right:6px;">' + formatCurrency(v.agreedAmount || v.amount) + '</span>' +
-            '<span style="font-size:10.5px;color:#334155;font-weight:500;">' + sanitize(wordsVal) + '</span>' +
-          '</td>' +
-        '</tr>';
-    }
+    var agreedAmtVal = v.agreedAmount || v.amount || 0;
+    var financialRowsHtml =
+      '<tr style="background:#eff6ff;">' +
+        '<td style="padding:4px 8px;border:1px solid #cbd5e1;font-weight:600;color:#1e293b;">Vendor Amount (Agreed)</td>' +
+        '<td style="padding:4px 3px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">:</td>' +
+        '<td style="padding:4px 8px;border:1px solid #cbd5e1;">' +
+          '<span style="font-weight:700;color:#b91c1c;font-size:12px;margin-right:6px;">' + formatCurrency(agreedAmtVal) + '</span>' +
+          '<span style="font-size:10.5px;color:#334155;font-weight:500;">' + sanitize(wordsVal) + '</span>' +
+        '</td>' +
+      '</tr>';
 
     return '<div class="vendor-agreement-sheet" style="background:#fff;padding:18px 24px;color:#111;font-family:\'Inter\',sans-serif;line-height:1.35;max-width:760px;margin:0 auto;border:1.5px solid #cbd5e1;box-shadow:0 2px 10px rgba(0,0,0,0.06);box-sizing:border-box;page-break-inside:avoid;page-break-after:avoid;">' +
       '<!-- Main Title Header -->' +

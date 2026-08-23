@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260823-ledger-sort-v39';
+  var buildVersion = '20260823-agreement-clean-v40';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;
