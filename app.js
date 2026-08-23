@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260819-payment-modes-v33';
+  var buildVersion = '20260823-delete-btn-v35';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;

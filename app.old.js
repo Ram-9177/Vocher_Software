@@ -1322,22 +1322,46 @@ function openPM(v){
 }
 function updatePrintInfo(){
   const sel=(document.getElementById('PRINT_SIZE')||{}).value||'a4_single';
-  const el=document.getElementById('PRINT_INFO');if(!el)return;
-  const msgs={
-    a4_single:'📄 <strong>A4 Portrait — Full Width</strong> — A5 voucher scaled to fill the entire top half of A4. Zero margin, edge-to-edge. Recommended for all printers.',
-    a4_double:'📄 <strong>A4 Portrait — 2 Per Page</strong> — two full-width vouchers stacked on one A4 sheet. Saves paper.',
-    a5:'📄 <strong>A5 Direct</strong> — voucher prints at exact A5 size. Select A5 paper in your printer dialog.'
-  };
-  el.innerHTML=msgs[sel]||msgs['a4_single'];
+  const el=document.getElementById('PRINT_INFO');
+  const pmt = (document.getElementById('PMT') || {}).textContent || '';
+  const pa = document.getElementById('PA');
+  const isA4Doc = (pa && (pa.querySelector('.vendor-agreement-sheet') || pa.querySelector('.vendor-ledger-sheet'))) ||
+                  pmt.indexOf('Agreement') !== -1 || pmt.indexOf('Ledger') !== -1 ||
+                  (pa && (pa.innerHTML.indexOf('vendor-agreement-sheet') !== -1 || pa.innerHTML.indexOf('VENDOR LEDGER ACCOUNT STATEMENT') !== -1));
+
+  const sizeSelect = document.getElementById('PRINT_SIZE');
+
+  if (isA4Doc) {
+    if (sizeSelect) sizeSelect.style.display = 'none';
+    if (el) {
+      el.innerHTML = '📄 <strong>Standard A4 Portrait</strong> — Formatted for A4 paper with clean margins and zero cutoff.';
+    }
+  } else {
+    if (sizeSelect) sizeSelect.style.display = '';
+    if (el) {
+      const msgs={
+        a4_single:'📄 <strong>A4 Portrait — Full Width</strong> — A5 voucher scaled to fill the entire top half of A4. Zero margin, edge-to-edge. Recommended for all printers.',
+        a4_double:'📄 <strong>A4 Portrait — 2 Per Page</strong> — two full-width vouchers stacked on one A4 sheet. Saves paper.',
+        a5:'📄 <strong>A5 Direct</strong> — voucher prints at exact A5 size. Select A5 paper in your printer dialog.'
+      };
+      el.innerHTML=msgs[sel]||msgs['a4_single'];
+    }
+  }
 }
 function closeP(){document.getElementById('PM').classList.add('h');}
 function doPrint(){
-  const html=document.getElementById('PA').innerHTML;
-  const sel=(document.getElementById('PRINT_SIZE')||{}).value||localStorage.getItem('smv_paperSize')||'a4_single';
-  const behaviour=localStorage.getItem('smv_printBehaviour')||'silent';
+  const pa = document.getElementById('PA');
+  const html = pa ? pa.innerHTML : '';
+  const pmt = (document.getElementById('PMT') || {}).textContent || '';
+  const isA4Doc = (pa && (pa.querySelector('.vendor-agreement-sheet') || pa.querySelector('.vendor-ledger-sheet'))) ||
+                  pmt.indexOf('Agreement') !== -1 || pmt.indexOf('Ledger') !== -1 ||
+                  html.indexOf('vendor-agreement-sheet') !== -1 || html.indexOf('VENDOR LEDGER ACCOUNT STATEMENT') !== -1;
 
-  // If we have an active ESC/POS serial printer, use it
-  if(window._serialPort && window._serialWriter){
+  const sel = isA4Doc ? 'a4_full' : ((document.getElementById('PRINT_SIZE')||{}).value||localStorage.getItem('smv_paperSize')||'a4_single');
+  const behaviour = localStorage.getItem('smv_printBehaviour')||'silent';
+
+  // If we have an active ESC/POS serial printer, use it (only for receipt/vouchers)
+  if(!isA4Doc && window._serialPort && window._serialWriter){
     _serialPrintVoucher(html);
     return;
   }
@@ -1399,18 +1423,116 @@ function _detectQZ(){
 }
 
 /* ── Build the print HTML document for a given paper size ──
-   KEY FIX: replace transform:scale (which clips/blurs) with
-   width-based scaling using zoom + @page exact dimensions.
-   The voucher is natively 148mm wide; A4 is 210mm.
-   Instead of scaling a 148mm box, we declare the print page
-   as 148mm wide (matching the voucher) and let @page handle
-   stretching when the user picks their paper tray. This avoids
-   ALL clipping, blurring, and overflow bugs.
+   Supports full A4 documents (agreements/ledgers) and vouchers
 ──────────────────────────────────────────────────────────── */
 function _buildPrintDoc(html, sel){
   var pageCSS, bodyHTML;
-
+  var docTitle = "St Mary's Voucher";
   var COLOR_EXACT = '*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}';
+
+  var isA4Doc = (sel === 'a4_full') ||
+                html.indexOf('vendor-agreement-sheet') !== -1 ||
+                html.indexOf('vendor-ledger-sheet') !== -1 ||
+                html.indexOf('VENDOR AGREEMENT') !== -1 ||
+                html.indexOf('VENDOR LEDGER ACCOUNT STATEMENT') !== -1;
+
+  if (isA4Doc) {
+    var isAgreement = html.indexOf('vendor-agreement-sheet') !== -1 || html.indexOf('VENDOR AGREEMENT') !== -1;
+    docTitle = isAgreement ? "Vendor Agreement" : "Vendor Ledger Statement";
+
+    pageCSS = `
+      @page{
+        size: A4 portrait;
+        margin: 8mm 10mm;
+      }
+      *{
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      html, body{
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        background: #fff;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        color: #111;
+      }
+      .a4-doc-wrap{
+        width: 100%;
+        max-width: 190mm;
+        margin: 0 auto;
+        background: #fff;
+      }
+      .vendor-agreement-sheet{
+        border: 1.5px solid #94a3b8 !important;
+        box-shadow: none !important;
+        page-break-inside: avoid !important;
+        page-break-after: avoid !important;
+        width: 100% !important;
+        max-width: 190mm !important;
+        margin: 0 auto !important;
+        box-sizing: border-box !important;
+      }
+      .vendor-ledger-sheet{
+        box-shadow: none !important;
+        width: 100% !important;
+        max-width: 190mm !important;
+        margin: 0 auto !important;
+        box-sizing: border-box !important;
+      }
+      @media print{
+        @page{
+          size: A4 portrait;
+          margin: 8mm 10mm;
+        }
+        ${COLOR_EXACT}
+        body{
+          width: 100% !important;
+          zoom: 1 !important;
+          -webkit-transform: none !important;
+          transform: none !important;
+        }
+        .a4-doc-wrap{
+          width: 100% !important;
+        }
+        .vendor-agreement-sheet{
+          page-break-after: avoid !important;
+        }
+      }`;
+
+    bodyHTML = `<div class="a4-doc-wrap">${html}</div>`;
+
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>${docTitle}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+${pageCSS}
+</style></head><body>
+${bodyHTML}
+<script>
+(function(){
+  'use strict';
+  if(window.parent && window.parent !== window){
+    try{ window.parent.postMessage({smvPrintReady:true},'*'); }catch(e){}
+  }
+  window.addEventListener('afterprint', function(){
+    setTimeout(function(){ try{ window.close(); }catch(e){} }, 500);
+  });
+  function go(){
+    try{ window.focus(); window.print(); }
+    catch(e){ console.error('SMV print error:',e); }
+  }
+  if(document.readyState==='complete'){ setTimeout(go, 280); }
+  else{ window.addEventListener('load', function(){ setTimeout(go, 280); }); }
+})();
+<\/script>
+</body></html>`;
+  }
 
   if(sel === 'a4_double'){
     // Two vouchers on one A4 — use native 210mm width, no scale transform.
@@ -1463,9 +1585,6 @@ function _buildPrintDoc(html, sel){
 
   } else {
     // Default: A4 portrait, voucher fills top half edge-to-edge.
-    // FIX: declare page width as 148mm (voucher native width) then scale
-    // via zoom so it fills A4 without transform clipping.
-    // zoom:1.41891 enlarges the 148mm layout to ~210mm on screen/print.
     pageCSS = `
       @page{size:210mm 297mm portrait;margin:6mm}
       *{box-sizing:border-box;margin:0;padding:0}
@@ -1485,7 +1604,7 @@ function _buildPrintDoc(html, sel){
   }
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>St Mary's Voucher</title>
+<title>${docTitle}</title>
 <style>
 ${pageCSS}
 </style></head><body>

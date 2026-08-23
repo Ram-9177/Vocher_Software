@@ -520,6 +520,8 @@
       renderVendorsTable();
       if (typeof renderVendorLedgerTable === 'function') renderVendorLedgerTable();
       if (vendorEditId === id) resetVendorForm();
+      var vlm = document.getElementById('VENDOR_LEDGER_MODAL');
+      if (vlm && !vlm.classList.contains('h')) vlm.classList.add('h');
       if (typeof _toast === 'function') _toast('Vendor deleted.', 'warn');
     }
   };
@@ -927,10 +929,11 @@
           '<div style="margin-top:4px;">' + agBadgeHtml + '</div>' +
         '</td>' +
         '<td onclick="event.stopPropagation()">' +
-          '<div style="display:flex;gap:5px;flex-wrap:wrap;">' +
-            '<button class="btn bp bsm" style="padding:4px 8px;font-size:11px;" onclick="openVendorLedgerModal(\'' + vid + '\')" title="View Complete Ledger">📂 View Ledger</button>' +
-            '<button class="btn bs bsm" style="padding:4px 8px;font-size:11px;" onclick="previewVendorAgreement(\'' + vid + '\')" title="Print Agreement">🖨 Agreement</button>' +
-            '<button class="btn bg bsm" style="padding:4px 8px;font-size:11px;" onclick="createVoucherForVendor(\'' + vid + '\')" title="+ Debit Voucher">+ Voucher</button>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;min-width:180px;">' +
+            '<button class="btn bp bsm" style="padding:4px 8px;font-size:11px;justify-content:center;" onclick="openVendorLedgerModal(\'' + vid + '\')" title="View Complete Ledger">📂 View Ledger</button>' +
+            '<button class="btn bs bsm" style="padding:4px 8px;font-size:11px;justify-content:center;" onclick="previewVendorAgreement(\'' + vid + '\')" title="Print Agreement">🖨 Agreement</button>' +
+            '<button class="btn bg bsm" style="padding:4px 8px;font-size:11px;justify-content:center;" onclick="createVoucherForVendor(\'' + vid + '\')" title="+ Debit Voucher">+ Voucher</button>' +
+            '<button class="btn br bsm" style="padding:4px 8px;font-size:11px;justify-content:center;" onclick="deleteVendor(\'' + vid + '\')" title="Delete Vendor">🗑 Delete</button>' +
           '</div>' +
         '</td>' +
       '</tr>';
@@ -1297,70 +1300,70 @@
     var wordsVal = v.amountInWords || v.amtWords || 'Rupees Only';
     if (wordsVal && wordsVal.indexOf('(') === -1) wordsVal = '(' + wordsVal + ')';
 
-    return '<div class="vendor-agreement-sheet" style="background:#fff;padding:28px 34px;color:#111;font-family:\'Inter\',sans-serif;line-height:1.45;max-width:820px;margin:0 auto;border:1.5px solid #cbd5e1;box-shadow:0 2px 10px rgba(0,0,0,0.06);">' +
+    return '<div class="vendor-agreement-sheet" style="background:#fff;padding:20px 26px;color:#111;font-family:\'Inter\',sans-serif;line-height:1.35;max-width:760px;margin:0 auto;border:1.5px solid #cbd5e1;box-shadow:0 2px 10px rgba(0,0,0,0.06);box-sizing:border-box;page-break-inside:avoid;page-break-after:avoid;">' +
       '<!-- Main Title Header -->' +
-      '<div style="text-align:center;margin-bottom:16px;">' +
-        '<h1 style="font-family:\'Inter\',sans-serif;font-size:22px;font-weight:800;color:#002D72;text-decoration:underline;letter-spacing:1px;margin:0 0 8px 0;">VENDOR AGREEMENT</h1>' +
-        '<p style="font-size:12.5px;color:#333;margin:0;line-height:1.4;">This Vendor Agreement is made between the concerned party/organization and the following vendor:</p>' +
+      '<div style="text-align:center;margin-bottom:10px;">' +
+        '<h1 style="font-family:\'Inter\',sans-serif;font-size:18px;font-weight:800;color:#002D72;text-decoration:underline;letter-spacing:0.8px;margin:0 0 4px 0;">VENDOR AGREEMENT</h1>' +
+        '<p style="font-size:11.5px;color:#333;margin:0;line-height:1.3;">This Vendor Agreement is made between the concerned party/organization and the following vendor:</p>' +
       '</div>' +
 
       '<!-- 1. VENDOR DETAILS -->' +
-      '<div style="margin-bottom:14px;">' +
-        '<div style="display:inline-block;background:#002D72;color:#fff;font-size:11px;font-weight:700;padding:3px 12px;border-radius:3px;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px;">1. VENDOR DETAILS</div>' +
-        '<table style="width:100%;border-collapse:collapse;border:1.5px solid #94a3b8;font-size:12.5px;">' +
+      '<div style="margin-bottom:10px;">' +
+        '<div style="display:inline-block;background:#002D72;color:#fff;font-size:10.5px;font-weight:700;padding:2px 10px;border-radius:3px;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px;">1. VENDOR DETAILS</div>' +
+        '<table style="width:100%;border-collapse:collapse;border:1.5px solid #94a3b8;font-size:11.5px;">' +
           '<tr>' +
-            '<td style="padding:6px 10px;border:1px solid #cbd5e1;font-weight:600;width:30%;color:#1e293b;">Vendor Company Name</td>' +
-            '<td style="padding:6px 4px;border:1px solid #cbd5e1;text-align:center;width:4%;font-weight:bold;">:</td>' +
-            '<td style="padding:6px 10px;border:1px solid #cbd5e1;font-weight:700;color:#b91c1c;text-transform:uppercase;">' + sanitize(companyUpper) + '</td>' +
+            '<td style="padding:4px 8px;border:1px solid #cbd5e1;font-weight:600;width:30%;color:#1e293b;">Vendor Company Name</td>' +
+            '<td style="padding:4px 3px;border:1px solid #cbd5e1;text-align:center;width:4%;font-weight:bold;">:</td>' +
+            '<td style="padding:4px 8px;border:1px solid #cbd5e1;font-weight:700;color:#b91c1c;text-transform:uppercase;">' + sanitize(companyUpper) + '</td>' +
           '</tr>' +
           '<tr>' +
-            '<td style="padding:6px 10px;border:1px solid #cbd5e1;font-weight:600;color:#1e293b;">Vendor Name</td>' +
-            '<td style="padding:6px 4px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">:</td>' +
-            '<td style="padding:6px 10px;border:1px solid #cbd5e1;font-weight:600;color:#b91c1c;">' + sanitize(vendorNameVal) + '</td>' +
+            '<td style="padding:4px 8px;border:1px solid #cbd5e1;font-weight:600;color:#1e293b;">Vendor Name</td>' +
+            '<td style="padding:4px 3px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">:</td>' +
+            '<td style="padding:4px 8px;border:1px solid #cbd5e1;font-weight:600;color:#b91c1c;">' + sanitize(vendorNameVal) + '</td>' +
           '</tr>' +
           '<tr>' +
-            '<td style="padding:6px 10px;border:1px solid #cbd5e1;font-weight:600;color:#1e293b;">Vendor Phone Number</td>' +
-            '<td style="padding:6px 4px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">:</td>' +
-            '<td style="padding:6px 10px;border:1px solid #cbd5e1;">' + sanitize(v.phone || '—') + '</td>' +
+            '<td style="padding:4px 8px;border:1px solid #cbd5e1;font-weight:600;color:#1e293b;">Vendor Phone Number</td>' +
+            '<td style="padding:4px 3px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">:</td>' +
+            '<td style="padding:4px 8px;border:1px solid #cbd5e1;">' + sanitize(v.phone || '—') + '</td>' +
           '</tr>' +
           '<tr>' +
-            '<td style="padding:6px 10px;border:1px solid #cbd5e1;font-weight:600;color:#1e293b;">Vendor PAN Number</td>' +
-            '<td style="padding:6px 4px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">:</td>' +
-            '<td style="padding:6px 10px;border:1px solid #cbd5e1;font-family:monospace;font-weight:700;">' + sanitize(v.pan || '—') + '</td>' +
+            '<td style="padding:4px 8px;border:1px solid #cbd5e1;font-weight:600;color:#1e293b;">Vendor PAN Number</td>' +
+            '<td style="padding:4px 3px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">:</td>' +
+            '<td style="padding:4px 8px;border:1px solid #cbd5e1;font-family:monospace;font-weight:700;">' + sanitize(v.pan || '—') + '</td>' +
           '</tr>' +
           '<tr>' +
-            '<td style="padding:6px 10px;border:1px solid #cbd5e1;font-weight:600;color:#1e293b;">Vendor Address</td>' +
-            '<td style="padding:6px 4px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">:</td>' +
-            '<td style="padding:6px 10px;border:1px solid #cbd5e1;line-height:1.4;">' + sanitize(v.address || 'Narakoduru (V), Chebrole (M), Guntur (Dt), Andhra Pradesh – 522212') + '</td>' +
+            '<td style="padding:4px 8px;border:1px solid #cbd5e1;font-weight:600;color:#1e293b;">Vendor Address</td>' +
+            '<td style="padding:4px 3px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">:</td>' +
+            '<td style="padding:4px 8px;border:1px solid #cbd5e1;line-height:1.3;">' + sanitize(v.address || 'Narakoduru (V), Chebrole (M), Guntur (Dt), Andhra Pradesh – 522212') + '</td>' +
           '</tr>' +
           '<tr style="background:#eff6ff;">' +
-            '<td style="padding:7px 10px;border:1px solid #cbd5e1;font-weight:700;color:#1e293b;">Vendor Amount (Agreed)</td>' +
-            '<td style="padding:7px 4px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">:</td>' +
-            '<td style="padding:7px 10px;border:1px solid #cbd5e1;">' +
-              '<div style="font-weight:700;color:#b91c1c;font-size:13.5px;">' + formatCurrency(v.agreedAmount || v.amount) + '</div>' +
-              '<div style="font-size:11.5px;color:#334155;font-weight:500;">' + sanitize(wordsVal) + '</div>' +
+            '<td style="padding:5px 8px;border:1px solid #cbd5e1;font-weight:700;color:#1e293b;">Vendor Amount (Agreed)</td>' +
+            '<td style="padding:5px 3px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">:</td>' +
+            '<td style="padding:5px 8px;border:1px solid #cbd5e1;">' +
+              '<span style="font-weight:700;color:#b91c1c;font-size:12.5px;margin-right:6px;">' + formatCurrency(v.agreedAmount || v.amount) + '</span>' +
+              '<span style="font-size:11px;color:#334155;font-weight:500;">' + sanitize(wordsVal) + '</span>' +
             '</td>' +
           '</tr>' +
         '</table>' +
       '</div>' +
 
       '<!-- 2. WORK DESCRIPTION -->' +
-      '<div style="margin-bottom:14px;">' +
-        '<div style="display:inline-block;background:#002D72;color:#fff;font-size:11px;font-weight:700;padding:3px 12px;border-radius:3px;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px;">2. WORK DESCRIPTION</div>' +
-        '<p style="font-size:12px;color:#222;line-height:1.5;margin:0 0 6px 0;">' +
+      '<div style="margin-bottom:10px;">' +
+        '<div style="display:inline-block;background:#002D72;color:#fff;font-size:10.5px;font-weight:700;padding:2px 10px;border-radius:3px;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px;">2. WORK DESCRIPTION</div>' +
+        '<p style="font-size:11px;color:#222;line-height:1.35;margin:0 0 4px 0;">' +
           'The vendor shall provide chemical, masonry, construction-related materials and/or services as required by the organization, in accordance with the agreed specifications, quantities, quality standards, rates and timelines.' +
         '</p>' +
-        '<div style="font-weight:700;font-size:12px;color:#111;margin-bottom:3px;">Specific Work Description:</div>' +
-        '<div style="font-size:12px;color:#222;line-height:1.5;border-bottom:1px solid #cbd5e1;padding-bottom:5px;min-height:30px;white-space:pre-wrap;">' +
+        '<div style="font-weight:700;font-size:11px;color:#111;margin-bottom:2px;">Specific Work Description:</div>' +
+        '<div style="font-size:11px;color:#222;line-height:1.35;border-bottom:1px solid #cbd5e1;padding-bottom:3px;min-height:22px;white-space:pre-wrap;">' +
           sanitize(v.workDescription || v.workDesc || 'General maintenance and supply as per approved purchase/work requisition.') +
         '</div>' +
         filesHtml +
       '</div>' +
 
       '<!-- 3. TERMS AND CONDITIONS -->' +
-      '<div style="margin-bottom:14px;">' +
-        '<div style="display:inline-block;background:#002D72;color:#fff;font-size:11px;font-weight:700;padding:3px 12px;border-radius:3px;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px;">3. TERMS AND CONDITIONS</div>' +
-        '<ol style="margin:0 0 0 18px;padding:0;font-size:11.5px;color:#222;line-height:1.55;">' +
+      '<div style="margin-bottom:10px;">' +
+        '<div style="display:inline-block;background:#002D72;color:#fff;font-size:10.5px;font-weight:700;padding:2px 10px;border-radius:3px;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px;">3. TERMS AND CONDITIONS</div>' +
+        '<ol style="margin:0 0 0 16px;padding:0;font-size:10.5px;color:#222;line-height:1.35;">' +
           '<li>The vendor shall provide the agreed materials/services within the specified time.</li>' +
           '<li>All materials supplied shall meet the required quality and specifications.</li>' +
           '<li>The vendor shall be responsible for the accuracy and quality of the work/materials supplied.</li>' +
@@ -1373,48 +1376,48 @@
       '</div>' +
 
       '<!-- 4. AGREEMENT PERIOD & 5. AUTHORIZATION -->' +
-      '<div style="display:grid;grid-template-columns:1fr 1.3fr;gap:16px;margin-bottom:14px;align-items:start;">' +
+      '<div style="display:grid;grid-template-columns:1fr 1.25fr;gap:12px;margin-bottom:10px;align-items:start;">' +
         '<div>' +
-          '<div style="display:inline-block;background:#002D72;color:#fff;font-size:11px;font-weight:700;padding:3px 12px;border-radius:3px;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px;">4. AGREEMENT PERIOD</div>' +
-          '<table style="width:100%;border-collapse:collapse;border:1px solid #94a3b8;font-size:12px;">' +
+          '<div style="display:inline-block;background:#002D72;color:#fff;font-size:10.5px;font-weight:700;padding:2px 10px;border-radius:3px;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px;">4. AGREEMENT PERIOD</div>' +
+          '<table style="width:100%;border-collapse:collapse;border:1px solid #94a3b8;font-size:11px;">' +
             '<tr>' +
-              '<td style="padding:5px 8px;border:1px solid #cbd5e1;font-weight:600;width:35%;">Start Date</td>' +
-              '<td style="padding:5px 4px;border:1px solid #cbd5e1;text-align:center;width:6%;">:</td>' +
-              '<td style="padding:5px 8px;border:1px solid #cbd5e1;font-weight:500;">' + pStartFormatted + '</td>' +
+              '<td style="padding:3px 6px;border:1px solid #cbd5e1;font-weight:600;width:35%;">Start Date</td>' +
+              '<td style="padding:3px 3px;border:1px solid #cbd5e1;text-align:center;width:6%;">:</td>' +
+              '<td style="padding:3px 6px;border:1px solid #cbd5e1;font-weight:500;">' + pStartFormatted + '</td>' +
             '</tr>' +
             '<tr>' +
-              '<td style="padding:5px 8px;border:1px solid #cbd5e1;font-weight:600;">End Date</td>' +
-              '<td style="padding:5px 4px;border:1px solid #cbd5e1;text-align:center;">:</td>' +
-              '<td style="padding:5px 8px;border:1px solid #cbd5e1;font-weight:500;">' + pEndFormatted + '</td>' +
+              '<td style="padding:3px 6px;border:1px solid #cbd5e1;font-weight:600;">End Date</td>' +
+              '<td style="padding:3px 3px;border:1px solid #cbd5e1;text-align:center;">:</td>' +
+              '<td style="padding:3px 6px;border:1px solid #cbd5e1;font-weight:500;">' + pEndFormatted + '</td>' +
             '</tr>' +
           '</table>' +
         '</div>' +
         '<div>' +
-          '<div style="display:inline-block;background:#002D72;color:#fff;font-size:11px;font-weight:700;padding:3px 12px;border-radius:3px;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px;">5. AUTHORIZATION</div>' +
-          '<p style="font-size:12px;color:#222;line-height:1.5;margin:0;">' +
+          '<div style="display:inline-block;background:#002D72;color:#fff;font-size:10.5px;font-weight:700;padding:2px 10px;border-radius:3px;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px;">5. AUTHORIZATION</div>' +
+          '<p style="font-size:11px;color:#222;line-height:1.35;margin:0;">' +
             'By signing below, both parties acknowledge and agree to the terms and conditions stated in this Vendor Agreement.' +
           '</p>' +
         '</div>' +
       '</div>' +
 
       '<!-- Signatures Box -->' +
-      '<div style="border:1.5px solid #94a3b8;border-radius:4px;overflow:hidden;margin-bottom:12px;font-size:12px;">' +
+      '<div style="border:1.5px solid #94a3b8;border-radius:4px;overflow:hidden;margin-bottom:8px;font-size:11.5px;">' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;">' +
           '<!-- FOR THE ORGANIZATION -->' +
-          '<div style="padding:10px 14px;border-right:1px solid #cbd5e1;">' +
-            '<div style="font-weight:700;color:#002D72;text-align:center;margin-bottom:8px;font-size:12.5px;letter-spacing:0.5px;">FOR THE ORGANIZATION</div>' +
-            '<div style="margin-bottom:6px;color:#1e293b;"><b>Authorized Signatory</b></div>' +
-            '<div style="margin-bottom:6px;display:flex;align-items:center;">' +
+          '<div style="padding:8px 12px;border-right:1px solid #cbd5e1;">' +
+            '<div style="font-weight:700;color:#002D72;text-align:center;margin-bottom:6px;font-size:11.5px;letter-spacing:0.5px;">FOR THE ORGANIZATION</div>' +
+            '<div style="margin-bottom:5px;color:#1e293b;"><b>Authorized Signatory</b></div>' +
+            '<div style="margin-bottom:5px;display:flex;align-items:center;">' +
               '<span style="width:85px;color:#475569;">Name:</span>' +
-              '<span style="border-bottom:1px solid #94a3b8;flex:1;padding-bottom:1px;font-weight:600;">' + sanitize(v.authBy || '___________________________') + '</span>' +
+              '<span style="border-bottom:1px solid #94a3b8;flex:1;min-height:16px;padding-bottom:1px;font-weight:600;">' + (v.authBy ? sanitize(v.authBy) : '&nbsp;') + '</span>' +
             '</div>' +
-            '<div style="margin-bottom:6px;display:flex;align-items:center;">' +
+            '<div style="margin-bottom:5px;display:flex;align-items:center;">' +
               '<span style="width:85px;color:#475569;">Designation:</span>' +
-              '<span style="border-bottom:1px solid #94a3b8;flex:1;padding-bottom:1px;">' + sanitize(v.authRole || '___________________________') + '</span>' +
+              '<span style="border-bottom:1px solid #94a3b8;flex:1;min-height:16px;padding-bottom:1px;">' + (v.authRole ? sanitize(v.authRole) : '&nbsp;') + '</span>' +
             '</div>' +
-            '<div style="margin-bottom:6px;display:flex;align-items:center;">' +
+            '<div style="margin-bottom:5px;display:flex;align-items:center;">' +
               '<span style="width:85px;color:#475569;">Signature:</span>' +
-              '<span style="border-bottom:1px solid #94a3b8;flex:1;height:16px;"></span>' +
+              '<span style="border-bottom:1px solid #94a3b8;flex:1;height:16px;display:inline-block;"></span>' +
             '</div>' +
             '<div style="display:flex;align-items:center;">' +
               '<span style="width:85px;color:#475569;">Date:</span>' +
@@ -1423,32 +1426,32 @@
           '</div>' +
 
           '<!-- FOR VENDOR -->' +
-          '<div style="padding:10px 14px;">' +
-            '<div style="font-weight:700;color:#b91c1c;text-align:center;margin-bottom:8px;font-size:12.5px;letter-spacing:0.5px;text-transform:uppercase;">FOR ' + sanitize(companyUpper) + '</div>' +
-            '<div style="margin-bottom:6px;display:flex;align-items:center;">' +
+          '<div style="padding:8px 12px;">' +
+            '<div style="font-weight:700;color:#b91c1c;text-align:center;margin-bottom:6px;font-size:11.5px;letter-spacing:0.5px;text-transform:uppercase;">FOR ' + sanitize(companyUpper) + '</div>' +
+            '<div style="margin-bottom:5px;display:flex;align-items:center;">' +
               '<span style="width:75px;color:#475569;">Vendor:</span>' +
               '<span style="font-weight:700;color:#b91c1c;">' + sanitize(vendorNameVal) + '</span>' +
             '</div>' +
-            '<div style="margin-bottom:6px;display:flex;align-items:center;">' +
+            '<div style="margin-bottom:5px;display:flex;align-items:center;">' +
               '<span style="width:75px;color:#475569;">Signature:</span>' +
-              '<span style="border-bottom:1px solid #94a3b8;flex:1;height:16px;"></span>' +
+              '<span style="border-bottom:1px solid #94a3b8;flex:1;height:16px;display:inline-block;"></span>' +
             '</div>' +
-            '<div style="margin-bottom:6px;display:flex;align-items:center;">' +
+            '<div style="margin-bottom:5px;display:flex;align-items:center;">' +
               '<span style="width:75px;color:#475569;">Date:</span>' +
               '<span style="border-bottom:1px solid #94a3b8;flex:1;padding-bottom:1px;">' + pStartFormatted + '</span>' +
             '</div>' +
             '<div style="display:flex;align-items:center;">' +
               '<span style="width:75px;color:#475569;">Seal:</span>' +
-              '<span style="border-bottom:1px solid #94a3b8;flex:1;height:16px;"></span>' +
+              '<span style="border-bottom:1px solid #94a3b8;flex:1;height:16px;display:inline-block;"></span>' +
             '</div>' +
           '</div>' +
         '</div>' +
       '</div>' +
 
       '<!-- Footer Date and Place -->' +
-      '<div style="display:flex;justify-content:space-between;font-size:12px;color:#334155;padding:4px 4px 0 4px;">' +
-        '<div>Date: <span style="border-bottom:1px solid #94a3b8;display:inline-block;min-width:180px;padding:0 4px;">' + pStartFormatted + '</span></div>' +
-        '<div>Place: <span style="border-bottom:1px solid #94a3b8;display:inline-block;min-width:180px;padding:0 4px;">' + sanitize(v.authPlace || 'Chebrolu / Guntur') + '</span></div>' +
+      '<div style="display:flex;justify-content:space-between;font-size:11.5px;color:#334155;padding:2px 4px 0 4px;">' +
+        '<div>Date: <span style="border-bottom:1px solid #94a3b8;display:inline-block;min-width:140px;padding:0 4px;">' + pStartFormatted + '</span></div>' +
+        '<div>Place: <span style="border-bottom:1px solid #94a3b8;display:inline-block;min-width:140px;padding:0 4px;">' + sanitize(v.authPlace || 'Chebrolu / Guntur') + '</span></div>' +
       '</div>' +
     '</div>';
   }
@@ -1517,6 +1520,7 @@
 
     if (pa) pa.innerHTML = buildAgreementDocumentHtml(v);
     modal.classList.remove('h');
+    if (typeof updatePrintInfo === 'function') updatePrintInfo();
   };
 
   window.printActiveVendorAgreement = function() {
@@ -1562,14 +1566,14 @@
     });
 
     var html =
-      '<div style="background:#fff;padding:26px 30px;color:#111;font-family:\'Inter\',sans-serif;line-height:1.4;max-width:850px;margin:0 auto;border:1px solid #cbd5e1;">' +
+      '<div class="vendor-ledger-sheet" style="background:#fff;padding:24px 28px;color:#111;font-family:\'Inter\',sans-serif;line-height:1.4;max-width:760px;margin:0 auto;border:1.5px solid #cbd5e1;box-sizing:border-box;">' +
         '<div style="text-align:center;border-bottom:2px solid #002D72;padding-bottom:10px;margin-bottom:14px;">' +
-          '<h2 style="margin:0;font-size:16px;color:#002D72;font-weight:800;">' + collegeTitle + '</h2>' +
-          '<h1 style="margin:4px 0 0 0;font-size:20px;color:#b91c1c;font-weight:800;letter-spacing:0.8px;">VENDOR LEDGER ACCOUNT STATEMENT</h1>' +
-          '<p style="margin:2px 0 0 0;font-size:12px;color:#64748b;">Statement of Contract Disbursements &amp; Debit Vouchers</p>' +
+          '<h2 style="margin:0;font-size:15px;color:#002D72;font-weight:800;">' + collegeTitle + '</h2>' +
+          '<h1 style="margin:4px 0 0 0;font-size:18px;color:#b91c1c;font-weight:800;letter-spacing:0.8px;">VENDOR LEDGER ACCOUNT STATEMENT</h1>' +
+          '<p style="margin:2px 0 0 0;font-size:11.5px;color:#64748b;">Statement of Contract Disbursements &amp; Debit Vouchers</p>' +
         '</div>' +
 
-        '<div style="display:grid;grid-template-columns:1.2fr 1fr;gap:12px;margin-bottom:14px;font-size:12.5px;background:#f8fafc;padding:12px;border-radius:6px;border:1px solid #e2e8f0;">' +
+        '<div style="display:grid;grid-template-columns:1.2fr 1fr;gap:12px;margin-bottom:14px;font-size:12px;background:#f8fafc;padding:12px;border-radius:6px;border:1px solid #e2e8f0;">' +
           '<div>' +
             '<p style="margin:2px 0;"><b>Vendor ID:</b> <span style="font-family:monospace;font-weight:800;color:#002D72;">' + sanitize(v.vendorId) + '</span></p>' +
             '<p style="margin:2px 0;"><b>Vendor / Company:</b> <span style="font-weight:700;color:#b91c1c;">' + sanitize(v.companyName || v.company) + '</span></p>' +
@@ -1584,17 +1588,17 @@
           '</div>' +
         '</div>' +
 
-        '<h3 style="font-size:13px;font-weight:700;color:#002D72;margin-bottom:6px;text-transform:uppercase;">Itemized Debit Voucher Transactions</h3>' +
-        '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px;">' +
+        '<h3 style="font-size:12.5px;font-weight:700;color:#002D72;margin-bottom:6px;text-transform:uppercase;">Itemized Debit Voucher Transactions</h3>' +
+        '<table style="width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:16px;">' +
           '<thead>' +
             '<tr style="background:#002D72;color:#fff;">' +
-              '<th style="padding:6px;border:1px solid #002D72;width:35px;">#</th>' +
-              '<th style="padding:6px;border:1px solid #002D72;">Voucher No</th>' +
-              '<th style="padding:6px;border:1px solid #002D72;">Date</th>' +
-              '<th style="padding:6px;border:1px solid #002D72;">Debit Head</th>' +
-              '<th style="padding:6px;border:1px solid #002D72;">Towards / Purpose</th>' +
-              '<th style="padding:6px;border:1px solid #002D72;">Payment Mode</th>' +
-              '<th style="padding:6px;border:1px solid #002D72;text-align:right;">Amount (Rs.)</th>' +
+              '<th style="padding:5px 6px;border:1px solid #002D72;width:35px;">#</th>' +
+              '<th style="padding:5px 6px;border:1px solid #002D72;">Voucher No</th>' +
+              '<th style="padding:5px 6px;border:1px solid #002D72;">Date</th>' +
+              '<th style="padding:5px 6px;border:1px solid #002D72;">Debit Head</th>' +
+              '<th style="padding:5px 6px;border:1px solid #002D72;">Towards / Purpose</th>' +
+              '<th style="padding:5px 6px;border:1px solid #002D72;">Payment Mode</th>' +
+              '<th style="padding:5px 6px;border:1px solid #002D72;text-align:right;">Amount (Rs.)</th>' +
             '</tr>' +
           '</thead>' +
           '<tbody>' +
@@ -1602,21 +1606,21 @@
           '</tbody>' +
           '<tfoot>' +
             '<tr>' +
-              '<td colspan="6" style="text-align:right;padding:6px 10px;font-weight:700;border:1px solid #cbd5e1;">TOTAL AMOUNT DISBURSED:</td>' +
-              '<td style="padding:6px 10px;text-align:right;font-weight:800;color:#15803d;border:1px solid #cbd5e1;">' + formatCurrency(fin.totalPaid) + '</td>' +
+              '<td colspan="6" style="text-align:right;padding:5px 8px;font-weight:700;border:1px solid #cbd5e1;">TOTAL AMOUNT DISBURSED:</td>' +
+              '<td style="padding:5px 8px;text-align:right;font-weight:800;color:#15803d;border:1px solid #cbd5e1;">' + formatCurrency(fin.totalPaid) + '</td>' +
             '</tr>' +
             '<tr>' +
-              '<td colspan="6" style="text-align:right;padding:6px 10px;font-weight:700;border:1px solid #cbd5e1;">AGREED CONTRACT AMOUNT:</td>' +
-              '<td style="padding:6px 10px;text-align:right;font-weight:800;color:#b91c1c;border:1px solid #cbd5e1;">' + formatCurrency(fin.agreedAmount) + '</td>' +
+              '<td colspan="6" style="text-align:right;padding:5px 8px;font-weight:700;border:1px solid #cbd5e1;">AGREED CONTRACT AMOUNT:</td>' +
+              '<td style="padding:5px 8px;text-align:right;font-weight:800;color:#b91c1c;border:1px solid #cbd5e1;">' + formatCurrency(fin.agreedAmount) + '</td>' +
             '</tr>' +
             '<tr style="background:#eff6ff;">' +
-              '<td colspan="6" style="text-align:right;padding:8px 10px;font-weight:800;color:#002D72;border:1.5px solid #93c5fd;">OUTSTANDING BALANCE PENDING:</td>' +
-              '<td style="padding:8px 10px;text-align:right;font-weight:800;font-size:14px;color:' + (fin.balance <= 0 ? '#15803d' : '#b45309') + ';border:1.5px solid #93c5fd;">' + formatCurrency(fin.balance) + '</td>' +
+              '<td colspan="6" style="text-align:right;padding:6px 8px;font-weight:800;color:#002D72;border:1.5px solid #93c5fd;">OUTSTANDING BALANCE PENDING:</td>' +
+              '<td style="padding:6px 8px;text-align:right;font-weight:800;font-size:13px;color:' + (fin.balance <= 0 ? '#15803d' : '#b45309') + ';border:1.5px solid #93c5fd;">' + formatCurrency(fin.balance) + '</td>' +
             '</tr>' +
           '</tfoot>' +
         '</table>' +
 
-        '<div style="display:flex;justify-content:space-between;margin-top:40px;padding:0 20px;font-size:12px;">' +
+        '<div style="display:flex;justify-content:space-between;margin-top:35px;padding:0 20px;font-size:11.5px;">' +
           '<div style="text-align:center;"><div style="border-top:1px solid #333;width:180px;padding-top:4px;">Authorized Signatory / AO</div></div>' +
           '<div style="text-align:center;"><div style="border-top:1px solid #333;width:180px;padding-top:4px;">Principal / Management</div></div>' +
         '</div>' +
@@ -1624,6 +1628,7 @@
 
     if (pa) pa.innerHTML = html;
     modal.classList.remove('h');
+    if (typeof updatePrintInfo === 'function') updatePrintInfo();
   };
 
   // --- EXPORT ACTIVE VENDOR LEDGER TO EXCEL ---
