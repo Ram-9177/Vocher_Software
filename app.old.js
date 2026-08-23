@@ -390,6 +390,7 @@ async function switchCollegeCtx(){
     if(typeof initApp==='function') initApp();
     if(typeof setupRole==='function') setupRole();
     if(typeof _updateXLPill==='function') _updateXLPill();
+    if(typeof window.reloadVendorModule==='function') window.reloadVendorModule();
   }catch(e){
     alert(e&&e.message?e.message:'Unable to switch colleges.');
   }finally{
@@ -843,6 +844,12 @@ function show(id){
     syncDateFilterDisplay('MSDF');syncDateFilterDisplay('MSDT');
     renderMyVT();
   }
+  if(id==='vendor'){
+    if(typeof renderVendorsTable==='function') renderVendorsTable();
+  }
+  if(id==='vendorledger'){
+    if(typeof renderVendorLedgerTable==='function') renderVendorLedgerTable();
+  }
   // Persist current page so refresh lands on same section
   _setSess('smv_sess_page',id);
 }
@@ -978,13 +985,15 @@ function renderMyDash(){
   const t=document.getElementById('MDB_TITLE');if(t)t.textContent=lbl+' — Dashboard';
   const tot=myVS.length,totAmt=myVS.reduce((s,v)=>s+v.amount,0),tod=myVS.filter(v=>isoToDMY(v.date||v.dateISO||'')===today()).length;
   const sg=document.getElementById('MSG');if(!sg)return;
+  const vCount = (typeof window.getVendorsCount === 'function') ? window.getVendorsCount() : 0;
   sg.innerHTML=`
     <div class="sc"><div class="lbl">My Vouchers</div><div class="val">${tot}</div><div class="sub">${mdbf||mdbt ? 'Filtered' : 'All time'}</div></div>
     <div class="sc"><div class="lbl">My Total Amount</div><div class="val">₹${Math.round(totAmt)}</div><div class="sub">${mdbf||mdbt ? 'Filtered' : 'All vouchers'}</div></div>
     <div class="sc"><div class="lbl">Today</div><div class="val">${tod}</div><div class="sub">My vouchers today</div></div>
     <div class="sc"><div class="lbl">Debit</div><div class="val">${myVS.filter(v=>v.type==='debit').length}</div><div class="sub">Payments</div></div>
     <div class="sc"><div class="lbl">On- Account</div><div class="val">${myVS.filter(v=>v.type==='onaccount').length}</div><div class="sub">Transactions</div></div>
-    <div class="sc"><div class="lbl">Credit</div><div class="val">${myVS.filter(v=>v.type==='credit').length}</div><div class="sub">Received</div></div>`;
+    <div class="sc"><div class="lbl">Credit</div><div class="val">${myVS.filter(v=>v.type==='credit').length}</div><div class="sub">Received</div></div>
+    <div class="sc" onclick="show('vendorledger')" style="cursor:pointer;" title="Click to view Vendor Ledger"><div class="lbl">📒 Vendors</div><div class="val">${vCount}</div><div class="sub">Vendor Ledger</div></div>`;
   const rec=[...myVS].sort((a,b)=>(Date.parse(b.createdAt||b.created_at||'')||Number(b.id||0))-(Date.parse(a.createdAt||a.created_at||'')||Number(a.id||0))).slice(0,10);
   const bc={credit:'bc',debit:'bd',onaccount:'bo'};
   const rb=document.getElementById('MRB');if(!rb)return;
@@ -997,7 +1006,7 @@ function renderMyDash(){
     return `<tr>
     <td><strong>${isoToDMY(v.date||v.dateISO||'')}</strong></td>
     <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
-    <td>${v.party||v.paidTo||v.receivedFrom||'–'}</td>
+    <td>${v.party||v.paidTo||v.receivedFrom||'–'}${typeof getVendorBadgeHtml==='function'?getVendorBadgeHtml(v):''}</td>
     <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
     <td>${v.mode||'Cash'}</td>
     <td style="font-weight:600">${isCash?'₹'+amount:'–'}</td>
@@ -1017,7 +1026,7 @@ function getMyFilteredVS(){
   const fromEl=document.getElementById('MSDF'),from=fromEl?fromEl.value:'';
   const toEl=document.getElementById('MSDT'),to=toEl?toEl.value:'';
   return VS.filter(_isOwnVoucher).filter(v=>{
-    const text=[v.party,v.paidTo,v.receivedFrom,v.recipientPhone,v.head,v.towards,v.block,v.cheque,v.reversalDate,v.type==='onaccount'?(v.reversalDateISO||v.reversalDate?'cleared':'pending'):''].filter(Boolean).join(' ').toLowerCase();
+    const text=[v.party,v.paidTo,v.receivedFrom,v.vendorId,v.recipientPhone,v.head,v.towards,v.block,v.cheque,v.reversalDate,v.type==='onaccount'?(v.reversalDateISO||v.reversalDate?'cleared':'pending'):''].filter(Boolean).join(' ').toLowerCase();
     const matchQ=!q||text.includes(q);
     let matchD=true;
     if(from||to){
@@ -1075,7 +1084,7 @@ function renderMyVT(){
     <td><strong>${isoToDMY(v.date||v.dateISO||'')}</strong></td>
     <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
     <td>${status}</td>
-    <td>${v.party||v.paidTo||v.receivedFrom||'–'}${phoneHtml}</td>
+    <td>${v.party||v.paidTo||v.receivedFrom||'–'}${phoneHtml}${typeof getVendorBadgeHtml==='function'?getVendorBadgeHtml(v):''}</td>
     <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
     <td>${v.mode||'Cash'}</td>
     <td style="font-weight:600">${isCash?'₹'+amount:'–'}</td>
@@ -1655,24 +1664,33 @@ function renderDash(){
     });
   }
   const tot=fvs.length,totAmt=fvs.reduce((s,v)=>s+v.amount,0),tod=fvs.filter(v=>isoToDMY(v.date||v.dateISO||'')===today()).length;
+  const vCount = (typeof window.getVendorsCount === 'function') ? window.getVendorsCount() : 0;
   document.getElementById('SG').innerHTML=`
     <div class="sc"><div class="lbl">Total Vouchers</div><div class="val">${tot}</div><div class="sub">${dbf||dbt ? 'Filtered' : 'All time'}</div></div>
     <div class="sc"><div class="lbl">Total Amount</div><div class="val">₹${Math.round(totAmt)}</div><div class="sub">${dbf||dbt ? 'Filtered' : 'All vouchers'}</div></div>
     <div class="sc"><div class="lbl">Today</div><div class="val">${tod}</div><div class="sub">Vouchers today</div></div>
     <div class="sc"><div class="lbl">Debit</div><div class="val">${fvs.filter(v=>v.type==='debit').length}</div><div class="sub">Payments</div></div>
     <div class="sc"><div class="lbl">On- Account</div><div class="val">${fvs.filter(v=>v.type==='onaccount').length}</div><div class="sub">Transactions</div></div>
-    <div class="sc"><div class="lbl">Credit</div><div class="val">${fvs.filter(v=>v.type==='credit').length}</div><div class="sub">Received</div></div>`;
+    <div class="sc"><div class="lbl">Credit</div><div class="val">${fvs.filter(v=>v.type==='credit').length}</div><div class="sub">Received</div></div>
+    <div class="sc" onclick="show('vendorledger')" style="cursor:pointer;" title="Click to view Vendor Ledger"><div class="lbl">📒 Vendors</div><div class="val">${vCount}</div><div class="sub">Vendor Ledger</div></div>`;
   const rec=[...fvs].sort((a,b)=>(Date.parse(b.createdAt||b.created_at||'')||Number(b.id||0))-(Date.parse(a.createdAt||a.created_at||'')||Number(a.id||0))).slice(0,10);
   const bc={credit:'bc',debit:'bd',onaccount:'bo'};
   document.getElementById('RB').innerHTML=rec.map(v=>`<tr>
     <td><strong>${isoToDMY(v.date||v.dateISO||'')}</strong></td>
     <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
-    <td>${v.party||v.paidTo||v.receivedFrom||'–'}</td>
+    <td>${v.party||v.paidTo||v.receivedFrom||'–'}${typeof getVendorBadgeHtml==='function'?getVendorBadgeHtml(v):''}</td>
     <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
     <td>${v.mode||'Cash'}</td>
     <td style="font-weight:600">₹${Math.round(v.amount)}</td>
     <td><button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="Print">🖨</button></td>
   </tr>`).join('');
+}
+
+function getVendorBadgeHtml(v) {
+  if (!v) return '';
+  const vid = v.vendorId || (typeof window.resolveVendorIdForParty === 'function' ? window.resolveVendorIdForParty(v.paidTo || v.party) : '');
+  if (!vid) return '';
+  return ` <span onclick="event.stopPropagation();if(typeof openVendorLedgerModal==='function')openVendorLedgerModal('${vid}')" style="cursor:pointer;font-family:monospace;font-size:10px;background:#002D72;color:#fff;padding:2px 6px;border-radius:4px;margin-left:4px;font-weight:700;display:inline-block;" title="Click to view Vendor Ledger statement for ${vid}">🏢 ${vid}</span>`;
 }
 
 // VOUCHER TABLE
@@ -1686,7 +1704,7 @@ function getFilteredVS(){
   const sdtEl=document.getElementById('SDT') || document.getElementById('MSDT'),sdt=sdtEl?sdtEl.value:'';
   const foaEl=document.getElementById('F_OA_STATUS');const foa=foaEl?foaEl.value:'';
   return VS.filter(v=>{
-    const sq=!q||[v.party,v.paidTo,v.receivedFrom,v.recipientPhone,v.head,v.towards,v.reversalDate,v.type==='onaccount'?(v.reversalDateISO||v.reversalDate?'cleared':'pending'):''].filter(Boolean).join(' ').toLowerCase().includes(q);
+    const sq=!q||[v.party,v.paidTo,v.receivedFrom,v.vendorId,v.recipientPhone,v.head,v.towards,v.reversalDate,v.type==='onaccount'?(v.reversalDateISO||v.reversalDate?'cleared':'pending'):''].filter(Boolean).join(' ').toLowerCase().includes(q);
     let dMatch=true;
     if(sdf||sdt){
       const iso = v.dateISO || dmyToISO(v.date || '');
@@ -1780,7 +1798,7 @@ function renderVT(){
     <td><strong>${isoToDMY(v.date||v.dateISO||'')}</strong></td>
     <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
     <td>${status}</td>
-    <td>${v.party||v.paidTo||v.receivedFrom||'–'}${phoneHtml}</td>
+    <td>${v.party||v.paidTo||v.receivedFrom||'–'}${phoneHtml}${typeof getVendorBadgeHtml==='function'?getVendorBadgeHtml(v):''}</td>
     <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
     <td><span style="font-size:10px;background:#eef;padding:2px 4px;border-radius:3px;font-weight:600;color:#333;">${colName}</span></td>
     <td>${v.mode||'Cash'}</td>

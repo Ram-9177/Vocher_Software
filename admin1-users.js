@@ -117,6 +117,12 @@
       renderCollegesLive();
       if(document.getElementById('CARD_AUDIT_LOGS') && document.getElementById('CARD_AUDIT_LOGS').style.display !== 'none') window.renderAuditLive();
     }
+    if(id==='vendor'){
+      if(typeof renderVendorsTable === 'function') renderVendorsTable();
+    }
+    if(id==='vendorledger'){
+      if(typeof renderVendorLedgerTable === 'function') renderVendorLedgerTable();
+    }
     if (typeof applyPermissionVisibility === 'function') {
       applyPermissionVisibility();
     }
@@ -563,6 +569,21 @@
     const niCreate = document.getElementById('ni-create');
     if (niCreate) {
       niCreate.style.display = has('create_voucher') ? 'flex' : 'none';
+    }
+
+    const niVendor = document.getElementById('ni-vendor');
+    if (niVendor) {
+      niVendor.style.display = has('create_voucher') ? 'flex' : 'none';
+    }
+
+    const niVendorLedger = document.getElementById('ni-vendorledger');
+    if (niVendorLedger) {
+      niVendorLedger.style.display = (isVoucherAdmin || has('view_all_vouchers') || has('create_voucher')) ? 'flex' : 'none';
+    }
+
+    const niVendorLedgerA2 = document.getElementById('ni-vendorledger-a2');
+    if (niVendorLedgerA2) {
+      niVendorLedgerA2.style.display = (isVoucherAdmin || has('view_all_vouchers') || has('create_voucher') || has('view_own_vouchers')) ? 'flex' : 'none';
     }
 
     const niVouchers = document.getElementById('ni-vouchers');

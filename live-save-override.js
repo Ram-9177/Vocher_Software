@@ -103,6 +103,7 @@
     } else if(CVT === 'debit'){
       v.head = getVal('fd_head');
       v.paidTo = getVal('fd_paidto');
+      v.vendorId = (window.resolveVendorIdForParty ? window.resolveVendorIdForParty(v.paidTo) : '') || getVal('fd_vendor_id') || '';
       v.towards = getVal('fd_towards');
       v.block = getVal('fd_block');
       v.amount = parseFloat(document.getElementById('fd_amt').value) || 0;

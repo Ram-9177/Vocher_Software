@@ -147,6 +147,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
         All Vouchers
       </a>
+      <a href="#vendorledger" class="ni" onclick="show('vendorledger'); return false;" id="ni-vendorledger" title="Vendor Ledger">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M6.5 17L20 17"/><line x1="10" y1="7" x2="16" y2="7"/><line x1="10" y1="11" x2="16" y2="11"/></svg>
+        Vendor Ledger
+      </a>
     </div>
     <!-- admin2/admin3 nav -->
     <div class="ns" id="A2NAV" style="display:none">
@@ -159,12 +163,24 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
         My Vouchers
       </a>
+      <a href="#vendorledger" class="ni" onclick="show('vendorledger'); return false;" id="ni-vendorledger-a2" title="Vendor Ledger">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M6.5 17L20 17"/><line x1="10" y1="7" x2="16" y2="7"/><line x1="10" y1="11" x2="16" y2="11"/></svg>
+        Vendor Ledger
+      </a>
     </div>
     <div class="ns">
       <p>Create</p>
       <a href="#create" class="ni" onclick="show('create'); return false;" id="ni-create" title="New Voucher">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
         New Voucher
+      </a>
+      <a href="#vendor" class="ni" onclick="show('vendor'); return false;" id="ni-vendor" title="Vendor Form">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Vendor Form
+      </a>
+      <a href="#vendorledger" class="ni" onclick="show('vendorledger'); return false;" id="ni-vendorledger" title="Vendor Ledger">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M6.5 17L20 17"/><line x1="10" y1="7" x2="16" y2="7"/><line x1="10" y1="11" x2="16" y2="11"/></svg>
+        Vendor Ledger
       </a>
     </div>
     <div class="ns">
@@ -203,6 +219,7 @@
             <input type="date" id="DBT" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;" onchange="syncDateFilterDisplay('DBT');renderDash()">
           </div>
           <button class="btn bs" style="padding:6px 12px; font-size:12px;" onclick="document.getElementById('DBF').value='';document.getElementById('DBT').value='';renderDash()" title="Clear">Clear</button>
+          <button class="btn bp bsm" style="padding:6px 14px; font-size:12px;" onclick="show('vendorledger')" title="Open Vendor Ledger Report">📒 Vendor Ledger</button>
         </div>
       </div>
       <div class="sg" id="SG"></div>
@@ -243,6 +260,7 @@
             <input type="date" id="MDBT" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;" onchange="syncDateFilterDisplay('MDBT');renderMyDash()">
           </div>
           <button class="btn bs" style="padding:6px 12px; font-size:12px;" onclick="document.getElementById('MDBF').value='';document.getElementById('MDBT').value='';renderMyDash()" title="Clear">Clear</button>
+          <button class="btn bp bsm" style="padding:6px 14px; font-size:12px;" onclick="show('vendorledger')" title="Open Vendor Ledger Report">📒 Vendor Ledger</button>
         </div>
       </div>
       <div class="sg" id="MSG"></div>
@@ -310,6 +328,17 @@
     </div>
 
     <div class="sec" id="sec-create">
+      <div class="create-nav-tabs">
+        <button type="button" class="create-nav-tab active" onclick="show('create'); return false;">
+          💳 New Voucher
+        </button>
+        <button type="button" class="create-nav-tab" onclick="show('vendor'); return false;">
+          🏢 Vendor Form
+        </button>
+        <button type="button" class="create-nav-tab" onclick="show('vendorledger'); return false;">
+          📒 Vendor Ledger
+        </button>
+      </div>
       <div class="ph" style="margin-bottom:.8rem"><h1 style="font-size:20px">New Voucher</h1><p>Select voucher type and fill in details</p></div>
       <div class="vtg">
         <div class="vtc sel" onclick="selVT('debit')" data-t="debit" role="button" tabindex="0" aria-controls="R_debit" aria-selected="true">
@@ -381,9 +410,11 @@
             <div class="fi"><label>Debit A/c <a href="javascript:void(0)" onclick="addNewHead('debit')" class="admin-only-add add-new-btn">+ Add New</a></label>
               <input type="text" id="fd_head" placeholder="Enter account head" list="DL_HEADS" onblur="if(typeof checkNewHead==='function') checkNewHead(this)"></div>
             <div class="fi"><label>Paid To *</label>
-              <input type="text" id="fd_paidto" placeholder="Name of receiver"></div>
+              <input type="text" id="fd_paidto" placeholder="Name of receiver" list="DL_VENDORS" oninput="if(typeof onDebitPaidToChange==='function')onDebitPaidToChange(this)" onblur="if(typeof onDebitPaidToChange==='function')onDebitPaidToChange(this)">
+              <div id="FD_VENDOR_INFO_BANNER" style="display:none;margin-top:4px;"></div>
+            </div>
             <div class="fi"><label>Amount (Rs.) *</label>
-              <input type="number" id="fd_amt" placeholder="e.g. 5000" oninput="autoWords('fd_amt','fd_words')"></div>
+              <input type="number" id="fd_amt" placeholder="e.g. 5000" oninput="autoWords('fd_amt','fd_words');if(typeof onDebitPaidToChange==='function')onDebitPaidToChange();"></div>
           </div>
           <div class="fr f">
             <div class="fi"><label>Rupees (In Words) — auto filled</label>
@@ -410,7 +441,7 @@
             <div class="fi"><label>On account</label>
               <input type="text" id="fo_head" value="On Account" readonly style="background:#f0ede8;color:#555"></div>
             <div class="fi"><label>Paid To *</label>
-              <input type="text" id="fo_paidto" placeholder="Name of receiver"></div>
+              <input type="text" id="fo_paidto" placeholder="Name of receiver" list="DL_VENDORS"></div>
             <div class="fi"><label>Amount (Rs.) *</label>
               <input type="number" id="fo_amt" placeholder="e.g. 5000" oninput="autoWords('fo_amt','fo_words')"></div>
           </div>
@@ -453,6 +484,405 @@
           <button class="btn bg" onclick="previewV()" title="🖨 Preview & Print">🖨 Preview & Print</button>
           <button class="btn bs" onclick="resetF()" title="↺ Reset">↺ Reset</button>
         </div>
+      </div>
+    </div>
+
+    <!-- VENDOR FORM -->
+    <div class="sec" id="sec-vendor">
+      <div class="create-nav-tabs">
+        <button type="button" class="create-nav-tab" onclick="show('create'); return false;">
+          💳 New Voucher
+        </button>
+        <button type="button" class="create-nav-tab active" onclick="show('vendor'); return false;">
+          🏢 Vendor Form
+        </button>
+        <button type="button" class="create-nav-tab" onclick="show('vendorledger'); return false;">
+          📒 Vendor Ledger
+        </button>
+      </div>
+
+      <div class="vendor-form-wrapper" id="CARD_VENDOR_FORM">
+        <!-- Title Header -->
+        <div style="text-align:center;margin-bottom:1.6rem;">
+          <h1 style="font-family:'Inter',sans-serif;font-size:26px;font-weight:800;color:#002D72;letter-spacing:0.8px;margin-bottom:4px;">VENDOR FORM</h1>
+          <p style="color:#555;font-size:13px;">Enter vendor details. Vendor ID will be generated automatically.</p>
+        </div>
+
+        <input type="hidden" id="f_v_college" value="smgg">
+
+        <!-- 1. VENDOR INFORMATION -->
+        <div class="vendor-sec-block">
+          <div class="vendor-sec-tag">1. VENDOR INFORMATION</div>
+          <div class="fr">
+            <div class="fi">
+              <label>Vendor ID (Auto Generated)</label>
+              <input type="text" id="f_v_id" value="V00001" readonly style="background:#f1f5f9;color:#334155;font-weight:700;font-family:monospace;letter-spacing:1px;">
+            </div>
+            <div class="fi">
+              <label>Vendor Company Name *</label>
+              <input type="text" id="f_v_company" placeholder="Enter vendor company name" list="DL_VENDORS">
+            </div>
+          </div>
+          <div class="fr">
+            <div class="fi">
+              <label>Vendor Name *</label>
+              <input type="text" id="f_v_name" placeholder="Enter vendor name">
+            </div>
+            <div class="fi">
+              <label>Vendor Phone Number *</label>
+              <input type="tel" id="f_v_phone" maxlength="15" placeholder="Enter 10 digit mobile number">
+            </div>
+          </div>
+          <div class="fr">
+            <div class="fi">
+              <label>Vendor PAN Number *</label>
+              <input type="text" id="f_v_pan" maxlength="10" placeholder="Enter PAN number (e.g. ABCDE1234F)" style="text-transform:uppercase;font-family:monospace;font-weight:600;">
+            </div>
+            <div class="fi">
+              <label>Email Address</label>
+              <input type="email" id="f_v_email" placeholder="Enter email address (optional)">
+            </div>
+          </div>
+          <div class="fr f">
+            <div class="fi">
+              <label>Vendor Address</label>
+              <textarea id="f_v_address" placeholder="Enter complete address" style="min-height:55px;"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. WORK DETAILS -->
+        <div class="vendor-sec-block">
+          <div class="vendor-sec-tag">2. WORK DETAILS</div>
+          <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:1.2rem;">
+            <div class="fi" style="display:flex;flex-direction:column;">
+              <label>Work Description *</label>
+              <textarea id="f_v_work_desc" placeholder="Enter work description / scope of work" style="flex:1;min-height:190px;"></textarea>
+            </div>
+            <div>
+              <div class="fi" style="margin-bottom:8px;">
+                <label>Vendor Agreements (Upload up to 3 files)</label>
+              </div>
+              <div class="vendor-file-slots-grid">
+                <div id="VENDOR_FILE_SLOT_0" class="vendor-file-slot"></div>
+                <div id="VENDOR_FILE_SLOT_1" class="vendor-file-slot"></div>
+                <div id="VENDOR_FILE_SLOT_2" class="vendor-file-slot"></div>
+              </div>
+              <div style="display:flex;gap:8px;margin-bottom:12px;">
+                <button type="button" class="vendor-btn-outline" style="flex:1;justify-content:center;padding:5px;" onclick="previewVendorAgreement()">👁 Preview</button>
+                <button type="button" class="vendor-btn-outline" style="flex:1;justify-content:center;padding:5px;" onclick="resetVendorForm()">✏ Edit</button>
+              </div>
+              <div class="fr" style="margin-bottom:0;">
+                <div class="fi">
+                  <label>Agreement Start Date *</label>
+                  <div class="date-filter-field" style="width:100%;">
+                    <input type="text" id="f_v_period_start_DISPLAY" class="date-filter-display" style="width:100%;background:#fff;" placeholder="dd-mm-yyyy" readonly onclick="openDateFilterPicker('f_v_period_start')" title="Agreement Start Date (DD-MM-YYYY)">
+                    <input type="date" id="f_v_period_start" class="date-filter-native" onchange="syncDateFilterDisplay('f_v_period_start')" tabindex="-1" aria-hidden="true">
+                    <button type="button" class="date-filter-button" onclick="openDateFilterPicker('f_v_period_start')" aria-label="Select start date">📅</button>
+                  </div>
+                </div>
+                <div class="fi">
+                  <label>Agreement End Date *</label>
+                  <div class="date-filter-field" style="width:100%;">
+                    <input type="text" id="f_v_period_end_DISPLAY" class="date-filter-display" style="width:100%;background:#fff;" placeholder="dd-mm-yyyy" readonly onclick="openDateFilterPicker('f_v_period_end')" title="Agreement End Date (DD-MM-YYYY)">
+                    <input type="date" id="f_v_period_end" class="date-filter-native" onchange="syncDateFilterDisplay('f_v_period_end')" tabindex="-1" aria-hidden="true">
+                    <button type="button" class="date-filter-button" onclick="openDateFilterPicker('f_v_period_end')" aria-label="Select end date">📅</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. FINANCIAL DETAILS -->
+        <div class="vendor-sec-block">
+          <div class="vendor-sec-tag">3. FINANCIAL DETAILS</div>
+          <div class="fr">
+            <div class="fi">
+              <label>Vendor Amount (Agreed) *</label>
+              <div class="vendor-addon-wrap">
+                <span class="vendor-addon">₹</span>
+                <input type="number" id="f_v_amount" class="vendor-addon-input" placeholder="Enter agreed amount" min="0" step="any" oninput="if(typeof autoWords==='function') autoWords('f_v_amount','f_v_words')">
+              </div>
+              <div style="font-size:11px;color:#64748b;margin-top:3px;">(e.g. ₹ 5,00,000.00)</div>
+            </div>
+            <div class="fi">
+              <label>Amount in Words</label>
+              <input type="text" id="f_v_words" placeholder="Amount in words will appear here automatically" readonly style="background:#f8fafc;color:#475569;font-style:italic;">
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. ADDITIONAL INFORMATION & AUTHORIZATION -->
+        <div class="vendor-sec-block">
+          <div class="vendor-sec-tag">4. ADDITIONAL INFORMATION &amp; AUTHORIZATION</div>
+          <div class="fr t">
+            <div class="fi">
+              <label>GST Number</label>
+              <input type="text" id="f_v_gst" placeholder="Enter GST number (if applicable)" style="text-transform:uppercase;font-family:monospace;">
+            </div>
+            <div class="fi">
+              <label>Bank Account Details</label>
+              <input type="text" id="f_v_bank" placeholder="Enter bank account details (optional)">
+            </div>
+            <div class="fi">
+              <label>Remarks</label>
+              <input type="text" id="f_v_remarks" placeholder="Enter any remarks (optional)">
+            </div>
+          </div>
+          <div class="fr t" style="margin-top:8px;">
+            <div class="fi">
+              <label>Authorized Signatory (Organization) *</label>
+              <input type="text" id="f_v_auth_by" placeholder="e.g. Principal / Secretary / Director">
+            </div>
+            <div class="fi">
+              <label>Signatory Designation</label>
+              <input type="text" id="f_v_auth_role" placeholder="e.g. Principal / AO / Finance Head">
+            </div>
+            <div class="fi">
+              <label>Agreement Place</label>
+              <input type="text" id="f_v_auth_place" placeholder="e.g. Chebrolu / Guntur">
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer Action Bar -->
+        <div class="vendor-action-footer">
+          <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#0284c7;font-weight:500;">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#0284c7;color:#fff;font-size:11px;font-weight:bold;">i</span>
+            Fields above will be saved and linked to all debit vouchers.
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button type="button" class="vendor-btn-outline" onclick="resetVendorForm()" title="Cancel / Clear">✕ Cancel</button>
+            <button type="button" class="vendor-btn-outline" onclick="previewVendorAgreement()" title="Preview Agreement">👁 Preview</button>
+            <button type="button" class="vendor-btn-outline" onclick="resetVendorForm()" title="Reset Form">✏ Edit</button>
+            <button type="button" class="vendor-btn-primary" id="BTN_SAVE_VENDOR" onclick="saveVendor()" title="Save Vendor &amp; Generate Agreement">💾 Save Vendor</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- REGISTERED VENDORS LIST CARD -->
+      <div class="card" style="margin-top:1.2rem;">
+        <div class="ch" style="flex-wrap:wrap;gap:10px;">
+          <div>
+            <span class="ct">Registered Vendors &amp; Agreements</span>
+            <div id="VENDOR_COUNT_MSG" style="font-size:11px;color:var(--G600);margin-top:2px;">Loading vendors...</div>
+          </div>
+          <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
+            <button class="btn bg bsm" onclick="doExportVendorsExcel()" title="📥 Export Vendors Excel">📥 Export Excel</button>
+            <button class="btn bs bsm" onclick="renderVendorsTable()" title="↺ Refresh Table">↺ Refresh</button>
+          </div>
+        </div>
+
+        <!-- Search & Filter Bar -->
+        <div class="sb2" style="margin-bottom:.8rem;">
+          <input type="text" id="VENDOR_SEARCH" placeholder="Search Vendor ID, company, contact person, phone, PAN, GST..." oninput="renderVendorsTable()">
+          <select id="VENDOR_FILTER_COLLEGE" onchange="renderVendorsTable()">
+            <option value="">All Colleges</option>
+            <option value="smgg">SMGG (Chebrolu)</option>
+            <option value="smwec">SMWEC (Budampadu)</option>
+          </select>
+          <button class="btn bs bsm" onclick="document.getElementById('VENDOR_SEARCH').value='';document.getElementById('VENDOR_FILTER_COLLEGE').value='';renderVendorsTable();" title="Clear Filters">Clear Filters</button>
+        </div>
+
+        <!-- Table -->
+        <div class="twrap" style="max-height:480px;overflow-y:auto;">
+          <table>
+            <thead>
+              <tr style="position:sticky;top:0;z-index:2;background:var(--W);">
+                <th>Vendor ID &amp; Company</th>
+                <th>Contact, PAN &amp; Email</th>
+                <th>Agreed Amount</th>
+                <th>Work Description</th>
+                <th>Agreement Date</th>
+                <th>Agreement Files</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="VENDOR_TABLE_BODY"></tbody>
+          </table>
+        </div>
+        <div id="VENDOR_EMPTY_MSG" style="text-align:center;padding:2rem;color:var(--G400);display:none">No vendors found matching your search.</div>
+      </div>
+    </div>
+
+    <!-- VENDOR LEDGER -->
+    <div class="sec" id="sec-vendorledger">
+      <div class="create-nav-tabs">
+        <button type="button" class="create-nav-tab" onclick="show('create'); return false;">
+          💳 New Voucher
+        </button>
+        <button type="button" class="create-nav-tab" onclick="show('vendor'); return false;">
+          🏢 Vendor Form
+        </button>
+        <button type="button" class="create-nav-tab active" onclick="show('vendorledger'); return false;">
+          📒 Vendor Ledger
+        </button>
+      </div>
+
+      <div class="ph" style="margin-bottom:.8rem">
+        <h1 style="font-size:22px;color:#002D72;font-weight:800;">Vendor Ledger &amp; Accounts</h1>
+        <p>Track vendor contract balances, linked debit vouchers, agreements &amp; disbursement progress</p>
+      </div>
+
+      <!-- TOP VENDOR LEDGER SEARCH & FILTERS BAR -->
+      <div class="vendor-top-search-card" id="VL_TOP_SEARCH_BAR">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+          <div style="font-size:13px;font-weight:700;color:#002D72;display:flex;align-items:center;gap:6px;">
+            <span>🔍 Search &amp; Filter Vendor Ledger:</span>
+            <span style="font-size:11.5px;font-weight:normal;color:#64748b;">(Filter by Date, Vendor, Agreement status, Payment status, ID, PAN)</span>
+          </div>
+          <div id="VL_SEARCH_RESULTS_INFO" style="font-size:11.5px;color:#002D72;font-weight:600;"></div>
+        </div>
+
+        <div class="vendor-search-input-wrap" style="margin-bottom:12px;">
+          <span class="vendor-search-icon">🔎</span>
+          <input type="text" id="VL_SEARCH" class="vendor-top-search-inp" placeholder="Search Vendor ID (e.g. V00001), Company Name, Vendor Name, Phone Number, PAN Number..." oninput="renderVendorLedgerTable()" autofocus>
+          <button type="button" class="btn bs bsm" onclick="clearVendorLedgerSearch()" style="padding:4px 10px;font-size:11px;" title="Clear Search">✕ Clear</button>
+        </div>
+
+        <!-- Filter Controls Grid: Date, Vendor, Agreement Status, Payment Status, College -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));gap:10px;background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px solid #e2e8f0;align-items:end;">
+          <!-- 1. Date Range Filter -->
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:block;">📅 Date From</label>
+            <div class="date-filter-field" style="width:100%;">
+              <input type="text" id="VL_DF_DISPLAY" class="date-filter-display" style="width:100%;background:#fff;font-size:12px;" placeholder="DD/MM/YYYY" readonly onclick="openDateFilterPicker('VL_DF')" title="From Date (DD/MM/YYYY)">
+              <input type="date" id="VL_DF" class="date-filter-native" onchange="syncDateFilterDisplay('VL_DF');renderVendorLedgerTable()" tabindex="-1" aria-hidden="true">
+              <button type="button" class="date-filter-button" onclick="openDateFilterPicker('VL_DF')" aria-label="Select from date">📅</button>
+            </div>
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:block;">📅 Date To</label>
+            <div class="date-filter-field" style="width:100%;">
+              <input type="text" id="VL_DT_DISPLAY" class="date-filter-display" style="width:100%;background:#fff;font-size:12px;" placeholder="DD/MM/YYYY" readonly onclick="openDateFilterPicker('VL_DT')" title="To Date (DD/MM/YYYY)">
+              <input type="date" id="VL_DT" class="date-filter-native" onchange="syncDateFilterDisplay('VL_DT');renderVendorLedgerTable()" tabindex="-1" aria-hidden="true">
+              <button type="button" class="date-filter-button" onclick="openDateFilterPicker('VL_DT')" aria-label="Select to date">📅</button>
+            </div>
+          </div>
+
+          <!-- 2. Vendor Selector Filter -->
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:block;">🏢 Vendor</label>
+            <select id="VL_FILTER_VENDOR" onchange="renderVendorLedgerTable()" style="width:100%;padding:6px 8px;font-size:12px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#1e293b;">
+              <option value="">All Vendors</option>
+            </select>
+          </div>
+
+          <!-- 3. Agreement Status Filter -->
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:block;">📜 Agreement Status</label>
+            <select id="VL_FILTER_AGREEMENT_STATUS" onchange="renderVendorLedgerTable()" style="width:100%;padding:6px 8px;font-size:12px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#1e293b;">
+              <option value="">All Agreement Statuses</option>
+              <option value="active">🟢 Active</option>
+              <option value="expiring_soon">🟡 Expiring Soon (≤30d)</option>
+              <option value="expired">🔴 Expired</option>
+              <option value="not_started">⏳ Not Started</option>
+              <option value="completed">🔵 Completed</option>
+              <option value="terminated">⛔ Terminated</option>
+            </select>
+          </div>
+
+          <!-- 4. Payment Status Filter -->
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:block;">💳 Payment Status</label>
+            <select id="VL_FILTER_STATUS" onchange="renderVendorLedgerTable()" style="width:100%;padding:6px 8px;font-size:12px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#1e293b;">
+              <option value="">All Payment Statuses</option>
+              <option value="pending">Pending Payment (Remaining Bal)</option>
+              <option value="partial">Partially Paid</option>
+              <option value="paid">Fully Paid (100%)</option>
+              <option value="unpaid">Unpaid (0%)</option>
+            </select>
+          </div>
+
+          <!-- 5. College Filter & Reset -->
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:block;">🏛️ College / Actions</label>
+            <div style="display:flex;gap:6px;">
+              <select id="VL_FILTER_COLLEGE" onchange="renderVendorLedgerTable()" style="flex:1;padding:6px 8px;font-size:12px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#1e293b;">
+                <option value="">All Colleges</option>
+                <option value="smgg">SMGG (Chebrolu)</option>
+                <option value="smwec">SMWEC (Budampadu)</option>
+              </select>
+              <button type="button" class="btn bs bsm" onclick="clearVendorLedgerSearch()" style="padding:6px 10px;font-size:11.5px;white-space:nowrap;" title="Reset All Filters">↺ Reset</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:10px;">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <span style="font-size:11px;color:#64748b;font-weight:600;">Status Shortcuts:</span>
+            <button type="button" class="vendor-search-chip" onclick="setQuickFilter('agreement', 'active')">🟢 Active</button>
+            <button type="button" class="vendor-search-chip" onclick="setQuickFilter('agreement', 'expiring_soon')">🟡 Expiring Soon</button>
+            <button type="button" class="vendor-search-chip" onclick="setQuickFilter('agreement', 'expired')">🔴 Expired</button>
+            <button type="button" class="vendor-search-chip" onclick="setQuickFilter('agreement', 'not_started')">⏳ Not Started</button>
+            <button type="button" class="vendor-search-chip" onclick="setQuickFilter('payment', 'pending')">⏳ Pending Payment</button>
+            <button type="button" class="vendor-search-chip" onclick="setQuickFilter('payment', 'paid')">✅ Fully Paid</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5 VENDOR SUMMARY CARDS -->
+      <div class="vendor-ledger-metrics" style="grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));margin-bottom:1.2rem;">
+        <div class="vl-card blue">
+          <div class="vl-lbl">Total Vendors</div>
+          <div class="vl-val" id="VLM_TOTAL_COUNT">0</div>
+          <div class="vl-sub">All Registered Accounts</div>
+        </div>
+        <div class="vl-card green">
+          <div class="vl-lbl">Active Vendors</div>
+          <div class="vl-val" id="VLM_ACTIVE_COUNT" style="color:#15803d;">0</div>
+          <div class="vl-sub">Active Agreements</div>
+        </div>
+        <div class="vl-card purple">
+          <div class="vl-lbl">Total Agreed Amount</div>
+          <div class="vl-val" id="VLM_TOTAL_AGREED" style="color:#7c3aed;">₹ 0.00</div>
+          <div class="vl-sub">Total Contract Value</div>
+        </div>
+        <div class="vl-card amber">
+          <div class="vl-lbl">Total Paid</div>
+          <div class="vl-val" id="VLM_TOTAL_PAID" style="color:#0284c7;">₹ 0.00</div>
+          <div class="vl-sub" id="VLM_TOTAL_VOUCHERS">0 Linked Vouchers</div>
+        </div>
+        <div class="vl-card" style="border-left:4px solid #b91c1c;">
+          <div class="vl-lbl">Outstanding</div>
+          <div class="vl-val" id="VLM_TOTAL_BALANCE" style="color:#b91c1c;">₹ 0.00</div>
+          <div class="vl-sub" id="VLM_PAID_PERCENT">0% Disbursed</div>
+        </div>
+      </div>
+
+      <!-- Main Ledger Card -->
+      <div class="card">
+        <div class="ch" style="flex-wrap:wrap;gap:10px;">
+          <div>
+            <span class="ct">Vendor Ledger Register</span>
+            <div id="VL_COUNT_MSG" style="font-size:11px;color:var(--G600);margin-top:2px;">Loading vendor ledgers...</div>
+          </div>
+          <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
+            <button class="btn bg bsm" onclick="exportAllVendorLedgersExcel()" title="📥 Export All Ledgers (Excel)">📥 Export Ledgers Excel</button>
+            <button class="btn bs bsm" onclick="renderVendorLedgerTable()" title="↺ Refresh Ledger">↺ Refresh</button>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="twrap" style="max-height:540px;overflow-y:auto;">
+          <table>
+            <thead>
+              <tr style="position:sticky;top:0;z-index:2;background:var(--W);">
+                <th>Vendor ID &amp; Company</th>
+                <th>Phone &amp; PAN</th>
+                <th>Agreed Amount</th>
+                <th>Total Paid (Vouchers)</th>
+                <th>Balance Remaining</th>
+                <th>Disbursement Progress</th>
+                <th>Agreement Period</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="VENDOR_LEDGER_TABLE_BODY"></tbody>
+          </table>
+        </div>
+        <div id="VENDOR_LEDGER_EMPTY_MSG" style="text-align:center;padding:2.5rem;color:var(--G400);display:none">No vendor ledger accounts found matching your search.</div>
       </div>
     </div>
 
@@ -738,6 +1168,112 @@
 <datalist id="DL_PHONES">
 </datalist>
 
+<!-- VENDORS DATALIST -->
+<datalist id="DL_VENDORS">
+</datalist>
+
+<!-- INTERACTIVE VENDOR LEDGER STATEMENT MODAL -->
+<div class="mo h" id="VENDOR_LEDGER_MODAL">
+  <div class="md" style="max-width:1050px;width:96%;height:92vh;display:flex;flex-direction:column;">
+    <div class="mh" style="padding:14px 20px;background:#f8fafc;border-bottom:1.5px solid #e2e8f0;">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <h2 id="VLM_HEAD_TITLE" style="font-size:18px;color:#002D72;margin:0;font-weight:800;">Vendor Ledger Statement</h2>
+          <span id="VLM_HEAD_BADGE" style="font-family:monospace;font-weight:700;background:#002D72;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px;">V00001</span>
+        </div>
+        <div id="VLM_HEAD_SUB" style="font-size:12px;color:#64748b;margin-top:2px;">Company &bull; Contact &bull; PAN</div>
+      </div>
+      <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
+        <button type="button" class="btn bp bsm" id="BTN_VLM_ADD_DEBIT" onclick="createDebitForActiveVendor()" title="+ Create Debit Voucher for this Vendor">+ Create Debit Voucher</button>
+        <button type="button" class="btn bg bsm" onclick="exportActiveVendorLedgerExcel()" title="📥 Export Excel">📥 Export Excel</button>
+        <button type="button" class="btn bs bsm" onclick="printActiveVendorLedger()" title="🖨 Print Statement">🖨 Print Statement</button>
+        <button type="button" class="cbtn" onclick="document.getElementById('VENDOR_LEDGER_MODAL').classList.add('h')" title="Close">✕</button>
+      </div>
+    </div>
+    
+    <div class="mb" style="flex:1;overflow:auto;padding:16px 20px;background:#f1f5f9;">
+      <!-- Financial Metrics Ribbon -->
+      <div class="vendor-ledger-metrics" style="margin-bottom:14px;">
+        <div class="vl-card blue" style="padding:10px 14px;">
+          <div class="vl-lbl">Agreed Contract Amount</div>
+          <div class="vl-val" id="VLM_DETAIL_AGREED" style="font-size:18px;color:#b91c1c;">₹ 0.00</div>
+          <div class="vl-sub" id="VLM_DETAIL_WORDS">Rupees Only</div>
+        </div>
+        <div class="vl-card green" style="padding:10px 14px;">
+          <div class="vl-lbl">Total Paid to Date</div>
+          <div class="vl-val" id="VLM_DETAIL_PAID" style="font-size:18px;color:#15803d;">₹ 0.00</div>
+          <div class="vl-sub" id="VLM_DETAIL_VOUCHER_COUNT">0 linked debit vouchers</div>
+        </div>
+        <div class="vl-card amber" style="padding:10px 14px;">
+          <div class="vl-lbl">Remaining Balance</div>
+          <div class="vl-val" id="VLM_DETAIL_BALANCE" style="font-size:18px;color:#b45309;">₹ 0.00</div>
+          <div class="vl-sub" id="VLM_DETAIL_PERCENT">0% Disbursed</div>
+        </div>
+      </div>
+
+      <!-- Modal Tabs Navigation -->
+      <div class="modal-tabs" style="background:#fff;padding:8px 12px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+        <button type="button" class="modal-tab-btn active" id="TAB_BTN_VOUCHERS" onclick="switchLedgerModalTab('vouchers')">💳 Linked Debit Vouchers (<span id="VLM_TAB_COUNT">0</span>)</button>
+        <button type="button" class="modal-tab-btn" id="TAB_BTN_AGREEMENT" onclick="switchLedgerModalTab('agreement')">📜 Generated Vendor Agreement</button>
+        <button type="button" class="modal-tab-btn" id="TAB_BTN_PROFILE" onclick="switchLedgerModalTab('profile')">🏢 Complete Profile &amp; Bank Details</button>
+      </div>
+
+      <!-- Tab Content 1: Linked Debit Vouchers -->
+      <div id="TAB_CONTENT_VOUCHERS" class="card" style="margin-top:0;padding:16px;">
+        <div class="ch" style="margin-bottom:12px;">
+          <span class="ct">Linked Debit Vouchers Statement</span>
+          <button type="button" class="btn bp bsm" onclick="createDebitForActiveVendor()">+ Add Debit Voucher</button>
+        </div>
+        <div class="twrap" style="max-height:420px;overflow-y:auto;">
+          <table>
+            <thead>
+              <tr style="position:sticky;top:0;z-index:2;background:var(--W);">
+                <th>Voucher No</th>
+                <th>Date</th>
+                <th>Debit Head</th>
+                <th>Towards / Purpose</th>
+                <th>Payment Mode &amp; Ref</th>
+                <th>Amount (Rs.)</th>
+                <th>Entered By</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="VLM_VOUCHERS_TABLE_BODY"></tbody>
+            <tfoot id="VLM_VOUCHERS_TABLE_FOOT" style="font-weight:700;background:#f8fafc;border-top:2px solid #cbd5e1;"></tfoot>
+          </table>
+        </div>
+        <div id="VLM_VOUCHERS_EMPTY" style="text-align:center;padding:2rem;color:var(--G400);display:none">No debit vouchers recorded for this vendor yet.</div>
+      </div>
+
+      <!-- Tab Content 2: Vendor Agreement -->
+      <div id="TAB_CONTENT_AGREEMENT" style="display:none;">
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;">
+          <button type="button" class="btn bp bsm" onclick="printActiveVendorAgreement()">🖨 Print Agreement Document</button>
+        </div>
+        <div id="VLM_AGREEMENT_CONTAINER"></div>
+      </div>
+
+      <!-- Tab Content 3: Vendor Profile -->
+      <div id="TAB_CONTENT_PROFILE" class="card" style="display:none;margin-top:0;padding:16px;">
+        <div id="VLM_PROFILE_CONTAINER"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VENDOR FILE VIEWER MODAL -->
+<div class="mo h" id="VENDOR_FILE_MODAL">
+  <div class="md" style="max-width:900px;width:95%;height:85vh;display:flex;flex-direction:column;">
+    <div class="mh" style="padding:12px 18px;background:#f8fafc;border-bottom:1.5px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+      <h2 id="VFM_TITLE" style="font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0;color:#002D72;">File Preview</h2>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <a id="VFM_DOWNLOAD" class="btn bp bsm" download title="Download file">⬇ Download</a>
+        <button type="button" class="cbtn" onclick="document.getElementById('VENDOR_FILE_MODAL').classList.add('h')" title="Close">✕</button>
+      </div>
+    </div>
+    <div class="mb" id="VFM_BODY" style="flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;background:#1e1e1e;padding:10px;border-radius:0 0 16px 16px;"></div>
+  </div>
+</div>
 
 </body>
 </html>
