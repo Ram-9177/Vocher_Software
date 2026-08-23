@@ -599,6 +599,36 @@
 
       return false;
     });
+
+    // Helper to convert date string/property to YYYY-MM-DD ISO for accurate chronological sorting
+    var toIso = function(x) {
+      if (!x) return '';
+      if (x.dateISO && typeof x.dateISO === 'string') return x.dateISO;
+      var d = String(x.date || '').trim().replace(/\//g, '-');
+      var parts = d.split('-');
+      if (parts.length === 3) {
+        if (parts[2].length === 4) {
+          return parts[2] + '-' + parts[1].padStart(2, '0') + '-' + parts[0].padStart(2, '0');
+        }
+        if (parts[0].length === 4) {
+          return parts[0] + '-' + parts[1].padStart(2, '0') + '-' + parts[2].padStart(2, '0');
+        }
+      }
+      return d;
+    };
+
+    // Sort entries chronologically: earliest/previous date first, subsequent dates below sequentially
+    matched.sort(function(a, b) {
+      var da = toIso(a);
+      var db = toIso(b);
+      if (da < db) return -1;
+      if (da > db) return 1;
+      var idA = parseInt(a.id || a.vno || 0) || 0;
+      var idB = parseInt(b.id || b.vno || 0) || 0;
+      return idA - idB;
+    });
+
+    return matched;
   };
 
   // Calculate complete financial statement for a vendor
@@ -1044,10 +1074,9 @@
         var modeRef = sanitize(item.mode || 'Cash') + (item.cheque ? ' (Ref: ' + sanitize(item.cheque) + ')' : '');
 
         vHtml += '<tr>' +
-          '<td><span style="font-family:monospace;font-weight:700;color:#002D72;">' + sanitize(item.id || item.vno || '—') + '</span></td>' +
-          '<td>' + dmy + '</td>' +
+          '<td><span style="font-weight:600;color:var(--T);">' + dmy + '</span></td>' +
           '<td><span style="font-weight:600;color:var(--T);">' + sanitize(item.head || 'Debit') + '</span></td>' +
-          '<td style="max-width:220px;font-size:12px;" title="' + sanitize(item.towards || '') + '">' + sanitize(item.towards || '—') + '</td>' +
+          '<td style="max-width:240px;font-size:12px;" title="' + sanitize(item.towards || '') + '">' + sanitize(item.towards || '—') + '</td>' +
           '<td>' + modeRef + '</td>' +
           '<td style="font-weight:700;color:#15803d;font-size:13px;">' + formatCurrency(item.amount) + '</td>' +
           '<td style="font-size:11.5px;color:var(--G600);">' + sanitize(item.by || 'admin1') + '</td>' +
@@ -1062,17 +1091,17 @@
       if (vtf) {
         vtf.innerHTML =
           '<tr>' +
-            '<td colspan="5" style="text-align:right;padding:8px 12px;font-size:12.5px;">TOTAL AMOUNT PAID VIA DEBIT VOUCHERS:</td>' +
+            '<td colspan="4" style="text-align:right;padding:8px 12px;font-size:12.5px;">TOTAL AMOUNT PAID VIA DEBIT VOUCHERS:</td>' +
             '<td style="padding:8px 10px;font-size:14px;color:#15803d;">' + formatCurrency(fin.totalPaid) + '</td>' +
             '<td colspan="2"></td>' +
           '</tr>' +
           '<tr>' +
-            '<td colspan="5" style="text-align:right;padding:8px 12px;font-size:12.5px;">AGREED CONTRACT VALUE:</td>' +
+            '<td colspan="4" style="text-align:right;padding:8px 12px;font-size:12.5px;">AGREED CONTRACT VALUE:</td>' +
             '<td style="padding:8px 10px;font-size:14px;color:#b91c1c;">' + formatCurrency(fin.agreedAmount) + '</td>' +
             '<td colspan="2"></td>' +
           '</tr>' +
           '<tr style="background:#eff6ff;">' +
-            '<td colspan="5" style="text-align:right;padding:8px 12px;font-size:13px;font-weight:800;color:#002D72;">OUTSTANDING BALANCE PENDING:</td>' +
+            '<td colspan="4" style="text-align:right;padding:8px 12px;font-size:13px;font-weight:800;color:#002D72;">OUTSTANDING BALANCE PENDING:</td>' +
             '<td style="padding:8px 10px;font-size:15px;font-weight:800;color:' + (fin.balance <= 0 ? '#15803d' : '#b45309') + ';">' + formatCurrency(fin.balance) + '</td>' +
             '<td colspan="2"><span class="badge-' + (fin.status === 'paid' ? 'paid' : (fin.status === 'partial' ? 'partial' : 'unpaid')) + '">' + (fin.paidPercent + '% Paid') + '</span></td>' +
           '</tr>';
@@ -1620,7 +1649,6 @@
 
       rowsHtml += '<tr>' +
         '<td style="padding:6px;border:1px solid #cbd5e1;text-align:center;">' + (idx + 1) + '</td>' +
-        '<td style="padding:6px;border:1px solid #cbd5e1;font-family:monospace;font-weight:700;">' + sanitize(item.id || item.vno || '—') + '</td>' +
         '<td style="padding:6px;border:1px solid #cbd5e1;">' + dmy + '</td>' +
         '<td style="padding:6px;border:1px solid #cbd5e1;">' + sanitize(item.head || 'Debit') + '</td>' +
         '<td style="padding:6px;border:1px solid #cbd5e1;">' + sanitize(item.towards || '—') + '</td>' +
@@ -1657,7 +1685,6 @@
           '<thead>' +
             '<tr style="background:#002D72;color:#fff;">' +
               '<th style="padding:5px 6px;border:1px solid #002D72;width:35px;">#</th>' +
-              '<th style="padding:5px 6px;border:1px solid #002D72;">Voucher No</th>' +
               '<th style="padding:5px 6px;border:1px solid #002D72;">Date</th>' +
               '<th style="padding:5px 6px;border:1px solid #002D72;">Debit Head</th>' +
               '<th style="padding:5px 6px;border:1px solid #002D72;">Towards / Purpose</th>' +
@@ -1666,19 +1693,19 @@
             '</tr>' +
           '</thead>' +
           '<tbody>' +
-            (rowsHtml || '<tr><td colspan="7" style="text-align:center;padding:16px;color:#888;">No debit vouchers recorded yet.</td></tr>') +
+            (rowsHtml || '<tr><td colspan="6" style="text-align:center;padding:16px;color:#888;">No debit vouchers recorded yet.</td></tr>') +
           '</tbody>' +
           '<tfoot>' +
             '<tr>' +
-              '<td colspan="6" style="text-align:right;padding:5px 8px;font-weight:700;border:1px solid #cbd5e1;">TOTAL AMOUNT DISBURSED:</td>' +
+              '<td colspan="5" style="text-align:right;padding:5px 8px;font-weight:700;border:1px solid #cbd5e1;">TOTAL AMOUNT DISBURSED:</td>' +
               '<td style="padding:5px 8px;text-align:right;font-weight:800;color:#15803d;border:1px solid #cbd5e1;">' + formatCurrency(fin.totalPaid) + '</td>' +
             '</tr>' +
             '<tr>' +
-              '<td colspan="6" style="text-align:right;padding:5px 8px;font-weight:700;border:1px solid #cbd5e1;">AGREED CONTRACT AMOUNT:</td>' +
+              '<td colspan="5" style="text-align:right;padding:5px 8px;font-weight:700;border:1px solid #cbd5e1;">AGREED CONTRACT AMOUNT:</td>' +
               '<td style="padding:5px 8px;text-align:right;font-weight:800;color:#b91c1c;border:1px solid #cbd5e1;">' + formatCurrency(fin.agreedAmount) + '</td>' +
             '</tr>' +
             '<tr style="background:#eff6ff;">' +
-              '<td colspan="6" style="text-align:right;padding:6px 8px;font-weight:800;color:#002D72;border:1.5px solid #93c5fd;">OUTSTANDING BALANCE PENDING:</td>' +
+              '<td colspan="5" style="text-align:right;padding:6px 8px;font-weight:800;color:#002D72;border:1.5px solid #93c5fd;">OUTSTANDING BALANCE PENDING:</td>' +
               '<td style="padding:6px 8px;text-align:right;font-weight:800;font-size:13px;color:' + (fin.balance <= 0 ? '#15803d' : '#b45309') + ';border:1.5px solid #93c5fd;">' + formatCurrency(fin.balance) + '</td>' +
             '</tr>' +
           '</tfoot>' +

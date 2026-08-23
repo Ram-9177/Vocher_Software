@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260823-compact-nav-v38';
+  var buildVersion = '20260823-ledger-sort-v39';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;

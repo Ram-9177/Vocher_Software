@@ -865,6 +865,11 @@ tr.oa-cleared-row td {
   padding: 1rem;
 }
 
+#PM,
+#VENDOR_FILE_MODAL {
+  z-index: 600;
+}
+
 .mo.h {
   display: none;
 }

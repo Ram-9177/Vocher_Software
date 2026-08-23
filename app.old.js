@@ -1435,7 +1435,7 @@ function _detectQZ(){
 function _buildPrintDoc(html, sel){
   var pageCSS, bodyHTML;
   var docTitle = "St Mary's Voucher";
-  var COLOR_EXACT = '*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}';
+  var COLOR_EXACT = '*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}';
 
   var isA4Doc = (sel === 'a4_full') ||
                 html.indexOf('vendor-agreement-sheet') !== -1 ||
