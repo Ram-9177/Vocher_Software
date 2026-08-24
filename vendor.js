@@ -572,7 +572,7 @@
     var compClean = v ? normalizeCleanStr(v.companyName || v.company || '') : '';
     var nameClean = v ? normalizeCleanStr(v.vendorName || v.name || '') : '';
 
-    return vsList.filter(function(item) {
+    var matched = vsList.filter(function(item) {
       if (!item) return false;
       // Must be a debit voucher
       var t = String(item.type || '').toLowerCase();
