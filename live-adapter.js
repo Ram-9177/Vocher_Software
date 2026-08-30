@@ -308,6 +308,13 @@
         }
         syncNamedList(j,'heads',HEADS,'DL_HEADS');
         syncNamedList(j,'blocks',BLOCKS,'DL_BLOCKS');
+        if(Array.isArray(j.vendors)){
+          try{
+            if(typeof window.applyServerVendors==='function'){
+              window.applyServerVendors(j.vendors);
+            }
+          }catch(e){console.error('applyServerVendors error',e);}
+        }
         const currentUser=j.user;
         const nextUserSig=JSON.stringify(currentUser||{});
         if(currentUser&&nextUserSig!==userSig){

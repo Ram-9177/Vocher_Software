@@ -99,6 +99,19 @@ async function handle(context) {
     return await deleteVoucher(env.DB, user, body.id, ip);
   }
   if (action === 'listHeads') return await listHeads(env.DB, user, body);
+  if (action === 'listVendors') return await listVendors(env.DB, user, body);
+  if (action === 'saveVendor') {
+    return await saveVendor(env.DB, user, body, ip);
+  }
+  if (action === 'saveVendorsBulk') {
+    return await saveVendorsBulk(env.DB, user, body, ip);
+  }
+  if (action === 'deleteVendor') {
+    if (!isAdmin1 && !hasPermission(user, 'manage_vendors')) {
+      throwError('Access denied. Missing manage_vendors permission.', 403);
+    }
+    return await deleteVendor(env.DB, user, body, ip);
+  }
   if (action === 'addHead') {
     if (!isAdmin1 && !hasPermission(user, 'account_heads')) {
       throwError('Access denied. Missing account_heads permission.', 403);
@@ -363,9 +376,12 @@ async function ensureSchema(DB, env) {
   try { await DB.prepare("ALTER TABLE vouchers ADD COLUMN vendor_id TEXT").run(); } catch(e) {}
   await DB.prepare("CREATE TABLE IF NOT EXISTS account_heads (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,name_norm TEXT NOT NULL,type TEXT NOT NULL DEFAULT 'common',college TEXT NOT NULL DEFAULT 'smgg',created_by TEXT NOT NULL,created_at TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 1,UNIQUE(name_norm,college))").run();
   await DB.prepare("CREATE TABLE IF NOT EXISTS blocks (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,name_norm TEXT NOT NULL,college TEXT NOT NULL DEFAULT 'smgg',created_by TEXT NOT NULL,created_at TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 1,UNIQUE(name_norm,college))").run();
+  await DB.prepare("CREATE TABLE IF NOT EXISTS vendors (id TEXT PRIMARY KEY,vendor_id TEXT NOT NULL,college TEXT NOT NULL DEFAULT 'smgg',company_name TEXT NOT NULL,vendor_name TEXT,phone TEXT,pan TEXT,aadhaar TEXT,email TEXT,gst_number TEXT,bank_account_details TEXT,work_description TEXT,agreed_amount REAL NOT NULL DEFAULT 0,amount_in_words TEXT,period_start TEXT,period_end TEXT,auth_by TEXT,auth_role TEXT,auth_place TEXT,remarks TEXT,data_json TEXT,created_by TEXT NOT NULL,created_at TEXT NOT NULL,updated_by TEXT,updated_at TEXT NOT NULL,deleted_at TEXT,deleted_by TEXT)").run();
   await DB.prepare("CREATE TABLE IF NOT EXISTS audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT,actor TEXT NOT NULL,action TEXT NOT NULL,entity_type TEXT NOT NULL,entity_id TEXT,details TEXT,ip TEXT,created_at TEXT NOT NULL)").run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vouchers_college_date ON vouchers(college,date)').run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vouchers_created_by ON vouchers(created_by)').run();
+  await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vendors_college ON vendors(college,deleted_at)').run();
+  await DB.prepare('CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at)').run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at)').run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vouchers_college_updated ON vouchers(college,updated_at)').run();
   const initialPassword = env && (env.ADMIN1_INITIAL_PASSWORD || env.ADMIN_BOOTSTRAP_PASSWORD);
@@ -478,7 +494,8 @@ async function syncData(DB,user,body){
   const results=await Promise.all([
     voucherRequest,
     DB.prepare('SELECT * FROM account_heads WHERE active=1 AND college=? ORDER BY name').bind(college).all(),
-    DB.prepare('SELECT * FROM blocks WHERE active=1 AND college=? ORDER BY name').bind(college).all()
+    DB.prepare('SELECT * FROM blocks WHERE active=1 AND college=? ORDER BY name').bind(college).all(),
+    DB.prepare('SELECT * FROM vendors WHERE deleted_at IS NULL AND college=? ORDER BY vendor_id ASC, created_at DESC').bind(college).all()
   ]);
   let users;
   if(body.includeUsers&&(user.username==='admin'||['create_users','create_admin','manage_permissions','reset_passwords','block_users','manage_colleges','change_admin_key','view_audit'].some(function(permission){return hasPermission(user,permission);}))){
@@ -491,6 +508,7 @@ async function syncData(DB,user,body){
     newVouchersHash: (typeof serverHash !== 'undefined') ? serverHash : null,
     heads:results[1].results||[],
     blocks:results[2].results||[],
+    vendors:(results[3].results||[]).map(vendorFromDb),
     user:publicUser(user),
     users:users,
     version:API_VERSION
@@ -633,7 +651,127 @@ async function deleteUser(DB,actor,body,ip){
   await audit(DB,actor.username,'delete_user','user',username,'deleted',ip);
   return send({ok:true,version:API_VERSION});
 }
-async function listAudit(DB){const r=await DB.prepare('SELECT * FROM audit_logs ORDER BY id DESC LIMIT 500').all();return send({logs:r.results||[],version:API_VERSION});}
+function vendorFromDb(row) {
+  if (!row) return null;
+  let parsed = {};
+  if (row.data_json) {
+    try { parsed = JSON.parse(row.data_json); } catch(e) {}
+  }
+  return Object.assign({}, parsed, {
+    id: row.id || row.vendor_id,
+    vendorId: row.vendor_id || row.id,
+    vendor_id: row.vendor_id || row.id,
+    college: row.college || 'smgg',
+    companyName: row.company_name || parsed.companyName || parsed.company || '',
+    company: row.company_name || parsed.company || parsed.companyName || '',
+    vendorName: row.vendor_name || parsed.vendorName || parsed.name || '',
+    name: row.vendor_name || parsed.name || parsed.vendorName || '',
+    phone: row.phone || parsed.phone || '',
+    pan: row.pan || parsed.pan || '',
+    aadhaar: row.aadhaar || parsed.aadhaar || '',
+    email: row.email || parsed.email || '',
+    gstNumber: row.gst_number || parsed.gstNumber || '',
+    bankAccountDetails: row.bank_account_details || parsed.bankAccountDetails || '',
+    workDescription: row.work_description || parsed.workDescription || parsed.workDesc || '',
+    workDesc: row.work_description || parsed.workDesc || parsed.workDescription || '',
+    agreedAmount: Number(row.agreed_amount || parsed.agreedAmount || parsed.amount || 0),
+    amount: Number(row.agreed_amount || parsed.amount || parsed.agreedAmount || 0),
+    amountInWords: row.amount_in_words || parsed.amountInWords || parsed.amtWords || '',
+    amtWords: row.amount_in_words || parsed.amtWords || parsed.amountInWords || '',
+    periodStart: row.period_start || parsed.periodStart || parsed.agreementDate || '',
+    periodEnd: row.period_end || parsed.periodEnd || '',
+    agreementDate: row.period_start || parsed.agreementDate || '',
+    authBy: row.auth_by || parsed.authBy || '',
+    authRole: row.auth_role || parsed.authRole || '',
+    authPlace: row.auth_place || parsed.authPlace || 'Chebrolu / Guntur',
+    remarks: row.remarks || parsed.remarks || '',
+    agreement: parsed.agreement || {
+      agreementNo: parsed.agreementNo || ('AGR-' + (row.vendor_id || row.id)),
+      periodStart: row.period_start || parsed.periodStart || '',
+      periodEnd: row.period_end || parsed.periodEnd || '',
+      files: parsed.files || (parsed.agreement && parsed.agreement.files) || []
+    },
+    files: parsed.files || (parsed.agreement && parsed.agreement.files) || [],
+    createdAt: row.created_at || parsed.createdAt || '',
+    created_at: row.created_at || parsed.createdAt || '',
+    createdBy: row.created_by || parsed.createdBy || '',
+    created_by: row.created_by || parsed.createdBy || '',
+    updatedAt: row.updated_at || parsed.updatedAt || '',
+    updated_at: row.updated_at || parsed.updatedAt || ''
+  });
+}
+
+async function listVendors(DB, user, body) {
+  const college = allowedCollege(user, body.college);
+  const rows = await DB.prepare('SELECT * FROM vendors WHERE deleted_at IS NULL AND college=? ORDER BY vendor_id ASC, created_at DESC').bind(college).all();
+  return send({ vendors: (rows.results || []).map(vendorFromDb), version: API_VERSION });
+}
+
+async function saveVendor(DB, user, body, ip) {
+  const v = body.vendor || {};
+  const college = allowedCollege(user, v.college || body.college);
+  const vid = clean(v.vendorId || v.id || '', 50);
+  if (!vid) throwError('Vendor ID is required', 400);
+  const companyName = clean(v.companyName || v.company || '', 250);
+  const vendorName = clean(v.vendorName || v.name || '', 250);
+  if (!companyName && !vendorName) throwError('Vendor/Company name is required', 400);
+  
+  const phone = clean(v.phone || '', 50);
+  const pan = clean(v.pan || '', 50);
+  const aadhaar = clean(v.aadhaar || '', 50);
+  const email = clean(v.email || '', 120);
+  const gstNumber = clean(v.gstNumber || '', 50);
+  const bankAccountDetails = clean(v.bankAccountDetails || '', 500);
+  const workDescription = clean(v.workDescription || v.workDesc || '', 1000);
+  const agreedAmount = Number(v.agreedAmount || v.amount || 0) || 0;
+  const amountInWords = clean(v.amountInWords || v.amtWords || '', 500);
+  const periodStart = clean(v.periodStart || v.agreementDate || '', 30);
+  const periodEnd = clean(v.periodEnd || '', 30);
+  const authBy = clean(v.authBy || '', 120);
+  const authRole = clean(v.authRole || '', 120);
+  const authPlace = clean(v.authPlace || 'Chebrolu / Guntur', 120);
+  const remarks = clean(v.remarks || '', 1000);
+  const dataJson = JSON.stringify(v);
+  const createdAt = v.createdAt || now();
+  const updatedAt = now();
+
+  const existing = await DB.prepare('SELECT id, college FROM vendors WHERE (id=? OR vendor_id=?) AND college=? AND deleted_at IS NULL').bind(vid, vid, college).first();
+  if (existing) {
+    await DB.prepare('UPDATE vendors SET company_name=?,vendor_name=?,phone=?,pan=?,aadhaar=?,email=?,gst_number=?,bank_account_details=?,work_description=?,agreed_amount=?,amount_in_words=?,period_start=?,period_end=?,auth_by=?,auth_role=?,auth_place=?,remarks=?,data_json=?,updated_by=?,updated_at=? WHERE id=? AND college=?').bind(
+      companyName, vendorName, phone, pan, aadhaar, email, gstNumber, bankAccountDetails, workDescription, agreedAmount, amountInWords, periodStart, periodEnd, authBy, authRole, authPlace, remarks, dataJson, user.username, updatedAt, existing.id, college
+    ).run();
+    await audit(DB, user.username, 'update_vendor', 'vendor', vid, JSON.stringify({ company: companyName, amount: agreedAmount }), ip);
+    return send({ ok: true, vendorId: vid, version: API_VERSION });
+  } else {
+    await DB.prepare('INSERT INTO vendors(id,vendor_id,college,company_name,vendor_name,phone,pan,aadhaar,email,gst_number,bank_account_details,work_description,agreed_amount,amount_in_words,period_start,period_end,auth_by,auth_role,auth_place,remarks,data_json,created_by,created_at,updated_by,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(
+      vid, vid, college, companyName, vendorName, phone, pan, aadhaar, email, gstNumber, bankAccountDetails, workDescription, agreedAmount, amountInWords, periodStart, periodEnd, authBy, authRole, authPlace, remarks, dataJson, user.username, createdAt, user.username, updatedAt
+    ).run();
+    await audit(DB, user.username, 'create_vendor', 'vendor', vid, JSON.stringify({ company: companyName, amount: agreedAmount }), ip);
+    return send({ ok: true, vendorId: vid, version: API_VERSION });
+  }
+}
+
+async function saveVendorsBulk(DB, user, body, ip) {
+  const vendors = Array.isArray(body.vendors) ? body.vendors : [];
+  const college = allowedCollege(user, body.college);
+  for (const v of vendors) {
+    try {
+      await saveVendor(DB, user, { college: college, vendor: v }, ip);
+    } catch(e) {
+      console.error('saveVendorsBulk error for vendor', v && v.vendorId, e);
+    }
+  }
+  return send({ ok: true, count: vendors.length, version: API_VERSION });
+}
+
+async function deleteVendor(DB, user, body, ip) {
+  const id = clean(body.id || body.vendorId || '', 50);
+  const college = allowedCollege(user, body.college);
+  if (!id) throwError('Vendor ID is required', 400);
+  await DB.prepare('UPDATE vendors SET deleted_at=?,deleted_by=? WHERE (id=? OR vendor_id=?) AND college=? AND deleted_at IS NULL').bind(now(), user.username, id, id, college).run();
+  await audit(DB, user.username, 'delete_vendor', 'vendor', id, 'Deleted vendor ' + id, ip);
+  return send({ ok: true, id: id, version: API_VERSION });
+}
 async function audit(DB,actor,action,entityType,entityId,details,ip){await DB.prepare('INSERT INTO audit_logs(actor,action,entity_type,entity_id,details,ip,created_at) VALUES(?,?,?,?,?,?,?)').bind(actor||'system',action,entityType,entityId||'',details||'',ip||'',now()).run();}
 async function hashPassword(password,saltB64){const enc=new TextEncoder();const salt=saltB64?fromB64(saltB64):crypto.getRandomValues(new Uint8Array(16));const key=await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveBits']);const bits=await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:salt,iterations:PBKDF2_ITERATIONS},key,256);return{salt:toB64(salt),hash:toB64(new Uint8Array(bits))};}
 async function verifyPassword(password,salt,expected){const hp=await hashPassword(password,salt);return safeEqual(hp.hash,expected);}

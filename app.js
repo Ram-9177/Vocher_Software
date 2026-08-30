@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260823-agreement-clean-v40';
+  var buildVersion = '20260830-cloud-vendor-sync-v42';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;

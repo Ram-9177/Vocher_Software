@@ -37,6 +37,10 @@
       VENDORS = [];
     }
     updateVendorDatalist();
+    updateVendorAgreementSelect();
+    if (typeof loadVendorsFromCloud === 'function') {
+      loadVendorsFromCloud();
+    }
   }
   window.loadVendors = loadVendors;
   window.getVendorsCount = function() { return VENDORS.length; };
@@ -47,11 +51,68 @@
     if (typeof renderVendorLedgerTable === 'function') renderVendorLedgerTable();
   };
 
+  // Cloud loader
+  window.loadVendorsFromCloud = async function() {
+    var college = (window.CURRENT_COLLEGE || 'smgg').toLowerCase();
+    try {
+      if (typeof window._api === 'function') {
+        var res = await window._api('listVendors', { college: college });
+        if (res && Array.isArray(res.vendors)) {
+          window.applyServerVendors(res.vendors);
+        }
+      }
+    } catch(e) {
+      console.error('loadVendorsFromCloud error', e);
+    }
+  };
+
+  // Apply server vendors to state & UI
+  window.applyServerVendors = function(serverVendors) {
+    if (!Array.isArray(serverVendors)) return;
+    var college = (window.CURRENT_COLLEGE || 'smgg').toLowerCase();
+    var key = getStorageKey();
+    
+    if (serverVendors.length > 0) {
+      VENDORS = serverVendors;
+      try {
+        localStorage.setItem(key, JSON.stringify(VENDORS));
+      } catch(e) {}
+      updateVendorDatalist();
+      updateVendorAgreementSelect();
+      if (typeof renderVendorsTable === 'function') renderVendorsTable();
+      if (typeof renderVendorLedgerTable === 'function') renderVendorLedgerTable();
+    } else {
+      // Check if local cache has vendors to migrate/upload
+      var localRaw = localStorage.getItem(key) || localStorage.getItem('smv_vendors');
+      var localList = localRaw ? JSON.parse(localRaw) : [];
+      if (Array.isArray(localList) && localList.length > 0) {
+        VENDORS = localList;
+        updateVendorDatalist();
+        updateVendorAgreementSelect();
+        if (typeof renderVendorsTable === 'function') renderVendorsTable();
+        if (typeof renderVendorLedgerTable === 'function') renderVendorLedgerTable();
+        // Auto push existing local vendors to server
+        if (typeof window._api === 'function') {
+          window._api('saveVendorsBulk', { college: college, vendors: localList }).catch(function(err){
+            console.error('saveVendorsBulk auto-upload error', err);
+          });
+        }
+      } else {
+        VENDORS = [];
+        updateVendorDatalist();
+        updateVendorAgreementSelect();
+        if (typeof renderVendorsTable === 'function') renderVendorsTable();
+        if (typeof renderVendorLedgerTable === 'function') renderVendorLedgerTable();
+      }
+    }
+  };
+
   function saveVendorsToStorage() {
     try {
       var key = getStorageKey();
       localStorage.setItem(key, JSON.stringify(VENDORS));
       updateVendorDatalist();
+      updateVendorAgreementSelect();
     } catch(e) {
       console.error('Failed to save vendors to localStorage', e);
       if (typeof _toast === 'function') {
@@ -100,27 +161,9 @@
   }
   window.vendorToIso = toIso;
 
-  // Resolve Vendor ID from party/company name or ID string (optionally verifying voucher date against vendor start date)
+  // Decouple Party Name from Vendor ID automatic resolution (Party names must never automatically map to agreements)
   window.resolveVendorIdForParty = function(partyName, voucherDate) {
-    if (!partyName) return '';
-    var p = String(partyName).trim().toLowerCase();
-    var vDateIso = voucherDate ? toIso(voucherDate) : '';
-
-    var found = VENDORS.find(function(v) {
-      if (vDateIso) {
-        var vStart = toIso(v.periodStart || (v.agreement && v.agreement.periodStart) || v.agreementDate || (v.createdAt ? v.createdAt.slice(0, 10) : ''));
-        if (vStart && vDateIso < vStart) return false;
-      }
-
-      var vid = (v.vendorId || v.id || '').toLowerCase();
-      var comp = (v.companyName || v.company || '').toLowerCase();
-      var name = (v.vendorName || v.name || '').toLowerCase();
-      if (vid && p.indexOf(vid) > -1) return true;
-      if (comp && (p === comp || p.indexOf(comp) > -1 || comp.indexOf(p) > -1)) return true;
-      if (name && (p === name || p.indexOf(name) > -1)) return true;
-      return false;
-    });
-    return found ? (found.vendorId || found.id) : '';
+    return '';
   };
 
   function updateVendorDatalist() {
@@ -133,19 +176,50 @@
     dl.innerHTML = '';
     var items = [];
     VENDORS.forEach(function(v) {
-      var c = v.companyName || v.company || '';
-      var n = v.vendorName || v.name || '';
-      var vid = v.vendorId || v.id || '';
+      var c = (v.companyName || v.company || '').trim();
+      var n = (v.vendorName || v.name || '').trim();
       if (c && items.indexOf(c) === -1) items.push(c);
-      if (vid && c && items.indexOf(vid + ' - ' + c) === -1) items.push(vid + ' - ' + c);
       if (n && items.indexOf(n) === -1) items.push(n);
     });
+    // Also include past paidTo parties from VS
+    var vsList = getAllSystemVouchers();
+    if (Array.isArray(vsList)) {
+      vsList.forEach(function(item) {
+        var p = (item.paidTo || item.paid_to || item.party || '').trim();
+        if (p && items.indexOf(p) === -1) items.push(p);
+      });
+    }
     items.forEach(function(item) {
       var opt = document.createElement('option');
       opt.value = item;
       dl.appendChild(opt);
     });
   }
+
+  function updateVendorAgreementSelect() {
+    var sel = document.getElementById('fd_vendor_id');
+    if (!sel) return;
+    var curVal = sel.value;
+    sel.innerHTML = '<option value="">-- No Agreement (General / Daily NMR / Non-Contract Payment) --</option>';
+    var currentCol = (window.CURRENT_COLLEGE || 'smgg').toLowerCase();
+    VENDORS.forEach(function(v) {
+      if (v.college && v.college !== currentCol && window.CU !== 'admin1') return;
+      var vid = v.vendorId || v.id || '';
+      var comp = v.companyName || v.company || '';
+      var name = v.vendorName || v.name || '';
+      var displayName = comp || name || vid;
+      if (name && comp && name !== comp) displayName += ' (' + name + ')';
+      var desc = v.workDescription || v.workDesc || 'Contract Work';
+      var fin = window.getVendorFinancials(vid);
+      var balStr = fin ? (' — Balance: ' + formatCurrency(fin.balance)) : '';
+      var opt = document.createElement('option');
+      opt.value = vid;
+      opt.textContent = vid + ' : ' + displayName + ' [' + desc + balStr + ']';
+      sel.appendChild(opt);
+    });
+    if (curVal) sel.value = curVal;
+  }
+  window.updateVendorAgreementSelect = updateVendorAgreementSelect;
 
   function formatFileSize(bytes) {
     if (!bytes || bytes === 0) return '0 B';
@@ -433,6 +507,13 @@
     renderVendorsTable();
     if (typeof renderVendorLedgerTable === 'function') renderVendorLedgerTable();
 
+    // Sync to Cloud DB
+    if (typeof window._api === 'function') {
+      window._api('saveVendor', { college: vendorRecord.college || window.CURRENT_COLLEGE || 'smgg', vendor: vendorRecord }).catch(function(e){
+        console.error('Failed to save vendor to cloud', e);
+      });
+    }
+
     var isNew = !vendorEditId;
     resetVendorForm();
 
@@ -563,10 +644,18 @@
       saveVendorsToStorage();
       renderVendorsTable();
       if (typeof renderVendorLedgerTable === 'function') renderVendorLedgerTable();
+
+      // Delete from Cloud DB
+      if (typeof window._api === 'function') {
+        window._api('deleteVendor', { college: v.college || window.CURRENT_COLLEGE || 'smgg', id: id }).catch(function(e){
+          console.error('Failed to delete vendor from cloud', e);
+        });
+      }
+
       if (vendorEditId === id) resetVendorForm();
       var vlm = document.getElementById('VENDOR_LEDGER_MODAL');
       if (vlm && !vlm.classList.contains('h')) vlm.classList.add('h');
-      if (typeof _toast === 'function') _toast('Vendor deleted.', 'warn');
+      if (typeof _toast === 'function') _toast('Vendor deleted.', 'ok');
     }
   };
 
@@ -616,8 +705,6 @@
     var vsList = getAllSystemVouchers();
     
     var vidClean = normalizeCleanStr(vendorId);
-    var compClean = normalizeCleanStr(v.companyName || v.company || '');
-    var nameClean = normalizeCleanStr(v.vendorName || v.name || '');
     var vendorCol = normalizeCleanStr(v.college || '');
 
     // Effective start date cutoff (Agreement Start Date or Vendor Form creation date)
@@ -641,23 +728,10 @@
         return false;
       }
 
-      // 1. Direct vendorId link
+      // 1. Direct vendorId link ONLY (Never auto-match by name or towards text)
       var itemVid = normalizeCleanStr(item.vendorId || item.vendor_id || '');
-      if (itemVid && vidClean && (itemVid === vidClean || itemVid.indexOf(vidClean) > -1 || vidClean.indexOf(itemVid) > -1)) return true;
-
-      // 2. Matching party / paidTo
-      var pt = normalizeCleanStr(item.paidTo || item.paid_to || item.party || '');
-      if (pt) {
-        if (vidClean && (pt === vidClean || pt.indexOf(vidClean) > -1)) return true;
-        if (compClean && (pt === compClean || pt.indexOf(compClean) > -1 || compClean.indexOf(pt) > -1)) return true;
-        if (nameClean && (pt === nameClean || pt.indexOf(nameClean) > -1 || nameClean.indexOf(pt) > -1)) return true;
-      }
-
-      // 3. Fallback check on towards if it explicitly mentions company name or vendor ID
-      var tw = normalizeCleanStr(item.towards || '');
-      if (tw) {
-        if (vidClean && tw.indexOf(vidClean) > -1) return true;
-        if (compClean && compClean.length > 4 && tw.indexOf(compClean) > -1) return true;
+      if (itemVid && vidClean && (itemVid === vidClean || itemVid.indexOf(vidClean) > -1 || vidClean.indexOf(itemVid) > -1)) {
+        return true;
       }
 
       return false;
@@ -1216,30 +1290,25 @@
     if (modal) modal.classList.add('h');
   };
 
-  // Dynamic Real-time Vendor Quick Info Banner on Debit Voucher Form
-  window.onDebitPaidToChange = function(input) {
+  // Dynamic Real-time Vendor Quick Info Banner on Debit Voucher Form (Triggered ONLY when an Agreement is explicitly selected)
+  window.onDebitAgreementSelectChange = function(selectEl) {
     var banner = document.getElementById('FD_VENDOR_INFO_BANNER');
-    if (!banner) return;
+    var vid = (selectEl ? selectEl.value : (document.getElementById('fd_vendor_id') ? document.getElementById('fd_vendor_id').value : '')).trim();
 
-    var val = (input ? input.value : (document.getElementById('fd_paidto') ? document.getElementById('fd_paidto').value : '')).trim();
-    if (!val) {
-      banner.style.display = 'none';
-      banner.innerHTML = '';
-      return;
-    }
-
-    var vDate = (document.getElementById('f_date') ? document.getElementById('f_date').value : '') || '';
-    var vid = window.resolveVendorIdForParty(val, vDate);
     if (!vid) {
-      banner.style.display = 'none';
-      banner.innerHTML = '';
+      if (banner) {
+        banner.style.display = 'none';
+        banner.innerHTML = '';
+      }
       return;
     }
 
     var fin = window.getVendorFinancials(vid);
     if (!fin) {
-      banner.style.display = 'none';
-      banner.innerHTML = '';
+      if (banner) {
+        banner.style.display = 'none';
+        banner.innerHTML = '';
+      }
       return;
     }
 
@@ -1248,29 +1317,54 @@
 
     var amtVal = parseFloat(document.getElementById('fd_amt') ? document.getElementById('fd_amt').value : 0) || 0;
     var warnHtml = (amtVal > fin.balance && fin.balance > 0) ? 
-      '<div style="color:#b91c1c;font-weight:700;font-size:11px;margin-top:3px;">⚠️ Note: Entered voucher amount (' + formatCurrency(amtVal) + ') exceeds remaining contract balance (' + formatCurrency(fin.balance) + ').</div>' : '';
+      '<div style="color:#b91c1c;font-weight:700;font-size:11px;margin-top:4px;">⚠️ Note: Entered voucher amount (' + formatCurrency(amtVal) + ') exceeds remaining contract balance (' + formatCurrency(fin.balance) + ').</div>' : '';
 
-    banner.innerHTML =
-      '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:6px 10px;font-size:11.5px;color:#166534;box-shadow:0 1px 3px rgba(0,0,0,0.03);">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">' +
-          '<div style="display:flex;align-items:center;gap:6px;">' +
-            '<span>🏢 <b>' + sanitize(v.companyName || v.company) + '</b></span>' +
-            '<span style="font-family:monospace;background:#002D72;color:#fff;padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:700;">' + vid + '</span>' +
-            '<span class="' + agSt.badgeClass + '">' + agSt.icon + ' ' + agSt.label + '</span>' +
+    if (banner) {
+      banner.innerHTML =
+        '<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:6px;padding:8px 12px;font-size:12px;color:#166534;box-shadow:0 1px 4px rgba(0,0,0,0.04);">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">' +
+            '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
+              '<span style="font-weight:700;color:#002D72;">🔗 Linked Agreement:</span>' +
+              '<span><b>' + sanitize(v.companyName || v.company || v.vendorName || v.name) + '</b></span>' +
+              '<span style="font-family:monospace;background:#002D72;color:#fff;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;">' + vid + '</span>' +
+              '<span class="' + agSt.badgeClass + '">' + agSt.icon + ' ' + agSt.label + '</span>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+              '<span>Contract: <b style="color:#b91c1c;">' + formatCurrency(fin.agreedAmount) + '</b></span>' +
+              '<span>Paid: <b style="color:#0284c7;">' + formatCurrency(fin.totalPaid) + '</b></span>' +
+              '<span>Balance: <b style="color:' + (fin.balance <= 0 ? '#15803d' : '#b45309') + ';">' + formatCurrency(fin.balance) + '</b></span>' +
+              '<button type="button" class="btn bs bsm" style="padding:2px 8px;font-size:11px;" onclick="openVendorLedgerModal(\'' + vid + '\')">📂 Statement</button>' +
+              '<button type="button" class="btn br bsm" style="padding:2px 8px;font-size:11px;" onclick="unlinkDebitAgreement()" title="Unlink this voucher from agreement">❌ Remove Link</button>' +
+            '</div>' +
           '</div>' +
-          '<div style="display:flex;align-items:center;gap:8px;">' +
-            '<span>Contract: <b style="color:#b91c1c;">' + formatCurrency(fin.agreedAmount) + '</b></span>' +
-            '<span>Paid: <b style="color:#0284c7;">' + formatCurrency(fin.totalPaid) + '</b></span>' +
-            '<span>Balance: <b style="color:' + (fin.balance <= 0 ? '#15803d' : '#b45309') + ';">' + formatCurrency(fin.balance) + '</b></span>' +
-            '<button type="button" class="btn bs bsm" style="padding:2px 6px;font-size:10.5px;" onclick="openVendorLedgerModal(\'' + vid + '\')">📂 Statement</button>' +
-          '</div>' +
-        '</div>' +
-        warnHtml +
-      '</div>';
-    banner.style.display = 'block';
+          warnHtml +
+        '</div>';
+      banner.style.display = 'block';
+    }
   };
 
-  // Pre-fill Debit Voucher for given vendor ID
+  // Real-time amount check when agreement is selected
+  window.onDebitAmountInput = function() {
+    var sel = document.getElementById('fd_vendor_id');
+    if (sel && sel.value) {
+      window.onDebitAgreementSelectChange(sel);
+    }
+  };
+
+  // No-op for old onDebitPaidToChange calls
+  window.onDebitPaidToChange = function() {};
+
+  // Unlink Agreement from Debit Voucher
+  window.unlinkDebitAgreement = function() {
+    var sel = document.getElementById('fd_vendor_id');
+    if (sel) sel.value = '';
+    window.onDebitAgreementSelectChange(sel);
+    if (typeof _toast === 'function') {
+      _toast('Agreement unlinked. Voucher will be saved as General / Daily NMR payment.', 'ok');
+    }
+  };
+
+  // Pre-fill Debit Voucher for given vendor ID (from Vendor Ledger "+ Voucher" button)
   window.createVoucherForVendor = function(vendorId) {
     var v = VENDORS.find(function(item) { return (item.vendorId === vendorId || item.id === vendorId); });
     if (!v) return;
@@ -1278,19 +1372,27 @@
     if (typeof show === 'function') show('create');
     if (typeof selVT === 'function') selVT(null, 'debit');
 
+    // Populate agreement dropdown options
+    updateVendorAgreementSelect();
+
+    var vidEl = document.getElementById('fd_vendor_id');
+    if (vidEl) {
+      vidEl.value = v.vendorId || v.id || '';
+      window.onDebitAgreementSelectChange(vidEl);
+    }
+
     var paidToEl = document.getElementById('fd_paidto');
     if (paidToEl) {
-      paidToEl.value = (v.companyName || v.company || '');
-      window.onDebitPaidToChange(paidToEl);
+      paidToEl.value = (v.companyName || v.company || v.vendorName || v.name || '');
     }
 
     var towardsEl = document.getElementById('fd_towards');
-    if (towardsEl && !towardsEl.value) {
-      towardsEl.value = 'Payment towards ' + (v.workDescription || v.workDesc || 'contract agreement');
+    if (towardsEl) {
+      towardsEl.value = 'Payment towards ' + (v.workDescription || v.workDesc || 'contract agreement') + ' (Agreement: ' + (v.vendorId || v.id) + ')';
     }
 
     if (typeof _toast === 'function') {
-      _toast('Selected Vendor ' + (v.vendorId || '') + ' (' + (v.companyName || v.company) + ') for Debit Voucher.', 'ok');
+      _toast('Selected Agreement ' + (v.vendorId || '') + ' (' + (v.companyName || v.company || v.vendorName) + ') for Debit Voucher.', 'ok');
     }
   };
 
@@ -1893,12 +1995,16 @@
     renderFileSlots();
     renderVendorsTable();
     renderVendorLedgerTable();
+    updateVendorAgreementSelect();
   }
 
   // Hook into show()
   var oldShow = window.show;
   window.show = function(id) {
     if (typeof oldShow === 'function') oldShow(id);
+    if (id === 'create') {
+      updateVendorAgreementSelect();
+    }
     if (id === 'vendor') {
       loadVendors();
       if (!vendorEditId) {

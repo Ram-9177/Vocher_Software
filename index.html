@@ -7,7 +7,7 @@
   <link rel="icon" href="assets/logo_smgg.png">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="app.js?v=20260823-agreement-clean-v40" defer></script>
+  <script src="app.js?v=20260830-cloud-vendor-sync-v42" defer></script>
 </head>
 <body>
 <script>
@@ -415,11 +415,10 @@
             <div class="fi"><label>Debit A/c <a href="javascript:void(0)" onclick="addNewHead('debit')" class="admin-only-add add-new-btn">+ Add New</a></label>
               <input type="text" id="fd_head" placeholder="Enter account head" list="DL_HEADS" onblur="if(typeof checkNewHead==='function') checkNewHead(this)"></div>
             <div class="fi"><label>Paid To *</label>
-              <input type="text" id="fd_paidto" placeholder="Name of receiver" list="DL_VENDORS" oninput="if(typeof onDebitPaidToChange==='function')onDebitPaidToChange(this)" onblur="if(typeof onDebitPaidToChange==='function')onDebitPaidToChange(this)">
-              <div id="FD_VENDOR_INFO_BANNER" style="display:none;margin-top:4px;"></div>
+              <input type="text" id="fd_paidto" placeholder="Name of receiver" list="DL_VENDORS">
             </div>
             <div class="fi"><label>Amount (Rs.) *</label>
-              <input type="number" id="fd_amt" placeholder="e.g. 5000" oninput="autoWords('fd_amt','fd_words');if(typeof onDebitPaidToChange==='function')onDebitPaidToChange();"></div>
+              <input type="number" id="fd_amt" placeholder="e.g. 5000" oninput="autoWords('fd_amt','fd_words');if(typeof onDebitAmountInput==='function')onDebitAmountInput();"></div>
           </div>
           <div class="fr f">
             <div class="fi"><label>Rupees (In Words) — auto filled</label>
@@ -428,6 +427,18 @@
           <div class="fr f">
             <div class="fi"><label>Towards (Purpose) *</label>
               <textarea id="fd_towards" placeholder="Purpose of payment" style="min-height:42px"></textarea></div>
+          </div>
+          <div class="fr f">
+            <div class="fi">
+              <label style="display:flex;align-items:center;justify-content:space-between;">
+                <span>Link to Vendor Agreement (Optional)</span>
+                <span style="font-size:11px;font-weight:normal;color:#64748b;">Select only if paying against a specific contract</span>
+              </label>
+              <select id="fd_vendor_id" onchange="if(typeof onDebitAgreementSelectChange==='function')onDebitAgreementSelectChange(this)">
+                <option value="">-- No Agreement (General / Daily NMR / Non-Contract Payment) --</option>
+              </select>
+              <div id="FD_VENDOR_INFO_BANNER" style="display:none;margin-top:6px;"></div>
+            </div>
           </div>
           <div class="fr f">
             <div class="fi"><label>Block <a href="javascript:void(0)" onclick="addNewBlock('debit')" class="admin-only-add add-new-btn">+ Add New</a></label>

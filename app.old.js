@@ -970,6 +970,8 @@ function resetF(){
    'f_prep','f_chk','f_rem'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   ['fc_amt','fd_amt','fo_amt','fj_amt'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const foHeadEl = document.getElementById('fo_head'); if(foHeadEl) foHeadEl.value = 'On Account';
+  const fdVid = document.getElementById('fd_vendor_id'); if(fdVid) fdVid.value = '';
+  const fdBanner = document.getElementById('FD_VENDOR_INFO_BANNER'); if(fdBanner){ fdBanner.style.display = 'none'; fdBanner.innerHTML = ''; }
   setDate();editId=null;
 }
 
@@ -1814,7 +1816,7 @@ function renderDash(){
 
 function getVendorBadgeHtml(v) {
   if (!v) return '';
-  const vid = v.vendorId || (typeof window.resolveVendorIdForParty === 'function' ? window.resolveVendorIdForParty(v.paidTo || v.party) : '');
+  const vid = String(v.vendorId || v.vendor_id || '').trim();
   if (!vid) return '';
   return ` <span onclick="event.stopPropagation();if(typeof openVendorLedgerModal==='function')openVendorLedgerModal('${vid}')" style="cursor:pointer;font-family:monospace;font-size:10px;background:#002D72;color:#fff;padding:2px 6px;border-radius:4px;margin-left:4px;font-weight:700;display:inline-block;" title="Click to view Vendor Ledger statement for ${vid}">🏢 ${vid}</span>`;
 }
@@ -2032,6 +2034,12 @@ function editV(id){
   } else if(v.type==='debit'){
     document.getElementById('fd_head').value=v.head||'';
     document.getElementById('fd_paidto').value=v.paidTo||'';
+    if(typeof updateVendorAgreementSelect === 'function') updateVendorAgreementSelect();
+    const fdVid = document.getElementById('fd_vendor_id');
+    if(fdVid){
+      fdVid.value = v.vendorId || v.vendor_id || '';
+      if(typeof onDebitAgreementSelectChange === 'function') onDebitAgreementSelectChange(fdVid);
+    }
     document.getElementById('fd_towards').value=v.towards||'';
     document.getElementById('fd_block').value=v.block||'';
     document.getElementById('fd_amt').value=v.amount||'';
