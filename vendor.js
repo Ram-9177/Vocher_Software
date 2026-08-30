@@ -75,11 +75,43 @@
     return 'V' + String(nextNum).padStart(5, '0');
   }
 
-  // Resolve Vendor ID from party/company name or ID string
-  window.resolveVendorIdForParty = function(partyName) {
+  // Helper to convert any date string/object/property to YYYY-MM-DD ISO for consistent comparisons
+  function toIso(x) {
+    if (!x) return '';
+    if (typeof x === 'object' && x !== null) {
+      if (x.dateISO && typeof x.dateISO === 'string') return x.dateISO.slice(0, 10);
+      x = x.date || x.createdAt || '';
+    }
+    var s = String(x || '').trim();
+    if (!s) return '';
+    if (s.length >= 10 && /^\d{4}[-/]\d{2}[-/]\d{2}/.test(s)) {
+      return s.slice(0, 10).replace(/\//g, '-');
+    }
+    var parts = s.replace(/\//g, '-').split('-');
+    if (parts.length === 3) {
+      if (parts[2].length === 4) {
+        return parts[2] + '-' + parts[1].padStart(2, '0') + '-' + parts[0].padStart(2, '0');
+      }
+      if (parts[0].length === 4) {
+        return parts[0] + '-' + parts[1].padStart(2, '0') + '-' + parts[2].padStart(2, '0');
+      }
+    }
+    return s;
+  }
+  window.vendorToIso = toIso;
+
+  // Resolve Vendor ID from party/company name or ID string (optionally verifying voucher date against vendor start date)
+  window.resolveVendorIdForParty = function(partyName, voucherDate) {
     if (!partyName) return '';
     var p = String(partyName).trim().toLowerCase();
+    var vDateIso = voucherDate ? toIso(voucherDate) : '';
+
     var found = VENDORS.find(function(v) {
+      if (vDateIso) {
+        var vStart = toIso(v.periodStart || (v.agreement && v.agreement.periodStart) || v.agreementDate || (v.createdAt ? v.createdAt.slice(0, 10) : ''));
+        if (vStart && vDateIso < vStart) return false;
+      }
+
       var vid = (v.vendorId || v.id || '').toLowerCase();
       var comp = (v.companyName || v.company || '').toLowerCase();
       var name = (v.vendorName || v.name || '').toLowerCase();
@@ -278,6 +310,7 @@
     var name = (document.getElementById('f_v_name').value || '').trim();
     var phone = (document.getElementById('f_v_phone').value || '').trim();
     var pan = (document.getElementById('f_v_pan').value || '').trim().toUpperCase();
+    var aadhaar = (document.getElementById('f_v_aadhaar') ? document.getElementById('f_v_aadhaar').value : '').trim();
     var email = (document.getElementById('f_v_email') ? document.getElementById('f_v_email').value : '').trim();
     var address = (document.getElementById('f_v_address') ? document.getElementById('f_v_address').value : '').trim();
 
@@ -316,6 +349,15 @@
       }
     }
 
+    // Aadhaar validation (if provided, standard Indian Aadhaar has 12 digits)
+    var cleanAadhaar = aadhaar.replace(/\s+/g, '');
+    if (cleanAadhaar && (!/^\d{12}$/.test(cleanAadhaar))) {
+      if (!confirm('The entered Aadhaar Number "' + aadhaar + '" does not match standard 12-digit format. Do you wish to continue?')) {
+        if (document.getElementById('f_v_aadhaar')) document.getElementById('f_v_aadhaar').focus();
+        return;
+      }
+    }
+
     if (!workDesc) { alert('Please enter Work Description / Scope of Work.'); document.getElementById('f_v_work_desc').focus(); return; }
     if (!amount || amount <= 0) { alert('Please enter agreed vendor amount.'); document.getElementById('f_v_amount').focus(); return; }
     if (!periodStart) { alert('Please select Agreement Start Date.'); document.getElementById('f_v_period_start').focus(); return; }
@@ -340,6 +382,7 @@
       name: name,
       phone: phone,
       pan: pan,
+      aadhaar: aadhaar,
       email: email,
       address: address,
       workDescription: workDesc,
@@ -410,7 +453,7 @@
     currentVendorFiles = [null, null, null];
 
     var formIds = [
-      'f_v_company', 'f_v_name', 'f_v_phone', 'f_v_pan', 'f_v_email',
+      'f_v_company', 'f_v_name', 'f_v_phone', 'f_v_pan', 'f_v_aadhaar', 'f_v_email',
       'f_v_address', 'f_v_work_desc', 'f_v_period_start', 'f_v_period_start_DISPLAY',
       'f_v_period_end', 'f_v_period_end_DISPLAY',
       'f_v_amount', 'f_v_words', 'f_v_gst', 'f_v_bank', 'f_v_remarks',
@@ -466,6 +509,7 @@
     document.getElementById('f_v_name').value = v.vendorName || v.name || '';
     document.getElementById('f_v_phone').value = v.phone || '';
     document.getElementById('f_v_pan').value = v.pan || '';
+    if (document.getElementById('f_v_aadhaar')) document.getElementById('f_v_aadhaar').value = v.aadhaar || '';
     if (document.getElementById('f_v_email')) document.getElementById('f_v_email').value = v.email || '';
     if (document.getElementById('f_v_address')) document.getElementById('f_v_address').value = v.address || '';
 
@@ -563,20 +607,39 @@
   window.getAllSystemVouchers = getAllSystemVouchers;
 
   // Retrieve all debit vouchers linked to a given vendor ID
+  // RULE: Payment deductions MUST start strictly on/after the date the Vendor Form was created / Agreement Start Date.
+  // Any payments made before the Vendor Form creation date / agreement date are EXCLUDED.
   window.getLinkedDebitVouchers = function(vendorId) {
     if (!vendorId) return [];
     var v = VENDORS.find(function(item) { return (item.vendorId === vendorId || item.id === vendorId); });
+    if (!v) return [];
     var vsList = getAllSystemVouchers();
     
     var vidClean = normalizeCleanStr(vendorId);
-    var compClean = v ? normalizeCleanStr(v.companyName || v.company || '') : '';
-    var nameClean = v ? normalizeCleanStr(v.vendorName || v.name || '') : '';
+    var compClean = normalizeCleanStr(v.companyName || v.company || '');
+    var nameClean = normalizeCleanStr(v.vendorName || v.name || '');
+    var vendorCol = normalizeCleanStr(v.college || '');
+
+    // Effective start date cutoff (Agreement Start Date or Vendor Form creation date)
+    var vendorStartDate = toIso(v.periodStart || (v.agreement && v.agreement.periodStart) || v.agreementDate || (v.createdAt ? v.createdAt.slice(0, 10) : ''));
 
     var matched = vsList.filter(function(item) {
       if (!item) return false;
       // Must be a debit voucher
       var t = String(item.type || '').toLowerCase();
       if (t !== 'debit') return false;
+
+      // College check (SMGG vs SMWEC)
+      if (vendorCol && item.college) {
+        var itemCol = normalizeCleanStr(item.college);
+        if (itemCol && itemCol !== vendorCol && window.CU !== 'admin1') return false;
+      }
+
+      // Date cutoff check: Voucher date MUST NOT be before the Vendor Form / Agreement start date
+      var itemDate = toIso(item);
+      if (vendorStartDate && itemDate && itemDate < vendorStartDate) {
+        return false;
+      }
 
       // 1. Direct vendorId link
       var itemVid = normalizeCleanStr(item.vendorId || item.vendor_id || '');
@@ -599,23 +662,6 @@
 
       return false;
     });
-
-    // Helper to convert date string/property to YYYY-MM-DD ISO for accurate chronological sorting
-    var toIso = function(x) {
-      if (!x) return '';
-      if (x.dateISO && typeof x.dateISO === 'string') return x.dateISO;
-      var d = String(x.date || '').trim().replace(/\//g, '-');
-      var parts = d.split('-');
-      if (parts.length === 3) {
-        if (parts[2].length === 4) {
-          return parts[2] + '-' + parts[1].padStart(2, '0') + '-' + parts[0].padStart(2, '0');
-        }
-        if (parts[0].length === 4) {
-          return parts[0] + '-' + parts[1].padStart(2, '0') + '-' + parts[2].padStart(2, '0');
-        }
-      }
-      return d;
-    };
 
     // Sort entries chronologically: earliest/previous date first, subsequent dates below sequentially
     matched.sort(function(a, b) {
@@ -878,17 +924,18 @@
         }
       }
 
-      // 6. Search Query (Vendor ID, Company, Name, Phone, PAN, GST, Address, Work)
+      // 6. Search Query (Vendor ID, Company, Name, Phone, PAN, Aadhaar, GST, Address, Work)
       if (query) {
         var matchId = (v.vendorId || v.id || '').toLowerCase().indexOf(query) > -1;
         var matchComp = (v.companyName || v.company || '').toLowerCase().indexOf(query) > -1;
         var matchName = (v.vendorName || v.name || '').toLowerCase().indexOf(query) > -1;
         var matchPhone = (v.phone || '').toLowerCase().indexOf(query) > -1;
         var matchPan = (v.pan || '').toLowerCase().indexOf(query) > -1;
+        var matchAadhaar = (v.aadhaar || '').toLowerCase().indexOf(query) > -1;
         var matchGst = (v.gstNumber || '').toLowerCase().indexOf(query) > -1;
         var matchAddr = (v.address || '').toLowerCase().indexOf(query) > -1;
         var matchWork = (v.workDescription || v.workDesc || '').toLowerCase().indexOf(query) > -1;
-        if (!matchId && !matchComp && !matchName && !matchPhone && !matchPan && !matchGst && !matchAddr && !matchWork) return;
+        if (!matchId && !matchComp && !matchName && !matchPhone && !matchPan && !matchAadhaar && !matchGst && !matchAddr && !matchWork) return;
       }
 
       fin.agStatus = agStatus;
@@ -972,6 +1019,7 @@
         '<td>' +
           '<div style="font-size:12px;">📞 ' + sanitize(v.phone || '—') + '</div>' +
           '<div style="font-size:11px;font-family:monospace;color:var(--G600);margin-top:2px;">PAN: <b>' + sanitize(v.pan || '—') + '</b></div>' +
+          (v.aadhaar ? '<div style="font-size:11px;font-family:monospace;color:var(--G600);margin-top:1px;">Aadhaar: <b>' + sanitize(v.aadhaar) + '</b></div>' : '') +
         '</td>' +
         '<td>' +
           '<div style="font-weight:700;color:#b91c1c;font-size:13.5px;">' + formatCurrency(fin.agreedAmount) + '</div>' +
@@ -1037,7 +1085,7 @@
 
     if (titleEl) titleEl.textContent = (v.companyName || v.company || 'Vendor') + ' — Ledger Statement';
     if (badgeEl) badgeEl.textContent = vendorId;
-    if (subEl) subEl.innerHTML = 'Contact: <b>' + sanitize(v.vendorName || v.name || '—') + '</b> &bull; Phone: <b>' + sanitize(v.phone || '—') + '</b> &bull; PAN: <b>' + sanitize(v.pan || '—') + '</b> &bull; College: <b>' + (v.college ? v.college.toUpperCase() : 'SMGG') + '</b> &bull; ' + modalAgBadge;
+    if (subEl) subEl.innerHTML = 'Contact: <b>' + sanitize(v.vendorName || v.name || '—') + '</b> &bull; Phone: <b>' + sanitize(v.phone || '—') + '</b> &bull; PAN: <b>' + sanitize(v.pan || '—') + '</b>' + (v.aadhaar ? ' &bull; Aadhaar: <b>' + sanitize(v.aadhaar) + '</b>' : '') + ' &bull; College: <b>' + (v.college ? v.college.toUpperCase() : 'SMGG') + '</b> &bull; ' + modalAgBadge;
 
     // Financial metrics ribbon
     var agreedEl = document.getElementById('VLM_DETAIL_AGREED');
@@ -1126,6 +1174,7 @@
             '<p style="margin:4px 0;font-size:12.5px;"><b>Contact Person:</b> ' + sanitize(v.vendorName || v.name) + '</p>' +
             '<p style="margin:4px 0;font-size:12.5px;"><b>Phone Number:</b> ' + sanitize(v.phone) + '</p>' +
             '<p style="margin:4px 0;font-size:12.5px;"><b>PAN Number:</b> <span style="font-family:monospace;font-weight:700;">' + sanitize(v.pan) + '</span></p>' +
+            '<p style="margin:4px 0;font-size:12.5px;"><b>Aadhaar Number:</b> <span style="font-family:monospace;font-weight:700;">' + sanitize(v.aadhaar || '—') + '</span></p>' +
             '<p style="margin:4px 0;font-size:12.5px;"><b>Email Address:</b> ' + sanitize(v.email || '—') + '</p>' +
             '<p style="margin:4px 0;font-size:12.5px;"><b>Address:</b> ' + sanitize(v.address || '—') + '</p>' +
           '</div>' +
@@ -1179,7 +1228,8 @@
       return;
     }
 
-    var vid = window.resolveVendorIdForParty(val);
+    var vDate = (document.getElementById('f_date') ? document.getElementById('f_date').value : '') || '';
+    var vid = window.resolveVendorIdForParty(val, vDate);
     if (!vid) {
       banner.style.display = 'none';
       banner.innerHTML = '';
@@ -1266,9 +1316,10 @@
         var matchName = (v.vendorName || v.name || '').toLowerCase().indexOf(query) > -1;
         var matchPhone = (v.phone || '').toLowerCase().indexOf(query) > -1;
         var matchPan = (v.pan || '').toLowerCase().indexOf(query) > -1;
+        var matchAadhaar = (v.aadhaar || '').toLowerCase().indexOf(query) > -1;
         var matchDesc = (v.workDescription || v.workDesc || '').toLowerCase().indexOf(query) > -1;
         var matchGst = (v.gstNumber || '').toLowerCase().indexOf(query) > -1;
-        if (!matchId && !matchComp && !matchName && !matchPhone && !matchPan && !matchDesc && !matchGst) return false;
+        if (!matchId && !matchComp && !matchName && !matchPhone && !matchPan && !matchAadhaar && !matchDesc && !matchGst) return false;
       }
       return true;
     });
@@ -1318,6 +1369,7 @@
         '<td>' +
           '<div style="font-size:12px;font-weight:500;">📞 ' + sanitize(v.phone || '—') + '</div>' +
           '<div style="font-size:11px;color:var(--G600);font-family:monospace;">PAN: <b>' + sanitize(v.pan || '—') + '</b></div>' +
+          (v.aadhaar ? '<div style="font-size:11px;color:var(--G600);font-family:monospace;">Aadhaar: <b>' + sanitize(v.aadhaar) + '</b></div>' : '') +
           (v.email ? '<div style="font-size:10.5px;color:#0284c7;">✉️ ' + sanitize(v.email) + '</div>' : '') +
         '</td>' +
         '<td>' +
@@ -1417,6 +1469,12 @@
             '<td style="padding:4px 3px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">:</td>' +
             '<td style="padding:4px 8px;border:1px solid #cbd5e1;font-family:monospace;font-weight:700;">' + sanitize(v.pan || '—') + '</td>' +
           '</tr>' +
+          (v.aadhaar ?
+          '<tr>' +
+            '<td style="padding:4px 8px;border:1px solid #cbd5e1;font-weight:600;color:#1e293b;">Vendor Aadhaar Number</td>' +
+            '<td style="padding:4px 3px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">:</td>' +
+            '<td style="padding:4px 8px;border:1px solid #cbd5e1;font-family:monospace;font-weight:700;">' + sanitize(v.aadhaar) + '</td>' +
+          '</tr>' : '') +
           '<tr>' +
             '<td style="padding:4px 8px;border:1px solid #cbd5e1;font-weight:600;color:#1e293b;">Vendor Address</td>' +
             '<td style="padding:4px 3px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">:</td>' +
@@ -1524,6 +1582,7 @@
       var name = (document.getElementById('f_v_name').value || '').trim() || 'G. Gopi';
       var phone = (document.getElementById('f_v_phone').value || '').trim() || '8883822641';
       var pan = (document.getElementById('f_v_pan').value || '').trim().toUpperCase() || 'DFZPG5768A';
+      var aadhaar = (document.getElementById('f_v_aadhaar') ? document.getElementById('f_v_aadhaar').value : '').trim();
       var address = (document.getElementById('f_v_address') ? document.getElementById('f_v_address').value : '').trim() || 'Narakoduru (V), Chebrole (M), Guntur (Dt), Andhra Pradesh – 522212';
       var amount = parseFloat(document.getElementById('f_v_amount').value) || 500000;
       var words = (document.getElementById('f_v_words').value || '').trim() || (typeof numToWords === 'function' ? numToWords(amount) : 'Rupees Five Lakh Only');
@@ -1542,6 +1601,7 @@
         vendorName: name,
         phone: phone,
         pan: pan,
+        aadhaar: aadhaar,
         address: address,
         agreedAmount: amount,
         amountInWords: words,
@@ -1634,7 +1694,7 @@
             '<p style="margin:2px 0;"><b>Vendor ID:</b> <span style="font-family:monospace;font-weight:800;color:#002D72;">' + sanitize(v.vendorId) + '</span></p>' +
             '<p style="margin:2px 0;"><b>Vendor / Company:</b> <span style="font-weight:700;color:#b91c1c;">' + sanitize(v.companyName || v.company) + '</span></p>' +
             '<p style="margin:2px 0;"><b>Contact Person:</b> ' + sanitize(v.vendorName || v.name) + ' (' + sanitize(v.phone) + ')</p>' +
-            '<p style="margin:2px 0;"><b>PAN Number:</b> <span style="font-family:monospace;font-weight:700;">' + sanitize(v.pan) + '</span></p>' +
+            '<p style="margin:2px 0;"><b>PAN Number:</b> <span style="font-family:monospace;font-weight:700;">' + sanitize(v.pan) + '</span>' + (v.aadhaar ? ' &nbsp;|&nbsp; <b>Aadhaar:</b> <span style="font-family:monospace;font-weight:700;">' + sanitize(v.aadhaar) + '</span>' : '') + '</p>' +
           '</div>' +
           '<div>' +
             '<p style="margin:2px 0;"><b>Agreement No:</b> <span style="font-family:monospace;">' + sanitize((v.agreement && v.agreement.agreementNo) || ('AGR-' + v.vendorId)) + '</span></p>' +
@@ -1759,6 +1819,7 @@
         'Contact Person': v.vendorName || v.name || '',
         'Phone Number': v.phone || '',
         'PAN Number': v.pan || '',
+        'Aadhaar Number': v.aadhaar || '',
         'Agreed Amount (Rs)': fin.agreedAmount || 0,
         'Total Paid to Date (Rs)': fin.totalPaid || 0,
         'Outstanding Balance (Rs)': fin.balance || 0,
@@ -1812,6 +1873,20 @@
     if (panInput) {
       panInput.addEventListener('input', function() {
         this.value = this.value.toUpperCase();
+      });
+    }
+
+    // Auto-format Aadhaar (XXXX XXXX XXXX)
+    var aadhaarInput = document.getElementById('f_v_aadhaar');
+    if (aadhaarInput) {
+      aadhaarInput.addEventListener('input', function() {
+        var digits = this.value.replace(/\D/g, '').slice(0, 12);
+        var formatted = '';
+        for (var i = 0; i < digits.length; i++) {
+          if (i > 0 && i % 4 === 0) formatted += ' ';
+          formatted += digits[i];
+        }
+        this.value = formatted;
       });
     }
 

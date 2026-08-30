@@ -538,10 +538,14 @@
               <input type="tel" id="f_v_phone" maxlength="15" placeholder="Enter 10 digit mobile number">
             </div>
           </div>
-          <div class="fr">
+          <div class="fr t">
             <div class="fi">
               <label>Vendor PAN Number *</label>
               <input type="text" id="f_v_pan" maxlength="10" placeholder="Enter PAN number (e.g. ABCDE1234F)" style="text-transform:uppercase;font-family:monospace;font-weight:600;">
+            </div>
+            <div class="fi">
+              <label>Vendor Aadhaar Number</label>
+              <input type="text" id="f_v_aadhaar" maxlength="14" placeholder="Enter 12 digit Aadhaar number" style="font-family:monospace;font-weight:600;">
             </div>
             <div class="fi">
               <label>Email Address</label>
@@ -683,7 +687,7 @@
 
         <!-- Search & Filter Bar -->
         <div class="sb2" style="margin-bottom:.8rem;">
-          <input type="text" id="VENDOR_SEARCH" placeholder="Search Vendor ID, company, contact person, phone, PAN, GST..." oninput="renderVendorsTable()">
+          <input type="text" id="VENDOR_SEARCH" placeholder="Search Vendor ID, company, contact person, phone, PAN, Aadhaar, GST..." oninput="renderVendorsTable()">
           <select id="VENDOR_FILTER_COLLEGE" onchange="renderVendorsTable()">
             <option value="">All Colleges</option>
             <option value="smgg">SMGG (Chebrolu)</option>
@@ -698,7 +702,7 @@
             <thead>
               <tr style="position:sticky;top:0;z-index:2;background:var(--W);">
                 <th>Vendor ID &amp; Company</th>
-                <th>Contact, PAN &amp; Email</th>
+                <th>Contact, PAN &amp; Aadhaar</th>
                 <th>Agreed Amount</th>
                 <th>Work Description</th>
                 <th>Agreement Date</th>
