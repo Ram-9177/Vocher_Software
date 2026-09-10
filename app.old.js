@@ -814,6 +814,7 @@ window.addEventListener('hashchange', function() {
 });
 
 function show(id){
+  window.show = show;
   if (window.location.hash !== '#' + id) {
     window.history.pushState(null, null, '#' + id);
   }
@@ -821,6 +822,8 @@ function show(id){
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('act'));
   const s=document.getElementById('sec-'+id);if(s)s.classList.add('act');
   const n=document.getElementById('ni-'+id);if(n)n.classList.add('act');
+  const na2=document.getElementById('ni-'+id+'-a2');if(na2)na2.classList.add('act');
+  const ncr=document.getElementById('ni-'+id+'-create');if(ncr)ncr.classList.add('act');
   if(id==='create' && !editId){
     resetF();
     const dbEl = document.querySelector('.vtc[data-t="debit"]');
@@ -856,6 +859,7 @@ function show(id){
   // Persist current page so refresh lands on same section
   _setSess('smv_sess_page',id);
 }
+window.show = show;
 
 // VOUCHER TYPE SELECT
 function selVT(el,t){
@@ -1102,6 +1106,8 @@ function renderMyVT(){
     <td><div style="display:flex;gap:4px">
       <button class="btn bp bsm" onclick="quickPrint(${v.id})" title="Print">🖨</button>
       <button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="View">👁</button>
+      <button class="btn bs bsm" onclick="copyVoucherDetails(${v.id})" title="Copy Details">📋</button>
+      <button class="btn bs bsm" onclick="editV(${v.id})" title="Edit">✏️</button>
     </div></td>
   </tr>`;
   }).join('');
@@ -1938,6 +1944,7 @@ function renderVT(){
     <td><div style="display:flex;gap:4px">
       <button class="btn bp bsm" onclick="quickPrint(${v.id})" title="Print">🖨</button>
       <button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="View">👁</button>
+      <button class="btn bs bsm" onclick="copyVoucherDetails(${v.id})" title="Copy Details">📋</button>
       <button class="btn bs bsm" onclick="editV(${v.id})" title="Edit">✏️</button>
       <button class="btn br bsm" onclick="delV(${v.id})" title="Delete">🗑</button>
     </div></td>
@@ -2829,6 +2836,8 @@ window.addEventListener('DOMContentLoaded', async function(){
     setupRole();
     initApp();
     _updateXLPill();
+    if(typeof window.installAdminUsers==='function') window.installAdminUsers();
+    if(typeof window.applyPermissionVisibility==='function') window.applyPermissionVisibility();
     _startLiveSync();
     // Navigate to last active page or dashboard
     const hash = window.location.hash.replace('#', '');
@@ -2837,7 +2846,8 @@ window.addEventListener('DOMContentLoaded', async function(){
     } else if(sessPage){
       setTimeout(function(){ show(sessPage); }, 0);
     } else {
-      setTimeout(function(){ show('dashboard'); }, 0);
+      const isMain = (CU === 'admin1');
+      setTimeout(function(){ show(isMain ? 'dashboard' : 'mydashboard'); }, 0);
     }
   }catch(e){
     console.error('session restore',e);
@@ -2927,3 +2937,266 @@ document.addEventListener('click', function(e) {
     try { e.target.showPicker(); } catch(err) {}
   }
 });
+
+// ==========================================
+// CLIPBOARD COPY & PASTE HELPERS
+// ==========================================
+function copyTextToClipboard(text, successMsg) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert(successMsg || 'Copied to clipboard!');
+    }).catch(() => {
+      fallbackCopyText(text, successMsg);
+    });
+  } else {
+    fallbackCopyText(text, successMsg);
+  }
+}
+
+function fallbackCopyText(text, successMsg) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.top = '-9999px';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    alert(successMsg || 'Copied to clipboard!');
+  } catch (e) {
+    prompt('Copy failed automatically. Please copy the text below:', text);
+  }
+}
+
+window.handleAmountPaste = function(e, amtId, wordsId) {
+  if (!e || !e.clipboardData) return;
+  const pastedText = e.clipboardData.getData('text') || '';
+  const cleaned = pastedText.replace(/[^0-9.]/g, '');
+  if (cleaned && !isNaN(Number(cleaned))) {
+    e.preventDefault();
+    const input = document.getElementById(amtId);
+    if (input) {
+      input.value = cleaned;
+      if (typeof autoWords === 'function' && wordsId) {
+        autoWords(amtId, wordsId);
+      }
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+};
+
+window.handlePhonePaste = function(e, phoneId) {
+  if (!e || !e.clipboardData) return;
+  const pastedText = e.clipboardData.getData('text') || '';
+  const cleaned = pastedText.replace(/[^0-9+]/g, '');
+  if (cleaned) {
+    e.preventDefault();
+    const input = document.getElementById(phoneId);
+    if (input) {
+      input.value = cleaned;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+};
+
+window.copyVoucherDetails = function(idOrV) {
+  const v = typeof idOrV === 'object' && idOrV !== null ? idOrV : (typeof VS !== 'undefined' ? VS.find(x => x.id === idOrV) : null);
+  if (!v) {
+    alert('Voucher not found to copy.');
+    return;
+  }
+  const amt = Math.round(Number(v.amount) || 0);
+  const vType = (v.type || 'debit').toUpperCase();
+  const dateStr = v.date || (v.dateISO ? isoToDMY(v.dateISO) : '');
+  const party = v.paidTo || v.receivedFrom || v.party || '';
+
+  let details = `Voucher Type: ${vType}\n`;
+  details += `Voucher ID: ${v.id}\n`;
+  details += `Date: ${dateStr}\n`;
+  if (party) details += `Party / Paid To: ${party}\n`;
+  if (v.recipientPhone) details += `Phone: ${v.recipientPhone}\n`;
+  if (v.head) details += `Head: ${v.head}\n`;
+  details += `Amount: ₹${amt}\n`;
+  if (v.amtWords) details += `Amount in Words: ${v.amtWords}\n`;
+  details += `Mode: ${v.mode || 'Cash'}\n`;
+  if (v.cheque) details += `Cheque/Ref: ${v.cheque}\n`;
+  if (v.towards) details += `Towards: ${v.towards}\n`;
+  if (v.block) details += `Block: ${v.block}\n`;
+  if (v.college) details += `College: ${v.college.toUpperCase()}\n`;
+  if (v.remarks) details += `Remarks: ${v.remarks}\n`;
+  if (v.createdBy) details += `Created By: ${v.createdBy}\n`;
+
+  copyTextToClipboard(details, `Copied details for Voucher #${v.id}`);
+};
+
+window.copyCurrentPreviewDetails = function() {
+  const pa = document.getElementById('PA');
+  if (!pa) return;
+  const vid = pa.dataset.vid;
+  if (vid && typeof VS !== 'undefined') {
+    const v = VS.find(x => String(x.id) === String(vid));
+    if (v) {
+      window.copyVoucherDetails(v);
+      return;
+    }
+  }
+  const text = (pa.innerText || pa.textContent || '').trim();
+  if (text) {
+    copyTextToClipboard(text, 'Preview details copied to clipboard!');
+  } else {
+    alert('No preview content to copy.');
+  }
+};
+
+window.pasteOnAccountVoucherDetails = async function() {
+  let text = '';
+  try {
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      text = await navigator.clipboard.readText();
+    }
+  } catch (err) {
+    console.warn('Clipboard read permission error:', err);
+  }
+  if (!text) {
+    text = prompt('Paste voucher details below (key: value format, JSON, or text):');
+  }
+  if (!text || !text.trim()) return;
+
+  window.parseAndFillVoucherDetails(text.trim(), 'onaccount');
+};
+
+window.parseAndFillVoucherDetails = function(text, defaultType) {
+  if (!text || typeof text !== 'string') return;
+  const t = text.trim();
+  let data = {};
+
+  if ((t.startsWith('{') && t.endsWith('}')) || (t.startsWith('[') && t.endsWith(']'))) {
+    try {
+      const parsed = JSON.parse(t);
+      data = Array.isArray(parsed) ? (parsed[0] || {}) : parsed;
+    } catch (e) {}
+  }
+
+  if (Object.keys(data).length === 0) {
+    const lines = t.split(/\r?\n/);
+    lines.forEach(line => {
+      const parts = line.split(/[:\t=]/);
+      if (parts.length >= 2) {
+        const key = parts[0].trim().toLowerCase();
+        const val = parts.slice(1).join(':').trim();
+        if (key.includes('type')) data.type = val.toLowerCase();
+        else if (key.includes('paid to') || key.includes('party') || key.includes('received from') || key.includes('name')) data.paidTo = val;
+        else if (key.includes('phone') || key.includes('mobile') || key.includes('tel') || key.includes('contact')) data.phone = val;
+        else if (key.includes('head') || key.includes('category') || key.includes('acc')) data.head = val;
+        else if (key.includes('towards') || key.includes('purpose') || key.includes('for')) data.towards = val;
+        else if (key.includes('block') || key.includes('location')) data.block = val;
+        else if (key.includes('amount') || key.includes('amt') || key === 'rs' || key === 'inr') data.amount = val;
+        else if (key.includes('word')) data.amtWords = val;
+        else if (key.includes('mode')) data.mode = val;
+        else if (key.includes('cheque') || key.includes('ref')) data.cheque = val;
+        else if (key.includes('date')) data.date = val;
+        else if (key.includes('rem')) data.remarks = val;
+        else if (key.includes('rev')) data.reversalDate = val;
+      }
+    });
+
+    if (!data.amount) {
+      const mAmt = t.match(/(?:amount|amt|rs\.?|inr|₹)[\s:]*([0-9,]+(?:\.[0-9]+)?)/i);
+      if (mAmt) data.amount = mAmt[1];
+    }
+    if (!data.phone) {
+      const mPhone = t.match(/(?:phone|mobile|cell|contact)[\s:]*([0-9+\-\s]{8,15})/i);
+      if (mPhone) data.phone = mPhone[1];
+    }
+    if (!data.paidTo) {
+      const mParty = t.match(/(?:paid\s*to|party|payee|name)[\s:]*([^\n\r,]+)/i);
+      if (mParty) data.paidTo = mParty[1];
+    }
+  }
+
+  const type = (data.type || defaultType || (typeof CVT !== 'undefined' ? CVT : 'onaccount')).toLowerCase().replace(/[^a-z]/g, '');
+  const activeType = (type.includes('on') || type.includes('account')) ? 'onaccount' : (type.includes('cred') ? 'credit' : 'debit');
+
+  if (typeof selVT === 'function') {
+    const card = document.querySelector(`.vtc[data-t="${activeType}"]`);
+    if (card) selVT(card, activeType);
+  }
+
+  const setInputVal = (id, val) => {
+    if (!val && val !== 0) return;
+    const el = document.getElementById(id);
+    if (el) {
+      el.value = val;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  };
+
+  if (data.date) {
+    let dVal = data.date.trim();
+    if (dVal.match(/^\d{2}[/-]\d{2}[/-]\d{4}$/) && typeof dmyToISO === 'function') {
+      dVal = dmyToISO(dVal);
+    }
+    setInputVal('f_date', dVal);
+    if (typeof syncDateFilterDisplay === 'function') syncDateFilterDisplay('f_date');
+  }
+
+  if (data.remarks) setInputVal('f_rem', data.remarks);
+
+  let rawAmt = data.amount ? String(data.amount).replace(/[^0-9.]/g, '') : '';
+
+  if (activeType === 'onaccount') {
+    if (data.paidTo) setInputVal('fo_paidto', data.paidTo);
+    if (data.phone) {
+      const cleanPhone = String(data.phone).replace(/[^0-9+]/g, '');
+      setInputVal('fo_phone', cleanPhone);
+    }
+    if (data.head) setInputVal('fo_head', data.head);
+    if (data.towards) setInputVal('fo_towards', data.towards);
+    if (data.block) setInputVal('fo_block', data.block);
+    if (rawAmt) {
+      setInputVal('fo_amt', rawAmt);
+      if (typeof autoWords === 'function') autoWords('fo_amt', 'fo_words');
+    }
+    if (data.amtWords) setInputVal('fo_words', data.amtWords);
+    if (data.mode) setInputVal('fo_mode', data.mode);
+    if (data.cheque || data.ref) setInputVal('fo_ref', data.cheque || data.ref);
+    if (data.reversalDate) {
+      let rVal = data.reversalDate.trim();
+      if (rVal.match(/^\d{2}[/-]\d{2}[/-]\d{4}$/) && typeof dmyToISO === 'function') rVal = dmyToISO(rVal);
+      setInputVal('fo_reversal_date', rVal);
+    }
+  } else if (activeType === 'debit') {
+    if (data.paidTo) setInputVal('fd_paidto', data.paidTo);
+    if (data.head) setInputVal('fd_head', data.head);
+    if (data.towards) setInputVal('fd_towards', data.towards);
+    if (data.block) setInputVal('fd_block', data.block);
+    if (rawAmt) {
+      setInputVal('fd_amt', rawAmt);
+      if (typeof autoWords === 'function') autoWords('fd_amt', 'fd_words');
+    }
+    if (data.amtWords) setInputVal('fd_words', data.amtWords);
+    if (data.mode) setInputVal('fd_mode', data.mode);
+    if (data.cheque) setInputVal('fd_cheque', data.cheque);
+  } else if (activeType === 'credit') {
+    if (data.paidTo || data.receivedFrom || data.from) setInputVal('fc_from', data.paidTo || data.receivedFrom || data.from);
+    if (data.acName) setInputVal('fc_acname', data.acName);
+    if (data.head) setInputVal('fc_head', data.head);
+    if (data.towards) setInputVal('fc_towards', data.towards);
+    if (data.block) setInputVal('fc_block', data.block);
+    if (rawAmt) {
+      setInputVal('fc_amt', rawAmt);
+      if (typeof autoWords === 'function') autoWords('fc_amt', 'fc_words');
+    }
+    if (data.amtWords) setInputVal('fc_words', data.amtWords);
+    if (data.mode) setInputVal('fc_mode', data.mode);
+    if (data.cheque) setInputVal('fc_cheque', data.cheque);
+  }
+
+  alert('Voucher details pasted and filled successfully!');
+};

@@ -9,7 +9,7 @@
   } catch(e) {}
 
   try {
-    if(!document.querySelector('script[data-smv-user-layer="1"]')){
+    if(!document.querySelector('script[data-smv-user-layer="1"]') && !document.querySelector('script[src*="admin1-users.js"]')){
       var us = document.createElement('script');
       us.src = 'admin1-users.js?v=' + encodeURIComponent(buildVersion);
       us.async = false;

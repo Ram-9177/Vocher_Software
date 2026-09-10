@@ -68,7 +68,11 @@
     if (!user) return false;
     if (user.username === 'admin' || user.username === 'admin1' || user.username === 'admin_stmw' || user.username === 'baji') return true;
     if (!user.permissions) return false;
-    const perms = user.permissions.split(',').map(p => p.trim());
+    if (typeof user.permissions === 'object') {
+      if (Array.isArray(user.permissions)) return user.permissions.includes(perm);
+      return Boolean(user.permissions[perm]);
+    }
+    const perms = String(user.permissions || '').split(',').map(p => p.trim());
     return perms.includes(perm);
   }
   window.hasPermission = hasPermission;
@@ -564,12 +568,12 @@
 
     const isMainAdmin = user.username === 'admin' || user.username === 'admin1' || user.username === 'admin_stmw' || user.username === 'baji';
     const isVoucherAdmin = isMainAdmin || user.role === 'admin' || user.role === 'head';
-    const perms = isMainAdmin ? [] : (user.permissions || '').split(',').map(p => p.trim());
 
     function has(p) {
-      return isMainAdmin || perms.includes(p);
+      return hasPermission(user, p);
     }
 
+    // CREATE SECTION ITEMS
     const niCreate = document.getElementById('ni-create');
     if (niCreate) {
       niCreate.style.display = has('create_voucher') ? 'flex' : 'none';
@@ -577,34 +581,15 @@
 
     const niVendor = document.getElementById('ni-vendor');
     if (niVendor) {
-      niVendor.style.display = (has('manage_vendors') || has('create_voucher')) ? 'flex' : 'none';
+      niVendor.style.display = (has('manage_vendors') || has('view_vendor_ledger') || has('create_voucher')) ? 'flex' : 'none';
     }
 
-    const niVendorLedger = document.getElementById('ni-vendorledger');
-    if (niVendorLedger) {
-      niVendorLedger.style.display = (isVoucherAdmin || has('view_vendor_ledger') || has('view_all_vouchers') || has('create_voucher')) ? 'flex' : 'none';
+    const niVendorLedgerCreate = document.getElementById('ni-vendorledger-create');
+    if (niVendorLedgerCreate) {
+      niVendorLedgerCreate.style.display = (isVoucherAdmin || has('view_vendor_ledger') || has('manage_vendors') || has('create_voucher')) ? 'flex' : 'none';
     }
 
-    const niVendorLedgerA2 = document.getElementById('ni-vendorledger-a2');
-    if (niVendorLedgerA2) {
-      niVendorLedgerA2.style.display = (isVoucherAdmin || has('view_vendor_ledger') || has('view_all_vouchers') || has('create_voucher') || has('view_own_vouchers')) ? 'flex' : 'none';
-    }
-
-    const niVouchers = document.getElementById('ni-vouchers');
-    if (niVouchers) {
-      niVouchers.style.display = (isVoucherAdmin || has('view_all_vouchers')) ? 'flex' : 'none';
-    }
-
-    const niMyVouchers = document.getElementById('ni-myvouchers');
-    if (niMyVouchers) {
-      niMyVouchers.style.display = has('view_own_vouchers') ? 'flex' : 'none';
-    }
-
-    const niMyDashboard = document.getElementById('ni-mydashboard');
-    if (niMyDashboard) {
-      niMyDashboard.style.display = (!isMainAdmin && has('view_own_vouchers')) ? 'flex' : 'none';
-    }
-
+    // ADMIN OVERVIEW (A1NAV)
     const niDashboard = document.getElementById('ni-dashboard');
     if (niDashboard) {
       niDashboard.style.display = (isMainAdmin || has('view_dashboard')) ? 'flex' : 'none';
@@ -615,16 +600,46 @@
       niAnalytics.style.display = (isMainAdmin || has('view_analytics')) ? 'flex' : 'none';
     }
 
+    const niVouchers = document.getElementById('ni-vouchers');
+    if (niVouchers) {
+      niVouchers.style.display = (isVoucherAdmin || has('view_all_vouchers')) ? 'flex' : 'none';
+    }
+
+    const niVendorLedger = document.getElementById('ni-vendorledger');
+    if (niVendorLedger) {
+      niVendorLedger.style.display = (isVoucherAdmin || has('view_vendor_ledger') || has('manage_vendors')) ? 'flex' : 'none';
+    }
+
+    // USER OVERVIEW (A2NAV)
+    const niMyDashboard = document.getElementById('ni-mydashboard');
+    if (niMyDashboard) {
+      niMyDashboard.style.display = (!isMainAdmin && (has('view_own_vouchers') || has('view_dashboard'))) ? 'flex' : 'none';
+    }
+
+    const niMyVouchers = document.getElementById('ni-myvouchers');
+    if (niMyVouchers) {
+      niMyVouchers.style.display = has('view_own_vouchers') ? 'flex' : 'none';
+    }
+
+    const niVouchersA2 = document.getElementById('ni-vouchers-a2');
+    if (niVouchersA2) {
+      niVouchersA2.style.display = (!isMainAdmin && has('view_all_vouchers')) ? 'flex' : 'none';
+    }
+
+    const niVendorLedgerA2 = document.getElementById('ni-vendorledger-a2');
+    if (niVendorLedgerA2) {
+      niVendorLedgerA2.style.display = (has('view_vendor_ledger') || has('manage_vendors') || has('create_voucher')) ? 'flex' : 'none';
+    }
+
+    // TOGGLE A1NAV VS A2NAV
     const a1Nav = document.getElementById('A1NAV');
     if (a1Nav) {
-      const hasVisibleA1Item = [niDashboard, niAnalytics, niVouchers, niVendorLedger].some(el => el && el.style.display !== 'none');
-      a1Nav.style.display = hasVisibleA1Item ? '' : 'none';
+      a1Nav.style.display = isVoucherAdmin ? '' : 'none';
     }
 
     const a2Nav = document.getElementById('A2NAV');
     if (a2Nav) {
-      const hasVisibleA2Item = [niMyDashboard, niMyVouchers, niVendorLedgerA2].some(el => el && el.style.display !== 'none');
-      a2Nav.style.display = hasVisibleA2Item ? '' : 'none';
+      a2Nav.style.display = !isVoucherAdmin ? '' : 'none';
     }
 
     const niExport = document.getElementById('ni-export');
@@ -680,7 +695,8 @@
     if (!styleEl) {
       styleEl = document.createElement('style');
       styleEl.id = 'smv-permission-visibility-style';
-      document.head.appendChild(styleEl);
+      const container = document.head || document.body;
+      if (container && container.appendChild) container.appendChild(styleEl);
     }
     let css = '';
     if (!has('delete_voucher')) {

@@ -36,6 +36,7 @@
   load('app.old.js')
     .then(function(){ return load('live-adapter.js'); })
     .then(function(){ return load('live-save-override.js'); })
+    .then(function(){ return load('admin1-users.js'); })
     .then(function(){ return load('vendor.js'); })
     .then(function(){
       adapterReady = true;

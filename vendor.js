@@ -196,14 +196,39 @@
     });
   }
 
+  function normalizeCollege(c) {
+    var s = String(c || '').trim().toLowerCase();
+    if (s === 'smg' || s === 'smgg') return 'smgg';
+    if (s === 'smwec' || s === 'stmw') return 'smwec';
+    return s;
+  }
+
+  function isCollegePermitted(targetCol) {
+    if (!targetCol || targetCol === 'all') return true;
+    var normTarget = normalizeCollege(targetCol);
+    var currentCol = normalizeCollege(window.CURRENT_COLLEGE || 'smgg');
+    if (normTarget === currentCol) return true;
+
+    if (window.CU === 'admin1' || (typeof isAdmin === 'function' && isAdmin())) return true;
+    var u = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (u) {
+      if (u.role === 'admin' || (u.permissions && (u.permissions.view_vendor_ledger || u.permissions.manage_vendors))) {
+        return true;
+      }
+      var access = Array.isArray(u.collegeAccess) ? u.collegeAccess.map(normalizeCollege) : [];
+      if (access.includes(normTarget) || access.includes('all')) return true;
+    }
+    return false;
+  }
+  window.isVendorCollegePermitted = isCollegePermitted;
+
   function updateVendorAgreementSelect() {
     var sel = document.getElementById('fd_vendor_id');
     if (!sel) return;
     var curVal = sel.value;
     sel.innerHTML = '<option value="">-- No Agreement (General / Daily NMR / Non-Contract Payment) --</option>';
-    var currentCol = (window.CURRENT_COLLEGE || 'smgg').toLowerCase();
     VENDORS.forEach(function(v) {
-      if (v.college && v.college !== currentCol && window.CU !== 'admin1') return;
+      if (!isCollegePermitted(v.college)) return;
       var vid = v.vendorId || v.id || '';
       var comp = v.companyName || v.company || '';
       var name = v.vendorName || v.name || '';
@@ -718,8 +743,9 @@
 
       // College check (SMGG vs SMWEC)
       if (vendorCol && item.college) {
-        var itemCol = normalizeCleanStr(item.college);
-        if (itemCol && itemCol !== vendorCol && window.CU !== 'admin1') return false;
+        var itemCol = normalizeCollege(item.college);
+        var vCol = normalizeCollege(v.college);
+        if (itemCol && vCol && itemCol !== vCol && !isCollegePermitted(itemCol)) return false;
       }
 
       // Date cutoff check: Voucher date MUST NOT be before the Vendor Form / Agreement start date
@@ -872,6 +898,7 @@
     var currentVal = sel.value;
     sel.innerHTML = '<option value="">All Vendors</option>';
     VENDORS.forEach(function(v) {
+      if (!isCollegePermitted(v.college)) return;
       var opt = document.createElement('option');
       var vid = v.vendorId || v.id;
       opt.value = vid;
@@ -922,7 +949,7 @@
   };
 
   // --- RENDER VENDOR LEDGER MASTER REGISTER TABLE ---
-  window.renderVendorLedgerTable = function() {
+  function renderVendorLedgerTable() {
     populateVendorFilterDropdown();
 
     var tbody = document.getElementById('VENDOR_LEDGER_TABLE_BODY');
@@ -962,8 +989,11 @@
       overallVouchers += fin.vouchersCount;
 
       // 1. College Filter
-      if (collegeFilter && v.college !== collegeFilter) return;
-      if (!collegeFilter && v.college && v.college !== currentCol && window.CU !== 'admin1') return;
+      if (collegeFilter) {
+        if (normalizeCollege(v.college) !== normalizeCollege(collegeFilter)) return;
+      } else {
+        if (!isCollegePermitted(v.college)) return;
+      }
 
       // 2. Specific Vendor Filter
       if (vendorFilter && (v.vendorId !== vendorFilter && v.id !== vendorFilter)) return;
@@ -1133,7 +1163,8 @@
     });
 
     tbody.innerHTML = html;
-  };
+  }
+  window.renderVendorLedgerTable = renderVendorLedgerTable;
 
   // --- OPEN INTERACTIVE VENDOR LEDGER STATEMENT MODAL ---
   window.openVendorLedgerModal = function(vendorId) {
@@ -1397,7 +1428,7 @@
   };
 
   // --- RENDER REGISTERED VENDORS TABLE (IN VENDOR FORM SECTION) ---
-  window.renderVendorsTable = function() {
+  function renderVendorsTable() {
     var tbody = document.getElementById('VENDOR_TABLE_BODY');
     var emptyEl = document.getElementById('VENDOR_EMPTY_MSG');
     var countEl = document.getElementById('VENDOR_COUNT_MSG');
@@ -1409,8 +1440,11 @@
     var currentCol = (window.CURRENT_COLLEGE || 'smgg').toLowerCase();
 
     var filtered = VENDORS.filter(function(v) {
-      if (collegeFilter && v.college !== collegeFilter) return false;
-      if (!collegeFilter && v.college && v.college !== currentCol && window.CU !== 'admin1') return false;
+      if (collegeFilter) {
+        if (normalizeCollege(v.college) !== normalizeCollege(collegeFilter)) return false;
+      } else {
+        if (!isCollegePermitted(v.college)) return false;
+      }
 
       if (query) {
         var matchId = (v.vendorId || v.id || '').toLowerCase().indexOf(query) > -1;
@@ -1501,7 +1535,8 @@
     });
 
     tbody.innerHTML = html;
-  };
+  }
+  window.renderVendorsTable = renderVendorsTable;
 
   // --- BUILD HTML FOR VENDOR AGREEMENT DOCUMENT (EXACT MATCH TO UPLOADED IMAGE) ---
   function buildAgreementDocumentHtml(v) {

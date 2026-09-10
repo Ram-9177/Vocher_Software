@@ -925,6 +925,18 @@ tr.oa-cleared-row td {
 /* ===PRINT VOUCHERS - EXACT MATCH=== */
 #PA {
   background: var(--W);
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+.pv-wrap,
+.dv-print,
+.oa-print,
+.cv-print,
+.vendor-agreement-sheet,
+.vendor-ledger-sheet {
+  user-select: text !important;
+  -webkit-user-select: text !important;
 }
 
 .pv-wrap {

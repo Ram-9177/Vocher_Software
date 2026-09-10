@@ -101,9 +101,15 @@ async function handle(context) {
   if (action === 'listHeads') return await listHeads(env.DB, user, body);
   if (action === 'listVendors') return await listVendors(env.DB, user, body);
   if (action === 'saveVendor') {
+    if (!isAdmin1 && !hasPermission(user, 'manage_vendors')) {
+      throwError('Access denied. Missing manage_vendors permission.', 403);
+    }
     return await saveVendor(env.DB, user, body, ip);
   }
   if (action === 'saveVendorsBulk') {
+    if (!isAdmin1 && !hasPermission(user, 'manage_vendors')) {
+      throwError('Access denied. Missing manage_vendors permission.', 403);
+    }
     return await saveVendorsBulk(env.DB, user, body, ip);
   }
   if (action === 'deleteVendor') {
@@ -459,7 +465,7 @@ async function validateSession(DB, session){const exp=new Date(Date.now()+SESSIO
 
 async function listVouchers(DB, user, body) {
   const college = allowedCollege(user, body.college);
-  const showAll = isVoucherAdmin(user);
+  const showAll = isVoucherAdmin(user) || hasPermission(user, 'view_all_vouchers') || hasPermission(user, 'view_vendor_ledger');
   const q = showAll ?
     DB.prepare('SELECT * FROM vouchers WHERE deleted_at IS NULL AND college=? ORDER BY date DESC,id DESC').bind(college) :
     DB.prepare('SELECT * FROM vouchers WHERE deleted_at IS NULL AND college=? AND (created_by=? OR type=\'onaccount\') ORDER BY date DESC,id DESC').bind(college, user.username);
@@ -468,7 +474,7 @@ async function listVouchers(DB, user, body) {
 }
 async function syncData(DB,user,body){
   const college=allowedCollege(user,body.college);
-  const showAll=isVoucherAdmin(user);
+  const showAll = isVoucherAdmin(user) || hasPermission(user, 'view_all_vouchers') || hasPermission(user, 'view_vendor_ledger');
   const canView=showAll||user.role==='user'||hasPermission(user,'view_own_vouchers');
   
   let fetchVouchers = canView;
@@ -743,7 +749,7 @@ async function saveVendor(DB, user, body, ip) {
     await audit(DB, user.username, 'update_vendor', 'vendor', vid, JSON.stringify({ company: companyName, amount: agreedAmount }), ip);
     return send({ ok: true, vendorId: vid, version: API_VERSION });
   } else {
-    await DB.prepare('INSERT INTO vendors(id,vendor_id,college,company_name,vendor_name,phone,pan,aadhaar,email,gst_number,bank_account_details,work_description,agreed_amount,amount_in_words,period_start,period_end,auth_by,auth_role,auth_place,remarks,data_json,created_by,created_at,updated_by,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(
+    await DB.prepare('INSERT INTO vendors(id,vendor_id,college,company_name,vendor_name,phone,pan,aadhaar,email,gst_number,bank_account_details,work_description,agreed_amount,amount_in_words,period_start,period_end,auth_by,auth_role,auth_place,remarks,data_json,created_by,created_at,updated_by,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(
       vid, vid, college, companyName, vendorName, phone, pan, aadhaar, email, gstNumber, bankAccountDetails, workDescription, agreedAmount, amountInWords, periodStart, periodEnd, authBy, authRole, authPlace, remarks, dataJson, user.username, createdAt, user.username, updatedAt
     ).run();
     await audit(DB, user.username, 'create_vendor', 'vendor', vid, JSON.stringify({ company: companyName, amount: agreedAmount }), ip);

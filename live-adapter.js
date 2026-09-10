@@ -149,6 +149,10 @@
       const changedUser = await requirePasswordChange();
       authUser = changedUser || ok.user;
     }
+    if(authUser && typeof authUser === 'object') {
+      setAuthUser(authUser);
+      try { localStorage.setItem('smv_auth_user', JSON.stringify(authUser)); } catch(e){}
+    }
 
     const allowedColleges = typeof _sessionCollegeAccess === 'function' ? _sessionCollegeAccess() : [];
     if(allowedColleges.length && allowedColleges.indexOf(CURRENT_COLLEGE) === -1) {
@@ -165,12 +169,22 @@
     await _loadVouchersFromCloud();
     setupRole();initApp();_updateXLPill();
     if(typeof window.installAdminUsers==='function')window.installAdminUsers();
+    if(typeof window.applyPermissionVisibility==='function')window.applyPermissionVisibility();
     const cs=document.getElementById('f_college'); if(cs){ cs.value=CURRENT_COLLEGE||'smgg'; cs.disabled=true; }
     setSess('smv_sess_user',CU);
     setSess('smv_sess_college',CURRENT_COLLEGE||'smgg');
     setSess('smv_sess_home',HOME_COLLEGE||CURRENT_COLLEGE||'smgg');
     _startLiveSync();
-    setTimeout(function(){ if(typeof show==='function') show('dashboard'); }, 0);
+    setTimeout(function(){
+      if(typeof show==='function') {
+        const isMainAdmin = (CU === 'admin1');
+        if (isMainAdmin) {
+          show('dashboard');
+        } else {
+          show('mydashboard');
+        }
+      }
+    }, 0);
   };
 
   window.doSignup = async function(){
