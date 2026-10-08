@@ -200,6 +200,7 @@
     var s = String(c || '').trim().toLowerCase();
     if (s === 'smg' || s === 'smgg') return 'smgg';
     if (s === 'smwec' || s === 'stmw') return 'smwec';
+    if (s === 'smhyd' || s === 'smh' || s === 'smec' || s === 'hyderabad') return 'smhyd';
     return s;
   }
 
@@ -1100,7 +1101,9 @@
       var vid = v.vendorId || v.id;
       var collegeBadge = v.college === 'smwec' ?
         '<span style="font-size:10px;padding:2px 6px;border-radius:10px;background:#EDE9FE;color:#5B21B6;font-weight:600;">STMW</span>' :
-        '<span style="font-size:10px;padding:2px 6px;border-radius:10px;background:#FEE2E2;color:#991B1B;font-weight:600;">SMGG</span>';
+        (v.college === 'smhyd' ?
+          '<span style="font-size:10px;padding:2px 6px;border-radius:10px;background:#FEF3C7;color:#B45309;font-weight:600;">HYD</span>' :
+          '<span style="font-size:10px;padding:2px 6px;border-radius:10px;background:#FEE2E2;color:#991B1B;font-weight:600;">SMGG</span>');
 
       var statusBadge = fin.status === 'paid' ?
         '<span class="badge-paid">✓ Fully Paid (100%)</span>' :
@@ -1488,7 +1491,9 @@
 
       var collegeBadge = v.college === 'smwec' ?
         '<span style="font-size:10px;padding:2px 6px;border-radius:10px;background:#EDE9FE;color:#5B21B6;font-weight:600;">STMW</span>' :
-        '<span style="font-size:10px;padding:2px 6px;border-radius:10px;background:#FEE2E2;color:#991B1B;font-weight:600;">SMGG</span>';
+        (v.college === 'smhyd' ?
+          '<span style="font-size:10px;padding:2px 6px;border-radius:10px;background:#FEF3C7;color:#B45309;font-weight:600;">HYD</span>' :
+          '<span style="font-size:10px;padding:2px 6px;border-radius:10px;background:#FEE2E2;color:#991B1B;font-weight:600;">SMGG</span>');
 
       var vid = v.vendorId || v.id || '—';
       var agDate = v.periodStart || (v.agreement && v.agreement.periodStart) || v.agreementDate || '—';
@@ -1556,7 +1561,9 @@
 
     var collegeName = (v.college === 'smwec')
       ? "ST. MARY'S WOMEN'S ENGINEERING COLLEGE, BUDAMPADU"
-      : "St. Mary's Group of Institutions Guntur for Women";
+      : (v.college === 'smhyd'
+        ? "ST. MARY'S ENGINEERING COLLEGE, HYDERABAD"
+        : "St. Mary's Group of Institutions Guntur for Women");
 
     var companyUpper = (v.companyName || v.company || 'GOPI SUPPLIERS').toUpperCase();
     var vendorNameVal = v.vendorName || v.name || 'G. Gopi';
@@ -1798,7 +1805,9 @@
 
     var collegeTitle = v.college === 'smwec' ?
       "ST. MARY'S WOMEN'S ENGINEERING COLLEGE, BUDAMPADU" :
-      "ST. MARY'S GROUP OF INSTITUTIONS GUNTUR (CHEBROLU)";
+      (v.college === 'smhyd' ?
+        "ST. MARY'S ENGINEERING COLLEGE, HYDERABAD" :
+        "ST. MARY'S GROUP OF INSTITUTIONS GUNTUR (CHEBROLU)");
 
     var pStart = typeof isoToDMY === 'function' ? (isoToDMY(v.periodStart || v.agreementDate) || '—') : (v.periodStart || v.agreementDate || '—');
     var pEnd = typeof isoToDMY === 'function' ? (isoToDMY(v.periodEnd) || '—') : (v.periodEnd || '—');

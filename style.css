@@ -1416,7 +1416,7 @@ tbody tr {
   gap: 1.2rem;
   flex-wrap: wrap;
   justify-content: center;
-  max-width: 880px;
+  max-width: 1040px;
 }
 
 .cpc {
@@ -2823,4 +2823,24 @@ tbody tr {
     page-break-inside: avoid !important;
     page-break-after: avoid !important;
   }
+}
+
+/* === CASH BOOK MODAL & BREAKDOWN === */
+#CASHBOOK_MODAL .cb-date-badge {
+  transition: all 0.2s ease;
+}
+#CASHBOOK_MODAL .cb-date-badge:hover {
+  transform: translateY(-1px);
+  border-color: #002D72 !important;
+}
+#CB_TABLE_BODY tr:hover {
+  background: #fdf2f4 !important;
+}
+#CB_TABLE_BODY td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+#CB_TABLE_FOOT td {
+  padding: 8px 10px;
+  border-top: 2px solid #7B1D2E;
 }

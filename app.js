@@ -3,7 +3,7 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20260830-cloud-vendor-sync-v42';
+  var buildVersion = '20261008-cashbook-date-hyd-v43';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;

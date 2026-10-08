@@ -10,7 +10,12 @@ const ADMINS=ADMIN_ROLES;
 let CURRENT_COLLEGE=null;
 let HOME_COLLEGE=null; // college the user logged into; only SMGG admin1 can cross over
 let SMWEC_LOGO_SRC='assets/logo_smwec.jpg';
-const COLLEGES={smgg:{label:"St. Mary's Group Of Institutions Guntur For Women"},smwec:{label:"St. Mary's Women's Engineering College, Budampadu",logo:SMWEC_LOGO_SRC}};
+let SMHYD_LOGO_SRC='assets/logo_smgg.png';
+const COLLEGES={
+  smgg:{label:"St. Mary's Group Of Institutions Guntur For Women"},
+  smwec:{label:"St. Mary's Women's Engineering College, Budampadu",logo:SMWEC_LOGO_SRC},
+  smhyd:{label:"St. Mary's Engineering College, Hyderabad",location:"Deshmukhi, Hyderabad",logo:SMHYD_LOGO_SRC}
+};
 let SMGG_LOGO_SRC='assets/logo_smgg.png';
 function _credKey(){return 'smv_creds_v1__'+(CURRENT_COLLEGE||'smgg');}
 function _vsKey(){return 'smv3__'+(CURRENT_COLLEGE||'smgg');}
@@ -1163,6 +1168,7 @@ function doExcelMine(){
 function buildPrint(v){
   const isJS  = false;
   const isSMWEC = (v && v.college === 'smwec');
+  const isSMHYD = (v && (v.college === 'smhyd' || v.college === 'smh'));
   const isDV  = v.type==='debit';
   const isOA  = v.type==='onaccount';
   const isCV  = v.type==='credit';
@@ -1189,7 +1195,7 @@ function buildPrint(v){
   const INST_SUB = isJS
     ? `<div style="font-size:6.5pt;font-weight:400;line-height:1.5;color:#111;text-align:center">Plot No.102, High Court Colony, Vanasthallapuram,<br>HYDERABAD – 500 070, A.P. INDIA</div>`
     : `<div style="font-size:6.5pt;font-weight:400;line-height:1.5;color:#111;text-align:center">( Formerly St. Mary Engineering College, St. Mary's PG Centre, St. Mary's College of Pharmacy)<br>(Joseph Sriharsha &amp; Mary Indraja Educational Society)<br>CHEBROLU (Vill &amp; Mdl), Guntur Dist – 522 212</div>`;
-  // SMWEC override
+  // SMWEC / SMHYD overrides
   let _INST1_local = INST1;
   let _INST_SUB_local = INST_SUB;
   let _LOGO_local = LOGO_IMG;
@@ -1197,6 +1203,10 @@ function buildPrint(v){
     _INST1_local = "ST. MARY'S WOMEN'S ENGINEERING COLLEGE";
     _INST_SUB_local = `<div style="font-size:6.5pt;font-weight:400;line-height:1.5;color:#111;text-align:center">(Approved by AICTE, Permitted by Govt. of A.P. &amp; Affiliated to JNTU KAKINADA)<br>(Joseph Sriharsha &amp; Mary Indraja Educational Society)<br>BUDAMPADU VILLAGE, Guntur Rural, Guntur (Dt) - 522 017, A.P., INDIA</div>`;
     _LOGO_local = SMWEC_LOGO_SRC;
+  } else if (isSMHYD) {
+    _INST1_local = "ST. MARY'S ENGINEERING COLLEGE";
+    _INST_SUB_local = `<div style="font-size:6.5pt;font-weight:400;line-height:1.5;color:#111;text-align:center">(Approved by AICTE, Affiliated to JNTU HYDERABAD &amp; Accredited by NAAC with 'A' Grade)<br>(Joseph Sriharsha &amp; Mary Indraja Educational Society)<br>Deshmukhi (V), Near Ramoji Film City, Greater HYDERABAD – 508 284</div>`;
+    _LOGO_local = SMHYD_LOGO_SRC;
   }
 
 
@@ -2389,10 +2399,28 @@ function exportLedger(silent=false){
 
 
 // =============================================
-// CASH BOOK EXPORT — one sheet per institution
-// Columns: Particulars (including Block) | Amount | Amount | Head Account | Particulars (including Block) | Amount | Amount
+// CASH BOOK ENGINE — Date-wise Interactive Preview & 9-Column Excel Export
+// Columns: Date | Particulars (with Block) | Cash Amount | Cheque Amount | Date | Head Account | Particulars (with Block) | Cash Amount | Cheque Amount
 // Left (Receipts) = Credit vouchers · Right (Payments) = Debit + On Account vouchers
 // =============================================
+function getCashBookSortedVouchers(vouchers) {
+  return (vouchers || []).slice().sort((a, b) => {
+    const da = String(a.dateISO || a.date || '').trim();
+    const db = String(b.dateISO || b.date || '').trim();
+    let keyA = da, keyB = db;
+    if (/^\d{2}[\/-]\d{2}[\/-]\d{4}$/.test(da)) {
+      const parts = da.replace(/\//g, '-').split('-');
+      keyA = `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    if (/^\d{2}[\/-]\d{2}[\/-]\d{4}$/.test(db)) {
+      const parts = db.replace(/\//g, '-').split('-');
+      keyB = `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    if (keyA !== keyB) return keyA.localeCompare(keyB);
+    return (Number(a.id) || 0) - (Number(b.id) || 0);
+  });
+}
+
 function doCashBook(scope){
   try{
     if(typeof XLSX==='undefined'){alert('Excel library not ready. Please try again.');return;}
@@ -2410,11 +2438,23 @@ function doCashBook(scope){
     const thinBlk = {style:'thin',color:{rgb:'000000'}};
     const allBorder = {top:thinBlk,bottom:thinBlk,left:thinBlk,right:thinBlk};
 
-    const fcEl = document.getElementById('FC');
+    // Use modal values if open, otherwise view filter values
+    const cbModal = document.getElementById('CASHBOOK_MODAL');
+    const isModalOpen = cbModal && !cbModal.classList.contains('h');
+    const fcEl = isModalOpen ? document.getElementById('CB_COLLEGE') : document.getElementById('FC');
     const selectedInst = isMine ? '' : (fcEl ? fcEl.value : '');
     const instKeysToProcess = selectedInst ? [selectedInst] : instKeys;
-    const fromDate = (document.getElementById(isMine ? 'MSDF' : 'SDF')||{}).value || '';
-    const toDate = (document.getElementById(isMine ? 'MSDT' : 'SDT')||{}).value || '';
+
+    let fromDate = '';
+    let toDate = '';
+    if (isModalOpen) {
+      fromDate = (document.getElementById('CB_SDF') || {}).value || '';
+      toDate = (document.getElementById('CB_SDT') || {}).value || '';
+    } else {
+      fromDate = (document.getElementById(isMine ? 'MSDF' : 'SDF')||{}).value || '';
+      toDate = (document.getElementById(isMine ? 'MSDT' : 'SDT')||{}).value || '';
+    }
+
     const fmtFilterDate = value => isoToDMY(value);
     const periodLabel = fromDate && toDate
       ? 'Period: '+fmtFilterDate(fromDate)+' – '+fmtFilterDate(toDate)
@@ -2424,15 +2464,17 @@ function doCashBook(scope){
           ? 'Period: Up to '+fmtFilterDate(toDate)
           : 'Period: All Dates';
 
+    let totalSheetsAdded = 0;
+
     instKeysToProcess.forEach(key=>{
       const instLabel = (insts[key] && insts[key].label) ? insts[key].label : key;
       const sub = EXPVS.filter(v => (v.college||'smgg') === key);
       
       if(!sub.length) return;
 
-      // Split into receipts (credit) and payments (debit + onaccount)
-      const receipts = sub.filter(v=>v.type==='credit');
-      const payments = sub.filter(v=>v.type==='debit' || v.type==='onaccount');
+      // Split into receipts (credit) and payments (debit + onaccount) and sort chronologically ascending
+      const receipts = getCashBookSortedVouchers(sub.filter(v=>v.type==='credit'));
+      const payments = getCashBookSortedVouchers(sub.filter(v=>v.type==='debit' || v.type==='onaccount'));
       const nRows = Math.max(receipts.length, payments.length, 1);
 
       const rcvParticulars = v => {
@@ -2450,11 +2492,15 @@ function doCashBook(scope){
         return block ? (particulars ? particulars+' - '+block : block) : particulars;
       };
 
-      // Build AOA
+      // Build AOA (9 columns: Receipts side has 4 cols, Payments side has 5 cols)
       const aoa = [];
-      aoa.push([instLabel+' Cash Book','','','','','','']); // row 0: title (merged)
-      aoa.push([periodLabel,'','','','','','','']); // row 1: selected date range (merged)
-      aoa.push(['Particulars','Amount','Amount','Head Account','Particulars','Amount','Amount']); // row 2: header
+      aoa.push([instLabel+' Cash Book','','','','','','','','']); // row 0: title (merged across 9 cols)
+      aoa.push([periodLabel,'','','','','','','','']); // row 1: selected date range (merged across 9 cols)
+      aoa.push([
+        'Date', 'Particulars', 'Cash Amount', 'Cheque Amount',
+        'Date', 'Head Account', 'Particulars', 'Cash Amount', 'Cheque Amount'
+      ]); // row 2: header (9 cols)
+
       let rcvCash=0, rcvBank=0, payCash=0, payBank=0;
       const isCash = v => ((v.mode||'Cash').toLowerCase()==='cash');
       for(let i=0;i<nRows;i++){
@@ -2465,28 +2511,42 @@ function doCashBook(scope){
         const rBank = r && !isCash(r) ? rAmtNum : '';
         const pCash = p && isCash(p) ? pAmtNum : '';
         const pBank = p && !isCash(p) ? pAmtNum : '';
-        if(r){ if(isCash(r)) rcvCash+=rAmtNum; else rcvBank+=rAmtNum; }
-        if(p){ if(isCash(p)) payCash+=pAmtNum; else payBank+=pAmtNum; }
+
+        const rDate = r ? isoToDMY(r.date || r.dateISO || '') : '';
+        const pDate = p ? isoToDMY(p.date || p.dateISO || '') : '';
+
         aoa.push([
+          rDate,
           r ? particularsWithBlock(rcvParticulars(r), r) : '',
           rCash,
           rBank,
-          p ? (p.head||'') : (r ? (r.head||'') : ''),
+          pDate,
+          p ? (p.head||'') : '',
           p ? particularsWithBlock(payParticulars(p), p) : '',
           pCash,
           pBank
         ]);
       }
-      // Totals row
-      aoa.push(['Total', rcvCash, rcvBank, '', 'Total', payCash, payBank]);
+      // Totals row (9 columns)
+      aoa.push(['Total', '', rcvCash, rcvBank, 'Total', '', '', payCash, payBank]);
 
       const ws = XLSX.utils.aoa_to_sheet(aoa);
-      ws['!cols']=[{wch:46},{wch:12},{wch:12},{wch:22},{wch:52},{wch:12},{wch:12}];
+      ws['!cols']=[
+        {wch:13}, // Col 0: Receipt Date
+        {wch:42}, // Col 1: Receipt Particulars
+        {wch:14}, // Col 2: Receipt Cash Amount
+        {wch:14}, // Col 3: Receipt Cheque Amount
+        {wch:13}, // Col 4: Payment Date
+        {wch:22}, // Col 5: Payment Head
+        {wch:46}, // Col 6: Payment Particulars
+        {wch:14}, // Col 7: Payment Cash Amount
+        {wch:14}  // Col 8: Payment Cheque Amount
+      ];
 
-      // Merge title and selected period across 7 cols.
+      // Merge title and selected period across 9 cols.
       ws['!merges'] = [
-        {s:{r:0,c:0},e:{r:0,c:6}},
-        {s:{r:1,c:0},e:{r:1,c:6}}
+        {s:{r:0,c:0},e:{r:0,c:8}},
+        {s:{r:1,c:0},e:{r:1,c:8}}
       ];
 
       // Freeze header rows
@@ -2509,8 +2569,8 @@ function doCashBook(scope){
           border:allBorder
         };
       }
-      // Header row style
-      for(let C=0;C<=6;C++){
+      // Header row style (9 cols)
+      for(let C=0;C<=8;C++){
         const addr = XLSX.utils.encode_cell({r:2,c:C});
         if(!ws[addr]) ws[addr]={t:'s',v:''};
         ws[addr].s = {
@@ -2523,15 +2583,16 @@ function doCashBook(scope){
       // Body styles
       for(let R=3; R<=lastRow; R++){
         const isTotal = (R===lastRow);
-        for(let C=0;C<=6;C++){
+        for(let C=0;C<=8;C++){
           const addr = XLSX.utils.encode_cell({r:R,c:C});
           if(!ws[addr]) ws[addr]={t:'s',v:''};
-          const isAmtCol = (C===1 || C===2 || C===5 || C===6);
+          const isAmtCol = (C===2 || C===3 || C===7 || C===8);
+          const isDateCol = (C===0 || C===4);
           ws[addr].s = {
             font: isTotal ? {bold:true} : (isAmtCol?{bold:false}:{}),
             alignment: isAmtCol
               ? {horizontal:'right', vertical:'center'}
-              : {vertical:'top', wrapText:true},
+              : (isDateCol ? {horizontal:'center', vertical:'center'} : {vertical:'top', wrapText:true}),
             fill: isTotal ? {patternType:'solid', fgColor:{rgb:'F2E8EA'}} : undefined,
             border:allBorder
           };
@@ -2540,14 +2601,20 @@ function doCashBook(scope){
           }
         }
       }
-      // Slightly taller title row
+      // Row heights
       ws['!rows'] = [{hpt:24},{hpt:20},{hpt:22}];
 
       // Sheet name: keep <=31 chars and safe
       let sheetName = instLabel.replace(/[\\\/\?\*\[\]:]/g,' ').slice(0,31);
       if(!sheetName.trim()) sheetName = key;
       XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      totalSheetsAdded++;
     });
+
+    if(!totalSheetsAdded){
+      alert('No vouchers match the selected institution to export.');
+      return;
+    }
 
     const fname = 'CashBook_AllInstitutions_'+today().replace(/\//g,'-')+'.xlsx';
     XLSX.writeFile(wb, fname, {bookType:'xlsx', type:'binary'});
@@ -2556,6 +2623,335 @@ function doCashBook(scope){
     console.error('Cash Book export error:',err);
     alert('Cash Book export failed: '+err.message);
   }
+}
+
+let CURRENT_CASHBOOK_SCOPE = 'all';
+
+function openCashBookModal(scope) {
+  CURRENT_CASHBOOK_SCOPE = scope || 'all';
+  const isMine = CURRENT_CASHBOOK_SCOPE === 'mine';
+  const modal = document.getElementById('CASHBOOK_MODAL');
+  if (!modal) {
+    doCashBook(scope);
+    return;
+  }
+
+  // Pre-fill institution from current active college or view filter
+  const cbColEl = document.getElementById('CB_COLLEGE');
+  if (cbColEl) {
+    if (isMine) {
+      cbColEl.value = (window.CURRENT_COLLEGE || 'smgg');
+      cbColEl.disabled = true;
+    } else {
+      const fcEl = document.getElementById('FC');
+      cbColEl.disabled = false;
+      cbColEl.value = (fcEl && fcEl.value) ? fcEl.value : (window.CURRENT_COLLEGE || '');
+    }
+  }
+
+  // Pre-fill date filters from view filter or default to current month
+  const viewSdf = (document.getElementById(isMine ? 'MSDF' : 'SDF') || {}).value || '';
+  const viewSdt = (document.getElementById(isMine ? 'MSDT' : 'SDT')||{}).value || '';
+  const cbSdf = document.getElementById('CB_SDF');
+  const cbSdt = document.getElementById('CB_SDT');
+
+  if (viewSdf && cbSdf) {
+    cbSdf.value = viewSdf;
+  } else if (cbSdf && !cbSdf.value) {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    cbSdf.value = `${yyyy}-${mm}-01`;
+  }
+
+  if (viewSdt && cbSdt) {
+    cbSdt.value = viewSdt;
+  } else if (cbSdt && !cbSdt.value) {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    cbSdt.value = `${yyyy}-${mm}-${dd}`;
+  }
+
+  if (typeof syncDateFilterDisplay === 'function') {
+    syncDateFilterDisplay('CB_SDF');
+    syncDateFilterDisplay('CB_SDT');
+  }
+
+  modal.classList.remove('h');
+  renderCashBookModal();
+}
+
+function closeCashBookModal() {
+  const modal = document.getElementById('CASHBOOK_MODAL');
+  if (modal) modal.classList.add('h');
+}
+
+function setCashBookQuickDate(preset) {
+  const cbSdf = document.getElementById('CB_SDF');
+  const cbSdt = document.getElementById('CB_SDT');
+  if (!cbSdf || !cbSdt) return;
+
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const todayStr = `${yyyy}-${mm}-${dd}`;
+
+  if (preset === 'today') {
+    cbSdf.value = todayStr;
+    cbSdt.value = todayStr;
+  } else if (preset === 'month') {
+    cbSdf.value = `${yyyy}-${mm}-01`;
+    cbSdt.value = todayStr;
+  } else if (preset === 'all') {
+    cbSdf.value = '';
+    cbSdt.value = '';
+  }
+
+  if (typeof syncDateFilterDisplay === 'function') {
+    syncDateFilterDisplay('CB_SDF');
+    syncDateFilterDisplay('CB_SDT');
+  }
+  renderCashBookModal();
+}
+
+function renderCashBookModal() {
+  const isMine = CURRENT_CASHBOOK_SCOPE === 'mine';
+  let allList = isMine && typeof getMyFilteredVS === 'function' ? getMyFilteredVS() : (typeof VS === 'object' && Array.isArray(VS) ? VS : []);
+  
+  const colVal = (document.getElementById('CB_COLLEGE') || {}).value || '';
+  const fromVal = (document.getElementById('CB_SDF') || {}).value || '';
+  const toVal = (document.getElementById('CB_SDT') || {}).value || '';
+
+  const normalizeDateIso = dStr => {
+    const raw = String(dStr || '').trim();
+    if (!raw) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    if (/^\d{2}[\/-]\d{2}[\/-]\d{4}$/.test(raw)) {
+      const parts = raw.replace(/\//g, '-').split('-');
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return '';
+  };
+
+  const fromIso = normalizeDateIso(fromVal);
+  const toIso = normalizeDateIso(toVal);
+
+  // Filter vouchers
+  const filtered = allList.filter(v => {
+    if (colVal && (v.college || 'smgg') !== colVal) return false;
+    const vDateIso = normalizeDateIso(v.dateISO || v.date);
+    if (fromIso && vDateIso && vDateIso < fromIso) return false;
+    if (toIso && vDateIso && vDateIso > toIso) return false;
+    return true;
+  });
+
+  // Calculate totals and date-wise group counts
+  let totRcvCash = 0, totRcvBank = 0, totPayCash = 0, totPayBank = 0;
+  const isCash = v => ((v.mode||'Cash').toLowerCase()==='cash');
+
+  const dateCounts = {};
+
+  filtered.forEach(v => {
+    const dIso = normalizeDateIso(v.dateISO || v.date) || 'Unknown';
+    const dDmy = isoToDMY(v.date || v.dateISO || '') || 'Unknown';
+    if (!dateCounts[dIso]) {
+      dateCounts[dIso] = { dateIso: dIso, dateDMY: dDmy, count: 0, receipts: 0, payments: 0, amount: 0 };
+    }
+    dateCounts[dIso].count++;
+    const amt = Number(v.amount) || 0;
+    dateCounts[dIso].amount += amt;
+
+    if (v.type === 'credit') {
+      dateCounts[dIso].receipts++;
+      if (isCash(v)) totRcvCash += amt;
+      else totRcvBank += amt;
+    } else {
+      dateCounts[dIso].payments++;
+      if (isCash(v)) totPayCash += amt;
+      else totPayBank += amt;
+    }
+  });
+
+  const totReceipts = totRcvCash + totRcvBank;
+  const totPayments = totPayCash + totPayBank;
+  const netCash = totRcvCash - totPayCash;
+  const netBank = totRcvBank - totPayBank;
+  const netTotal = totReceipts - totPayments;
+
+  // Update summary badge metrics
+  const elTotTrans = document.getElementById('CB_M_TRANSACTIONS');
+  if (elTotTrans) elTotTrans.textContent = filtered.length;
+
+  const elRcvVal = document.getElementById('CB_M_RECEIPTS');
+  if (elRcvVal) elRcvVal.textContent = '₹ ' + (typeof formatCurrency === 'function' ? formatCurrency(totReceipts).replace('₹', '').trim() : totReceipts.toLocaleString('en-IN'));
+
+  const elRcvSub = document.getElementById('CB_M_RECEIPTS_SUB');
+  if (elRcvSub) elRcvSub.textContent = `Cash: ₹${totRcvCash.toLocaleString('en-IN')} | Bank: ₹${totRcvBank.toLocaleString('en-IN')}`;
+
+  const elPayVal = document.getElementById('CB_M_PAYMENTS');
+  if (elPayVal) elPayVal.textContent = '₹ ' + (typeof formatCurrency === 'function' ? formatCurrency(totPayments).replace('₹', '').trim() : totPayments.toLocaleString('en-IN'));
+
+  const elPaySub = document.getElementById('CB_M_PAYMENTS_SUB');
+  if (elPaySub) elPaySub.textContent = `Cash: ₹${totPayCash.toLocaleString('en-IN')} | Bank: ₹${totPayBank.toLocaleString('en-IN')}`;
+
+  const elBalVal = document.getElementById('CB_M_BALANCE');
+  if (elBalVal) {
+    elBalVal.textContent = (netTotal >= 0 ? '+ ₹ ' : '- ₹ ') + Math.abs(netTotal).toLocaleString('en-IN');
+    elBalVal.style.color = netTotal >= 0 ? '#15803d' : '#b91c1c';
+  }
+  const elBalSub = document.getElementById('CB_M_BALANCE_SUB');
+  if (elBalSub) elBalSub.textContent = `Net Cash: ₹${netCash.toLocaleString('en-IN')} | Net Bank: ₹${netBank.toLocaleString('en-IN')}`;
+
+  // Render Date-wise Transaction Breakdown pills
+  const countsContainer = document.getElementById('CB_DATE_BREAKDOWN');
+  if (countsContainer) {
+    const sortedDates = Object.keys(dateCounts).sort();
+    if (!sortedDates.length) {
+      countsContainer.innerHTML = '<div style="font-size:12px;color:#64748b;padding:6px 0;">No transactions found for the selected period.</div>';
+    } else {
+      countsContainer.innerHTML = sortedDates.map(dIso => {
+        const item = dateCounts[dIso];
+        return `<div class="cb-date-badge" style="display:inline-flex;align-items:center;gap:8px;background:#fff;border:1.5px solid #cbd5e1;padding:5px 12px;border-radius:20px;font-size:11.5px;color:#1e293b;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+          <span style="font-weight:700;color:#002D72;">📅 ${esc(item.dateDMY)}</span>
+          <span style="background:#e0f2fe;color:#0369a1;padding:1px 7px;border-radius:10px;font-weight:700;">${item.count} trans.</span>
+          <span style="font-size:10.5px;color:#166534;">(${item.receipts} In / ${item.payments} Out)</span>
+          <span style="font-weight:700;color:#334155;">₹ ${item.amount.toLocaleString('en-IN')}</span>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // Split and sort receipts & payments
+  const receipts = getCashBookSortedVouchers(filtered.filter(v => v.type === 'credit'));
+  const payments = getCashBookSortedVouchers(filtered.filter(v => v.type === 'debit' || v.type === 'onaccount'));
+  const nRows = Math.max(receipts.length, payments.length, 1);
+
+  const rcvParticulars = v => {
+    const a = (v.receivedFrom||'').trim();
+    const b = (v.towards||'').trim();
+    return (a && b) ? (a+' t/w '+b) : (a||b||'');
+  };
+  const payParticulars = v => {
+    const a = (v.paidTo||'').trim();
+    const b = (v.towards||'').trim();
+    return (a && b) ? (a+' t/w '+b) : (a||b||'');
+  };
+  const particularsWithBlock = (particulars, v) => {
+    const block = (v.block||'').trim();
+    return block ? (particulars ? particulars+' - '+block : block) : particulars;
+  };
+
+  const tbody = document.getElementById('CB_TABLE_BODY');
+  if (tbody) {
+    if (!receipts.length && !payments.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2.5rem;color:#64748b;font-size:13px;">No transactions match the selected date range and institution.</td></tr>';
+    } else {
+      let rowsHtml = '';
+      for (let i = 0; i < nRows; i++) {
+        const r = receipts[i], p = payments[i];
+        const rAmtNum = r ? Math.round(Number(r.amount)||0) : 0;
+        const pAmtNum = p ? Math.round(Number(p.amount)||0) : 0;
+        const rCash = r && isCash(r) ? rAmtNum.toLocaleString('en-IN') : '';
+        const rBank = r && !isCash(r) ? rAmtNum.toLocaleString('en-IN') : '';
+        const pCash = p && isCash(p) ? pAmtNum.toLocaleString('en-IN') : '';
+        const pBank = p && !isCash(p) ? pAmtNum.toLocaleString('en-IN') : '';
+
+        const rDate = r ? isoToDMY(r.date || r.dateISO || '') : '';
+        const pDate = p ? isoToDMY(p.date || p.dateISO || '') : '';
+
+        rowsHtml += `<tr>
+          <td style="text-align:center;font-weight:600;color:#002D72;white-space:nowrap;font-size:11.5px;background:#f8fafc;">${esc(rDate)}</td>
+          <td style="font-size:11.5px;color:#1e293b;">${r ? esc(particularsWithBlock(rcvParticulars(r), r)) : ''}</td>
+          <td style="text-align:right;font-weight:600;color:#15803d;white-space:nowrap;font-size:11.5px;">${rCash}</td>
+          <td style="text-align:right;font-weight:600;color:#0369a1;white-space:nowrap;font-size:11.5px;">${rBank}</td>
+
+          <td style="text-align:center;font-weight:600;color:#002D72;white-space:nowrap;font-size:11.5px;background:#f8fafc;border-left:2px solid #cbd5e1;">${esc(pDate)}</td>
+          <td style="font-weight:600;color:#7B1D2E;font-size:11px;white-space:nowrap;">${p ? esc(p.head || '') : ''}</td>
+          <td style="font-size:11.5px;color:#1e293b;">${p ? esc(particularsWithBlock(payParticulars(p), p)) : ''}</td>
+          <td style="text-align:right;font-weight:600;color:#b91c1c;white-space:nowrap;font-size:11.5px;">${pCash}</td>
+          <td style="text-align:right;font-weight:600;color:#0369a1;white-space:nowrap;font-size:11.5px;">${pBank}</td>
+        </tr>`;
+      }
+      tbody.innerHTML = rowsHtml;
+    }
+  }
+
+  // Update table totals
+  const elTFoot = document.getElementById('CB_TABLE_FOOT');
+  if (elTFoot) {
+    elTFoot.innerHTML = `<tr style="background:#f1f5f9;font-weight:700;">
+      <td colspan="2" style="text-align:center;font-size:12px;">Total Receipts</td>
+      <td style="text-align:right;color:#15803d;font-size:12.5px;">₹ ${totRcvCash.toLocaleString('en-IN')}</td>
+      <td style="text-align:right;color:#0369a1;font-size:12.5px;">₹ ${totRcvBank.toLocaleString('en-IN')}</td>
+      <td colspan="3" style="text-align:center;font-size:12px;border-left:2px solid #cbd5e1;">Total Payments</td>
+      <td style="text-align:right;color:#b91c1c;font-size:12.5px;">₹ ${totPayCash.toLocaleString('en-IN')}</td>
+      <td style="text-align:right;color:#0369a1;font-size:12.5px;">₹ ${totPayBank.toLocaleString('en-IN')}</td>
+    </tr>`;
+  }
+}
+
+function printCashBook() {
+  const colVal = (document.getElementById('CB_COLLEGE') || {}).value || '';
+  const fromVal = (document.getElementById('CB_SDF') || {}).value || '';
+  const toVal = (document.getElementById('CB_SDT') || {}).value || '';
+  const insts = (typeof COLLEGES === 'object' && COLLEGES) ? COLLEGES : {};
+  const colObj = insts[colVal] || insts[window.CURRENT_COLLEGE] || { label: "St. Mary's Group of Institutions" };
+
+  const fromDmy = isoToDMY(fromVal);
+  const toDmy = isoToDMY(toVal);
+  const periodText = fromDmy && toDmy ? `${fromDmy} to ${toDmy}` : (fromDmy ? `From ${fromDmy}` : (toDmy ? `Up to ${toDmy}` : 'All Dates'));
+
+  const tableHead = document.getElementById('CB_TABLE_HEAD') ? document.getElementById('CB_TABLE_HEAD').innerHTML : '';
+  const tableBody = document.getElementById('CB_TABLE_BODY') ? document.getElementById('CB_TABLE_BODY').innerHTML : '';
+  const tableFoot = document.getElementById('CB_TABLE_FOOT') ? document.getElementById('CB_TABLE_FOOT').innerHTML : '';
+  const dateBreakdown = document.getElementById('CB_DATE_BREAKDOWN') ? document.getElementById('CB_DATE_BREAKDOWN').innerHTML : '';
+
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    alert('Please allow popups to print the Cash Book.');
+    return;
+  }
+
+  printWindow.document.write(`<!DOCTYPE html>
+  <html>
+  <head>
+    <title>Cash Book - ${colObj.label}</title>
+    <style>
+      @page { size: A4 landscape; margin: 10mm; }
+      body { font-family: Arial, sans-serif; margin: 0; color: #111; font-size: 10pt; }
+      h1 { text-align: center; margin: 0 0 4px 0; font-size: 15pt; color: #7B1D2E; }
+      .sub { text-align: center; margin: 0 0 10px 0; font-size: 10pt; color: #333; }
+      .breakdown { margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+      .cb-date-badge { border: 1px solid #ccc; padding: 2px 6px; font-size: 8pt; border-radius: 4px; display: inline-block; }
+      table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+      th, td { border: 1px solid #777; padding: 4px 6px; }
+      th { background: #f2e8ea; font-weight: bold; text-align: center; }
+      .num { text-align: right; }
+      .center { text-align: center; }
+      @media print {
+        button { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${colObj.label}</h1>
+    <div class="sub"><strong>CASH BOOK</strong> &bull; Period: ${periodText}</div>
+    <div style="margin-bottom:8px;font-size:8.5pt;"><strong>Daily Transaction Summary:</strong></div>
+    <div class="breakdown">${dateBreakdown}</div>
+    <table style="margin-top:6px;">
+      <thead>${tableHead}</thead>
+      <tbody>${tableBody}</tbody>
+      <tfoot>${tableFoot}</tfoot>
+    </table>
+    <script>
+      window.onload = function() { window.print(); }
+    <\/script>
+  </body>
+  </html>`);
+  printWindow.document.close();
 }
 
 
