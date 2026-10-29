@@ -2,6 +2,7 @@ const SESSION_DAYS = 3650;
 const PBKDF2_ITERATIONS = 100000;
 const LEGACY_SHA256 = 'legacy-sha256';
 const API_VERSION = 'voucher-api-ddmmyyyy-slash-v16';
+const schemaReady = new WeakMap();
 
 // Permission constants
 const VIEW_DASHBOARD = 'view_dashboard';
@@ -368,18 +369,27 @@ function cookieToken(request, bodyToken) { if (bodyToken) return String(bodyToke
 function sessionCookie(token, maxAgeSeconds) { return 'SMV_SESSION=' + encodeURIComponent(token || '') + '; Path=/; Max-Age=' + Number(maxAgeSeconds || 0) + '; HttpOnly; Secure; SameSite=Lax'; }
 
 async function ensureSchema(DB, env) {
+  const initialPassword = env && (env.ADMIN1_INITIAL_PASSWORD || env.ADMIN_BOOTSTRAP_PASSWORD);
+  const ready = schemaReady.get(DB);
+  if (ready && ready.initialPassword === initialPassword) return;
+  // Cache only completed initialization; request I/O stays in its own invocation.
+  await initializeSchema(DB, env);
+  schemaReady.set(DB, { initialPassword: initialPassword });
+}
+
+async function initializeSchema(DB, env) {
   await DB.prepare("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY,password_salt TEXT NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL CHECK(role IN ('admin','user')),status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','blocked')),college TEXT NOT NULL DEFAULT 'smgg',created_at TEXT NOT NULL,updated_at TEXT NOT NULL,last_login TEXT)").run();
-  try { await DB.prepare("ALTER TABLE users ADD COLUMN custom_role TEXT").run(); } catch(e) {}
-  try { await DB.prepare("ALTER TABLE users ADD COLUMN full_name TEXT").run(); } catch(e) {}
-  try { await DB.prepare("ALTER TABLE users ADD COLUMN permissions TEXT").run(); } catch(e) {}
-  try { await DB.prepare("ALTER TABLE users ADD COLUMN college_access TEXT").run(); } catch(e) {}
-  try { await DB.prepare("ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0").run(); } catch(e) {}
-  try { await DB.prepare("ALTER TABLE vouchers ADD COLUMN block TEXT").run(); } catch(e) {}
+  await addSchemaColumn(DB, "ALTER TABLE users ADD COLUMN custom_role TEXT");
+  await addSchemaColumn(DB, "ALTER TABLE users ADD COLUMN full_name TEXT");
+  await addSchemaColumn(DB, "ALTER TABLE users ADD COLUMN permissions TEXT");
+  await addSchemaColumn(DB, "ALTER TABLE users ADD COLUMN college_access TEXT");
+  await addSchemaColumn(DB, "ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0");
   await DB.prepare("CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY,username TEXT NOT NULL,expires_at TEXT NOT NULL,created_at TEXT NOT NULL)").run();
   await DB.prepare("CREATE TABLE IF NOT EXISTS vouchers (id INTEGER PRIMARY KEY AUTOINCREMENT,voucher_no TEXT,college TEXT NOT NULL,type TEXT NOT NULL CHECK(type IN ('debit','onaccount','credit')),date TEXT NOT NULL,head TEXT NOT NULL,ac_name TEXT,received_from TEXT,paid_to TEXT,recipient_phone TEXT,reversal_date TEXT,towards TEXT NOT NULL,amount INTEGER NOT NULL,amt_words TEXT,mode TEXT,cheque TEXT,prep_by TEXT,checked_by TEXT,remarks TEXT,created_by TEXT NOT NULL,created_at TEXT NOT NULL,updated_by TEXT,updated_at TEXT NOT NULL,deleted_at TEXT,deleted_by TEXT)").run();
-  try { await DB.prepare("ALTER TABLE vouchers ADD COLUMN recipient_phone TEXT").run(); } catch(e) {}
-  try { await DB.prepare("ALTER TABLE vouchers ADD COLUMN reversal_date TEXT").run(); } catch(e) {}
-  try { await DB.prepare("ALTER TABLE vouchers ADD COLUMN vendor_id TEXT").run(); } catch(e) {}
+  await addSchemaColumn(DB, "ALTER TABLE vouchers ADD COLUMN block TEXT");
+  await addSchemaColumn(DB, "ALTER TABLE vouchers ADD COLUMN recipient_phone TEXT");
+  await addSchemaColumn(DB, "ALTER TABLE vouchers ADD COLUMN reversal_date TEXT");
+  await addSchemaColumn(DB, "ALTER TABLE vouchers ADD COLUMN vendor_id TEXT");
   await DB.prepare("CREATE TABLE IF NOT EXISTS account_heads (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,name_norm TEXT NOT NULL,type TEXT NOT NULL DEFAULT 'common',college TEXT NOT NULL DEFAULT 'smgg',created_by TEXT NOT NULL,created_at TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 1,UNIQUE(name_norm,college))").run();
   await DB.prepare("CREATE TABLE IF NOT EXISTS blocks (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,name_norm TEXT NOT NULL,college TEXT NOT NULL DEFAULT 'smgg',created_by TEXT NOT NULL,created_at TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 1,UNIQUE(name_norm,college))").run();
   await DB.prepare("CREATE TABLE IF NOT EXISTS vendors (id TEXT PRIMARY KEY,vendor_id TEXT NOT NULL,college TEXT NOT NULL DEFAULT 'smgg',company_name TEXT NOT NULL,vendor_name TEXT,phone TEXT,pan TEXT,aadhaar TEXT,email TEXT,gst_number TEXT,bank_account_details TEXT,work_description TEXT,agreed_amount REAL NOT NULL DEFAULT 0,amount_in_words TEXT,period_start TEXT,period_end TEXT,auth_by TEXT,auth_role TEXT,auth_place TEXT,remarks TEXT,data_json TEXT,created_by TEXT NOT NULL,created_at TEXT NOT NULL,updated_by TEXT,updated_at TEXT NOT NULL,deleted_at TEXT,deleted_by TEXT)").run();
@@ -387,7 +397,6 @@ async function ensureSchema(DB, env) {
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vouchers_college_date ON vouchers(college,date)').run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vouchers_created_by ON vouchers(created_by)').run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vendors_college ON vendors(college,deleted_at)').run();
-  await DB.prepare('CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at)').run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at)').run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vouchers_college_updated ON vouchers(college,updated_at)').run();
   const initialPassword = env && (env.ADMIN1_INITIAL_PASSWORD || env.ADMIN_BOOTSTRAP_PASSWORD);
@@ -406,6 +415,13 @@ async function ensureSchema(DB, env) {
       await DB.prepare("INSERT INTO users(username,password_salt,password_hash,role,status,college,full_name,permissions,college_access,must_change_password,created_at,updated_at,custom_role) SELECT 'admin_smhyd',password_salt,password_hash,'admin','active','smhyd','Main Administrator (SMHYD)','*','*',0,?,?,NULL FROM users WHERE username='admin'").bind(createdAt,createdAt).run();
       await audit(DB,'system','bootstrap_admin','user','admin_smhyd','SMHYD administrator created from main administrator credentials','');
     }
+  }
+}
+
+async function addSchemaColumn(DB, sql) {
+  try { await DB.prepare(sql).run(); }
+  catch (error) {
+    if (!/duplicate column name/i.test(error && error.message || '')) throw error;
   }
 }
 
@@ -787,6 +803,7 @@ async function deleteVendor(DB, user, body, ip) {
   await audit(DB, user.username, 'delete_vendor', 'vendor', id, 'Deleted vendor ' + id, ip);
   return send({ ok: true, id: id, version: API_VERSION });
 }
+async function listAudit(DB){const r=await DB.prepare('SELECT * FROM audit_logs ORDER BY created_at DESC,id DESC').all();return send({logs:r.results||[],version:API_VERSION});}
 async function audit(DB,actor,action,entityType,entityId,details,ip){await DB.prepare('INSERT INTO audit_logs(actor,action,entity_type,entity_id,details,ip,created_at) VALUES(?,?,?,?,?,?,?)').bind(actor||'system',action,entityType,entityId||'',details||'',ip||'',now()).run();}
 async function hashPassword(password,saltB64){const enc=new TextEncoder();const salt=saltB64?fromB64(saltB64):crypto.getRandomValues(new Uint8Array(16));const key=await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveBits']);const bits=await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:salt,iterations:PBKDF2_ITERATIONS},key,256);return{salt:toB64(salt),hash:toB64(new Uint8Array(bits))};}
 async function verifyPassword(password,salt,expected){const hp=await hashPassword(password,salt);return safeEqual(hp.hash,expected);}

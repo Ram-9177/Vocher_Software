@@ -17,13 +17,51 @@
   var vendorEditId = null;
   var activeLedgerVendorId = null;
   var currentVendorFiles = [null, null, null]; // 3 dedicated file slots
+  var loadedVendorCollege = null;
+  var loadedVendorToken = null;
+  var vendorStateSignature = '';
+  var vendorLoadPromise = null;
+  var vendorLoadCollege = null;
+  var vendorLoadToken = null;
+  var vendorRequestId = 0;
+  var vendorDatalistTarget = null;
+  var vendorDatalistSignature = '';
+
+  function currentCollege() {
+    return String((typeof CURRENT_COLLEGE !== 'undefined' && CURRENT_COLLEGE) || window.CURRENT_COLLEGE || 'smgg').toLowerCase();
+  }
+
+  function vendorSessionToken() {
+    try { return localStorage.getItem('smv_token') || ''; } catch(e) { return ''; }
+  }
+
+  function isVendorSectionActive(id) {
+    var section = document.getElementById('sec-' + id);
+    return !!(section && section.classList.contains('act'));
+  }
+
+  function refreshVendorViews() {
+    ['DASH_VENDOR_COUNT', 'MYDASH_VENDOR_COUNT'].forEach(function(id) {
+      var count = document.getElementById(id);
+      if (count) count.textContent = String(VENDORS.length);
+    });
+    if (isVendorSectionActive('create') || isVendorSectionActive('vendor')) updateVendorDatalist();
+    if (isVendorSectionActive('create')) updateVendorAgreementSelect();
+    if (isVendorSectionActive('vendor')) renderVendorsTable();
+    if (isVendorSectionActive('vendorledger')) renderVendorLedgerTable();
+  }
+  window.refreshVendorViews = refreshVendorViews;
 
   function getStorageKey() {
-    var college = (window.CURRENT_COLLEGE || 'smgg').toLowerCase();
-    return 'smv_vendors_' + college;
+    return 'smv_vendors_' + currentCollege();
   }
 
   function loadVendors() {
+    var college = currentCollege();
+    var token = vendorSessionToken();
+    if (loadedVendorCollege === college && loadedVendorToken === token) return;
+    loadedVendorCollege = college;
+    loadedVendorToken = token;
     try {
       var key = getStorageKey();
       var raw = localStorage.getItem(key);
@@ -36,9 +74,9 @@
       console.error('Failed to load vendors', e);
       VENDORS = [];
     }
+    vendorStateSignature = JSON.stringify(VENDORS);
     updateVendorDatalist();
-    updateVendorAgreementSelect();
-    if (typeof loadVendorsFromCloud === 'function') {
+    if (token && typeof loadVendorsFromCloud === 'function') {
       loadVendorsFromCloud();
     }
   }
@@ -47,50 +85,59 @@
   window.getAllVendors = function() { return VENDORS.slice(); };
   window.reloadVendorModule = function() {
     loadVendors();
-    if (typeof renderVendorsTable === 'function') renderVendorsTable();
-    if (typeof renderVendorLedgerTable === 'function') renderVendorLedgerTable();
+    refreshVendorViews();
   };
 
   // Cloud loader
-  window.loadVendorsFromCloud = async function() {
-    var college = (window.CURRENT_COLLEGE || 'smgg').toLowerCase();
-    try {
-      if (typeof window._api === 'function') {
-        var res = await window._api('listVendors', { college: college });
-        if (res && Array.isArray(res.vendors)) {
-          window.applyServerVendors(res.vendors);
+  window.loadVendorsFromCloud = function() {
+    var college = currentCollege();
+    var token = vendorSessionToken();
+    if (!token) return Promise.resolve();
+    if (vendorLoadPromise && vendorLoadCollege === college && vendorLoadToken === token) return vendorLoadPromise;
+    var requestId = ++vendorRequestId;
+    vendorLoadCollege = college;
+    vendorLoadToken = token;
+    vendorLoadPromise = (async function() {
+      try {
+        if (typeof window._api === 'function') {
+          var res = await window._api('listVendors', { college: college });
+          if (requestId === vendorRequestId && currentCollege() === college && vendorSessionToken() === token && res && Array.isArray(res.vendors)) {
+            window.applyServerVendors(res.vendors);
+          }
         }
+      } catch(e) {
+        console.error('loadVendorsFromCloud error', e);
+      } finally {
+        if (requestId === vendorRequestId) vendorLoadPromise = null;
       }
-    } catch(e) {
-      console.error('loadVendorsFromCloud error', e);
-    }
+    })();
+    return vendorLoadPromise;
   };
 
   // Apply server vendors to state & UI
-  window.applyServerVendors = function(serverVendors) {
-    if (!Array.isArray(serverVendors)) return;
-    var college = (window.CURRENT_COLLEGE || 'smgg').toLowerCase();
+  window.applyServerVendors = function(serverVendors, options) {
+    if (!Array.isArray(serverVendors)) return false;
+    var college = currentCollege();
     var key = getStorageKey();
+    var signature = JSON.stringify(serverVendors);
+    var token = vendorSessionToken();
+    if (loadedVendorCollege === college && loadedVendorToken === token && signature === vendorStateSignature) return false;
+    loadedVendorCollege = college;
+    loadedVendorToken = token;
     
     if (serverVendors.length > 0) {
       VENDORS = serverVendors;
+      vendorStateSignature = signature;
       try {
-        localStorage.setItem(key, JSON.stringify(VENDORS));
+        localStorage.setItem(key, signature);
       } catch(e) {}
-      updateVendorDatalist();
-      updateVendorAgreementSelect();
-      if (typeof renderVendorsTable === 'function') renderVendorsTable();
-      if (typeof renderVendorLedgerTable === 'function') renderVendorLedgerTable();
     } else {
       // Check if local cache has vendors to migrate/upload
       var localRaw = localStorage.getItem(key) || localStorage.getItem('smv_vendors');
       var localList = localRaw ? JSON.parse(localRaw) : [];
       if (Array.isArray(localList) && localList.length > 0) {
         VENDORS = localList;
-        updateVendorDatalist();
-        updateVendorAgreementSelect();
-        if (typeof renderVendorsTable === 'function') renderVendorsTable();
-        if (typeof renderVendorLedgerTable === 'function') renderVendorLedgerTable();
+        vendorStateSignature = JSON.stringify(VENDORS);
         // Auto push existing local vendors to server
         if (typeof window._api === 'function') {
           window._api('saveVendorsBulk', { college: college, vendors: localList }).catch(function(err){
@@ -99,18 +146,18 @@
         }
       } else {
         VENDORS = [];
-        updateVendorDatalist();
-        updateVendorAgreementSelect();
-        if (typeof renderVendorsTable === 'function') renderVendorsTable();
-        if (typeof renderVendorLedgerTable === 'function') renderVendorLedgerTable();
+        vendorStateSignature = signature;
       }
     }
+    if (!options || !options.deferRender) refreshVendorViews();
+    return true;
   };
 
   function saveVendorsToStorage() {
     try {
       var key = getStorageKey();
-      localStorage.setItem(key, JSON.stringify(VENDORS));
+      vendorStateSignature = JSON.stringify(VENDORS);
+      localStorage.setItem(key, vendorStateSignature);
       updateVendorDatalist();
       updateVendorAgreementSelect();
     } catch(e) {
@@ -173,27 +220,33 @@
       dl.id = 'DL_VENDORS';
       document.body.appendChild(dl);
     }
-    dl.innerHTML = '';
-    var items = [];
+    var items = new Set();
     VENDORS.forEach(function(v) {
       var c = (v.companyName || v.company || '').trim();
       var n = (v.vendorName || v.name || '').trim();
-      if (c && items.indexOf(c) === -1) items.push(c);
-      if (n && items.indexOf(n) === -1) items.push(n);
+      if (c) items.add(c);
+      if (n) items.add(n);
     });
     // Also include past paidTo parties from VS
     var vsList = getAllSystemVouchers();
     if (Array.isArray(vsList)) {
       vsList.forEach(function(item) {
         var p = (item.paidTo || item.paid_to || item.party || '').trim();
-        if (p && items.indexOf(p) === -1) items.push(p);
+        if (p) items.add(p);
       });
     }
+    var signature = JSON.stringify(Array.from(items));
+    if (dl === vendorDatalistTarget && signature === vendorDatalistSignature) return;
+    dl.innerHTML = '';
+    var fragment = document.createDocumentFragment();
     items.forEach(function(item) {
       var opt = document.createElement('option');
       opt.value = item;
-      dl.appendChild(opt);
+      fragment.appendChild(opt);
     });
+    dl.appendChild(fragment);
+    vendorDatalistTarget = dl;
+    vendorDatalistSignature = signature;
   }
 
   function normalizeCollege(c) {
@@ -207,7 +260,7 @@
   function isCollegePermitted(targetCol) {
     if (!targetCol || targetCol === 'all') return true;
     var normTarget = normalizeCollege(targetCol);
-    var currentCol = normalizeCollege(window.CURRENT_COLLEGE || 'smgg');
+    var currentCol = normalizeCollege(currentCollege());
     if (normTarget === currentCol) return true;
 
     if (window.CU === 'admin1' || (typeof isAdmin === 'function' && isAdmin())) return true;
@@ -227,6 +280,7 @@
     var sel = document.getElementById('fd_vendor_id');
     if (!sel) return;
     var curVal = sel.value;
+    var snapshot = createFinancialSnapshot();
     sel.innerHTML = '<option value="">-- No Agreement (General / Daily NMR / Non-Contract Payment) --</option>';
     VENDORS.forEach(function(v) {
       if (!isCollegePermitted(v.college)) return;
@@ -236,7 +290,7 @@
       var displayName = comp || name || vid;
       if (name && comp && name !== comp) displayName += ' (' + name + ')';
       var desc = v.workDescription || v.workDesc || 'Contract Work';
-      var fin = window.getVendorFinancials(vid);
+      var fin = window.getVendorFinancials(vid, snapshot);
       var balStr = fin ? (' — Balance: ' + formatCurrency(fin.balance)) : '';
       var opt = document.createElement('option');
       opt.value = vid;
@@ -429,7 +483,7 @@
     var authRole = (document.getElementById('f_v_auth_role') ? document.getElementById('f_v_auth_role').value : '').trim();
     var authPlace = (document.getElementById('f_v_auth_place') ? document.getElementById('f_v_auth_place').value : '').trim() || 'Chebrolu / Guntur';
 
-    var college = document.getElementById('f_v_college') ? document.getElementById('f_v_college').value : (window.CURRENT_COLLEGE || 'smgg');
+    var college = document.getElementById('f_v_college') ? document.getElementById('f_v_college').value : currentCollege();
 
     // Field Validations
     if (!company) { alert('Please enter Vendor Company Name.'); document.getElementById('f_v_company').focus(); return; }
@@ -535,7 +589,7 @@
 
     // Sync to Cloud DB
     if (typeof window._api === 'function') {
-      window._api('saveVendor', { college: vendorRecord.college || window.CURRENT_COLLEGE || 'smgg', vendor: vendorRecord }).catch(function(e){
+      window._api('saveVendor', { college: vendorRecord.college || currentCollege(), vendor: vendorRecord }).catch(function(e){
         console.error('Failed to save vendor to cloud', e);
       });
     }
@@ -573,7 +627,7 @@
     });
 
     var colEl = document.getElementById('f_v_college');
-    if (colEl) colEl.value = window.CURRENT_COLLEGE || 'smgg';
+    if (colEl) colEl.value = currentCollege();
 
     // Show Next Auto-Generated Vendor ID
     var idInput = document.getElementById('f_v_id');
@@ -646,7 +700,7 @@
     if (document.getElementById('f_v_auth_place')) document.getElementById('f_v_auth_place').value = v.authPlace || '';
 
     if (document.getElementById('f_v_college')) {
-      document.getElementById('f_v_college').value = v.college || window.CURRENT_COLLEGE || 'smgg';
+      document.getElementById('f_v_college').value = v.college || currentCollege();
     }
 
     var saveBtn = document.getElementById('BTN_SAVE_VENDOR');
@@ -673,7 +727,7 @@
 
       // Delete from Cloud DB
       if (typeof window._api === 'function') {
-        window._api('deleteVendor', { college: v.college || window.CURRENT_COLLEGE || 'smgg', id: id }).catch(function(e){
+        window._api('deleteVendor', { college: v.college || currentCollege(), id: id }).catch(function(e){
           console.error('Failed to delete vendor from cloud', e);
         });
       }
@@ -705,7 +759,7 @@
     // Also fallback/merge from localStorage if in-memory list is empty
     if (list.length === 0) {
       try {
-        var college = (window.CURRENT_COLLEGE || 'smgg').toLowerCase();
+        var college = currentCollege();
         var raw = localStorage.getItem('smv_vouchers_' + college);
         if (!raw) raw = localStorage.getItem('smv_vouchers');
         if (raw) {
@@ -721,14 +775,32 @@
   }
   window.getAllSystemVouchers = getAllSystemVouchers;
 
+  // Keep the index local to one render so voucher edits cannot leave cached balances stale.
+  function createFinancialSnapshot() {
+    var snapshot = { vendorsById: new Map(), vouchersById: new Map(), financials: new Map() };
+    VENDORS.forEach(function(v) {
+      [v.vendorId, v.id].forEach(function(id) {
+        if (!snapshot.vendorsById.has(id)) snapshot.vendorsById.set(id, v);
+      });
+    });
+    getAllSystemVouchers().forEach(function(item, order) {
+      if (!item || String(item.type || '').toLowerCase() !== 'debit') return;
+      var id = normalizeCleanStr(item.vendorId || item.vendor_id || '');
+      if (!id) return;
+      var group = snapshot.vouchersById.get(id);
+      if (!group) { group = []; snapshot.vouchersById.set(id, group); }
+      group.push({ item: item, date: toIso(item), college: normalizeCollege(item.college), number: parseInt(item.id || item.vno || 0) || 0, order: order });
+    });
+    return snapshot;
+  }
+
   // Retrieve all debit vouchers linked to a given vendor ID
   // RULE: Payment deductions MUST start strictly on/after the date the Vendor Form was created / Agreement Start Date.
   // Any payments made before the Vendor Form creation date / agreement date are EXCLUDED.
-  window.getLinkedDebitVouchers = function(vendorId) {
+  window.getLinkedDebitVouchers = function(vendorId, snapshot) {
     if (!vendorId) return [];
-    var v = VENDORS.find(function(item) { return (item.vendorId === vendorId || item.id === vendorId); });
+    var v = snapshot ? snapshot.vendorsById.get(vendorId) : VENDORS.find(function(item) { return (item.vendorId === vendorId || item.id === vendorId); });
     if (!v) return [];
-    var vsList = getAllSystemVouchers();
     
     var vidClean = normalizeCleanStr(vendorId);
     var vendorCol = normalizeCleanStr(v.college || '');
@@ -736,6 +808,27 @@
     // Effective start date cutoff (Agreement Start Date or Vendor Form creation date)
     var vendorStartDate = toIso(v.periodStart || (v.agreement && v.agreement.periodStart) || v.agreementDate || (v.createdAt ? v.createdAt.slice(0, 10) : ''));
 
+    if (snapshot) {
+      var vendorCollege = normalizeCollege(v.college);
+      var records = [];
+      snapshot.vouchersById.forEach(function(group, id) {
+        // Retain the existing partial-ID matching rule, including legacy IDs.
+        if (!vidClean || (id.indexOf(vidClean) === -1 && vidClean.indexOf(id) === -1)) return;
+        group.forEach(function(record) {
+          if (vendorCol && record.item.college && record.college && vendorCollege && record.college !== vendorCollege && !isCollegePermitted(record.college)) return;
+          if (vendorStartDate && record.date && record.date < vendorStartDate) return;
+          records.push(record);
+        });
+      });
+      records.sort(function(a, b) {
+        if (a.date < b.date) return -1;
+        if (a.date > b.date) return 1;
+        return a.number - b.number || a.order - b.order;
+      });
+      return records.map(function(record) { return record.item; });
+    }
+
+    var vsList = getAllSystemVouchers();
     var matched = vsList.filter(function(item) {
       if (!item) return false;
       // Must be a debit voucher
@@ -779,12 +872,13 @@
   };
 
   // Calculate complete financial statement for a vendor
-  window.getVendorFinancials = function(vendorId) {
-    var v = VENDORS.find(function(item) { return (item.vendorId === vendorId || item.id === vendorId); });
+  window.getVendorFinancials = function(vendorId, snapshot) {
+    if (snapshot && snapshot.financials.has(vendorId)) return snapshot.financials.get(vendorId);
+    var v = snapshot ? snapshot.vendorsById.get(vendorId) : VENDORS.find(function(item) { return (item.vendorId === vendorId || item.id === vendorId); });
     if (!v) return null;
 
     var agreed = parseFloat(v.agreedAmount || v.amount) || 0;
-    var vouchers = window.getLinkedDebitVouchers(vendorId);
+    var vouchers = window.getLinkedDebitVouchers(vendorId, snapshot);
 
     var totalPaid = 0;
     vouchers.forEach(function(item) {
@@ -801,7 +895,7 @@
       status = 'partial';
     }
 
-    return {
+    var financials = {
       vendor: v,
       agreedAmount: agreed,
       totalPaid: totalPaid,
@@ -811,6 +905,8 @@
       status: status,
       linkedVouchers: vouchers
     };
+    if (snapshot) snapshot.financials.set(vendorId, financials);
+    return financials;
   };
 
   // --- AUTOMATIC AGREEMENT STATUS ENGINE ---
@@ -967,7 +1063,7 @@
     var statusFilter = document.getElementById('VL_FILTER_STATUS') ? document.getElementById('VL_FILTER_STATUS').value : '';
     var collegeFilter = document.getElementById('VL_FILTER_COLLEGE') ? document.getElementById('VL_FILTER_COLLEGE').value : '';
 
-    var currentCol = (window.CURRENT_COLLEGE || 'smgg').toLowerCase();
+    var currentCol = currentCollege();
 
     var overallAgreed = 0;
     var overallPaid = 0;
@@ -975,9 +1071,10 @@
     var activeCount = 0;
 
     var ledgerList = [];
+    var snapshot = createFinancialSnapshot();
 
     VENDORS.forEach(function(v) {
-      var fin = window.getVendorFinancials(v.vendorId || v.id);
+      var fin = window.getVendorFinancials(v.vendorId || v.id, snapshot);
       if (!fin) return;
 
       var agStatus = window.getAgreementAutomaticStatus(v);
@@ -1440,7 +1537,7 @@
     var query = (document.getElementById('VENDOR_SEARCH') ? document.getElementById('VENDOR_SEARCH').value : '').toLowerCase().trim();
     var collegeFilter = document.getElementById('VENDOR_FILTER_COLLEGE') ? document.getElementById('VENDOR_FILTER_COLLEGE').value : '';
 
-    var currentCol = (window.CURRENT_COLLEGE || 'smgg').toLowerCase();
+    var currentCol = currentCollege();
 
     var filtered = VENDORS.filter(function(v) {
       if (collegeFilter) {
@@ -1985,7 +2082,7 @@
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Vendor Ledger Register');
 
-    var colCode = (window.CURRENT_COLLEGE || 'smgg').toUpperCase();
+    var colCode = currentCollege().toUpperCase();
     var filename = 'StMarys_' + colCode + '_Master_Vendor_Ledger_' + new Date().toISOString().slice(0, 10) + '.xlsx';
     XLSX.writeFile(wb, filename);
 
@@ -2037,9 +2134,7 @@
     }
 
     renderFileSlots();
-    renderVendorsTable();
-    renderVendorLedgerTable();
-    updateVendorAgreementSelect();
+    refreshVendorViews();
   }
 
   // Hook into show()
@@ -2047,10 +2142,13 @@
   window.show = function(id) {
     if (typeof oldShow === 'function') oldShow(id);
     if (id === 'create') {
+      loadVendors();
+      updateVendorDatalist();
       updateVendorAgreementSelect();
     }
     if (id === 'vendor') {
       loadVendors();
+      updateVendorDatalist();
       if (!vendorEditId) {
         var idInput = document.getElementById('f_v_id');
         if (idInput) idInput.value = getNextVendorId();

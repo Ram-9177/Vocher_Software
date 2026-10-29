@@ -3,7 +3,8 @@
 
   var adapterReady = false;
   var domEventHeld = false;
-  var buildVersion = '20261008-cashbook-date-hyd-v43';
+  var domReadyPassed = document.readyState === 'complete';
+  var buildVersion = '20261029-navigation-v44';
 
   try {
     var currentSrc = document.currentScript && document.currentScript.src;
@@ -18,7 +19,7 @@
     }
   }
 
-  if(document.readyState === 'loading') {
+  if(!domReadyPassed) {
     document.addEventListener('DOMContentLoaded', holdDomReady, true);
   }
 
@@ -33,15 +34,12 @@
     });
   }
 
-  load('app.old.js')
-    .then(function(){ return load('live-adapter.js'); })
-    .then(function(){ return load('live-save-override.js'); })
-    .then(function(){ return load('admin1-users.js'); })
-    .then(function(){ return load('vendor.js'); })
+  // Fetch together; async=false preserves execution order for global overrides.
+  Promise.all(['app.old.js', 'live-adapter.js', 'live-save-override.js', 'admin1-users.js', 'vendor.js'].map(load))
     .then(function(){
       adapterReady = true;
       document.removeEventListener('DOMContentLoaded', holdDomReady, true);
-      if(domEventHeld || document.readyState !== 'loading') {
+      if(domEventHeld || domReadyPassed) {
         setTimeout(function(){
           document.dispatchEvent(new Event('DOMContentLoaded', { bubbles:true, cancelable:true }));
         }, 0);

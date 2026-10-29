@@ -389,6 +389,7 @@ async function switchCollegeCtx(){
     const nextVouchers=Array.isArray(result&&result.vouchers)?result.vouchers:[];
     CURRENT_COLLEGE=target;
     VS=nextVouchers;
+    window.VS=VS;
     localStorage.setItem('smv_last_college',target);
     _setSess('smv_sess_college',target);
     const cs=document.getElementById('f_college');if(cs){cs.value=target;cs.disabled=true;}
@@ -404,8 +405,17 @@ async function switchCollegeCtx(){
     _startLiveSync();
   }
 }
+let _authUserCacheRaw, _authUserCache=null;
 function _authUserFromStorage(){
-  try{const s=localStorage.getItem('smv_auth_user');return s?JSON.parse(s):null;}catch(e){return null;}
+  try{
+    const raw=localStorage.getItem('smv_auth_user');
+    if(raw!==_authUserCacheRaw){
+      _authUserCacheRaw=raw;
+      _authUserCache=null;
+      if(raw)_authUserCache=JSON.parse(raw);
+    }
+    return _authUserCache;
+  }catch(e){return null;}
 }
 function _isOwnVoucher(v){
   if(v && v.type === 'onaccount') return true;
@@ -552,19 +562,23 @@ async function fetchDynamicBlocks() {
   }
 }
 
+let _phoneSuggestionsTarget=null, _phoneSuggestionsHTML='';
 function updatePhoneSuggestions(){
   const dl = document.getElementById('DL_PHONES');
   if(!dl) return;
-  const phones = [];
+  const phones = new Set();
   if(Array.isArray(VS)){
     VS.forEach(v => {
       const p = String(v.recipientPhone || v.recipient_phone || '').trim();
-      if(p && !phones.includes(p)){
-        phones.push(p);
-      }
+      if(p)phones.add(p);
     });
   }
-  dl.innerHTML = phones.map(p => `<option value="${p}"></option>`).join('');
+  const html=Array.from(phones,p=>`<option value="${p}"></option>`).join('');
+  if(dl!==_phoneSuggestionsTarget||html!==_phoneSuggestionsHTML){
+    dl.innerHTML=html;
+    _phoneSuggestionsTarget=dl;
+    _phoneSuggestionsHTML=html;
+  }
 }
 
 window.onPhoneSelected = function(val){
@@ -584,7 +598,7 @@ function initApp(){
   fetchDynamicHeads();
   fetchDynamicBlocks();
   setupCustomHeadDropdowns();
-  populateHeads();populateMyHeads();setDate();renderDash();renderMyDash();
+  populateHeads();populateMyHeads();setDate();
   updatePhoneSuggestions();
   ['DBF','DBT','MDBF','MDBT','MSDF','MSDT','SDF','SDT','f_date'].forEach(id => syncDateFilterDisplay(id));
   const today_str=fmtDt(new Date().toISOString(), true);
@@ -819,7 +833,6 @@ window.addEventListener('hashchange', function() {
 });
 
 function show(id){
-  window.show = show;
   if (window.location.hash !== '#' + id) {
     window.history.pushState(null, null, '#' + id);
   }
@@ -854,12 +867,6 @@ function show(id){
     }
     syncDateFilterDisplay('MSDF');syncDateFilterDisplay('MSDT');
     renderMyVT();
-  }
-  if(id==='vendor'){
-    if(typeof renderVendorsTable==='function') renderVendorsTable();
-  }
-  if(id==='vendorledger'){
-    if(typeof renderVendorLedgerTable==='function') renderVendorLedgerTable();
   }
   // Persist current page so refresh lands on same section
   _setSess('smv_sess_page',id);
@@ -1011,7 +1018,7 @@ function renderMyDash(){
     <div class="sc"><div class="lbl">Debit</div><div class="val">${myVS.filter(v=>v.type==='debit').length}</div><div class="sub">Payments</div></div>
     <div class="sc"><div class="lbl">On- Account</div><div class="val">${myVS.filter(v=>v.type==='onaccount').length}</div><div class="sub">Transactions</div></div>
     <div class="sc"><div class="lbl">Credit</div><div class="val">${myVS.filter(v=>v.type==='credit').length}</div><div class="sub">Received</div></div>
-    <div class="sc" onclick="show('vendorledger')" style="cursor:pointer;" title="Click to view Vendor Ledger"><div class="lbl">📒 Vendors</div><div class="val">${vCount}</div><div class="sub">Vendor Ledger</div></div>`;
+    <div class="sc" onclick="show('vendorledger')" style="cursor:pointer;" title="Click to view Vendor Ledger"><div class="lbl">📒 Vendors</div><div class="val" id="MYDASH_VENDOR_COUNT">${vCount}</div><div class="sub">Vendor Ledger</div></div>`;
   const rec=[...myVS].sort((a,b)=>(Date.parse(b.createdAt||b.created_at||'')||Number(b.id||0))-(Date.parse(a.createdAt||a.created_at||'')||Number(a.id||0))).slice(0,10);
   const bc={credit:'bc',debit:'bd',onaccount:'bo'};
   const rb=document.getElementById('MRB');if(!rb)return;
@@ -1816,7 +1823,7 @@ function renderDash(){
     <div class="sc"><div class="lbl">Debit</div><div class="val">${fvs.filter(v=>v.type==='debit').length}</div><div class="sub">Payments</div></div>
     <div class="sc"><div class="lbl">On- Account</div><div class="val">${fvs.filter(v=>v.type==='onaccount').length}</div><div class="sub">Transactions</div></div>
     <div class="sc"><div class="lbl">Credit</div><div class="val">${fvs.filter(v=>v.type==='credit').length}</div><div class="sub">Received</div></div>
-    <div class="sc" onclick="show('vendorledger')" style="cursor:pointer;" title="Click to view Vendor Ledger"><div class="lbl">📒 Vendors</div><div class="val">${vCount}</div><div class="sub">Vendor Ledger</div></div>`;
+    <div class="sc" onclick="show('vendorledger')" style="cursor:pointer;" title="Click to view Vendor Ledger"><div class="lbl">📒 Vendors</div><div class="val" id="DASH_VENDOR_COUNT">${vCount}</div><div class="sub">Vendor Ledger</div></div>`;
   const rec=[...fvs].sort((a,b)=>(Date.parse(b.createdAt||b.created_at||'')||Number(b.id||0))-(Date.parse(a.createdAt||a.created_at||'')||Number(a.id||0))).slice(0,10);
   const bc={credit:'bc',debit:'bd',onaccount:'bo'};
   document.getElementById('RB').innerHTML=rec.map(v=>`<tr>
@@ -3229,7 +3236,7 @@ window.addEventListener('DOMContentLoaded', async function(){
     const cs = document.getElementById('f_college');
     if(cs){ cs.value=sessCollege; cs.disabled=true; }
     updateCollegeSwitchPill();
-    setupRole();
+    setupRole(true);
     initApp();
     _updateXLPill();
     if(typeof window.installAdminUsers==='function') window.installAdminUsers();

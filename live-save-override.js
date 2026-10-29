@@ -1,45 +1,8 @@
 (function(){
   'use strict';
 
-  var buildVersion = '20260723-owner-scope-filters-v11';
-  try {
-    var currentSrc = document.currentScript && document.currentScript.src;
-    var currentVersion = currentSrc ? new URL(currentSrc, window.location.href).searchParams.get('v') : '';
-    if(currentVersion) buildVersion = currentVersion;
-  } catch(e) {}
-
-  try {
-    if(!document.querySelector('script[data-smv-user-layer="1"]') && !document.querySelector('script[src*="admin1-users.js"]')){
-      var us = document.createElement('script');
-      us.src = 'admin1-users.js?v=' + encodeURIComponent(buildVersion);
-      us.async = false;
-      us.setAttribute('data-smv-user-layer','1');
-      document.head.appendChild(us);
-    }
-  } catch(e) {}
-
-  const _oldInitApp = window.initApp;
-  if (_oldInitApp) {
-    window.initApp = function() {
-      _oldInitApp.apply(this, arguments);
-      if (typeof window._loadDynamicHeads === 'function') window._loadDynamicHeads();
-    };
-  }
-
-  window._loadDynamicHeads = async function() {
-    if (typeof _api !== 'function') return;
-    try {
-      const college = window.CURRENT_COLLEGE || 'smgg';
-      const j = await _api('listHeads', { college: college });
-      if (j && Array.isArray(j.heads)) {
-        j.heads.forEach(h => {
-          if (window.HEADS && !window.HEADS.includes(h.name)) window.HEADS.push(h.name);
-        });
-        if (typeof populateHeads === 'function') populateHeads();
-        if (typeof populateMyHeads === 'function') populateMyHeads();
-      }
-    } catch(e) {}
-  };
+  // initApp already loads dynamic heads; keep this entry point for callers.
+  window._loadDynamicHeads = fetchDynamicHeads;
 
   window.checkNewHead = async function(el) {
     if(!el) return;
@@ -150,7 +113,6 @@
       await _saveVoucherToCloud(v);
       await _loadVouchersFromCloud();
       if(typeof VS !== 'undefined') window.VS = VS;
-      if(typeof reloadVendorModule === 'function') reloadVendorModule();
 
       let excelOk = false;
       if(XLHandle) excelOk = await autoSaveLinkedExcel();

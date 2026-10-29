@@ -125,12 +125,6 @@
       renderCollegesLive();
       if(document.getElementById('CARD_AUDIT_LOGS') && document.getElementById('CARD_AUDIT_LOGS').style.display !== 'none') window.renderAuditLive();
     }
-    if(id==='vendor'){
-      if(typeof renderVendorsTable === 'function') renderVendorsTable();
-    }
-    if(id==='vendorledger'){
-      if(typeof renderVendorLedgerTable === 'function') renderVendorLedgerTable();
-    }
     if (typeof applyPermissionVisibility === 'function') {
       applyPermissionVisibility();
     }
@@ -720,7 +714,7 @@
     if (!has('print_voucher')) {
       css += 'button[onclick="previewV()"], button[onclick^="quickPrint("], button[onclick="doPrint()"], button[title="Print"] { display: none !important; }\n';
     }
-    styleEl.textContent = css;
+    if (styleEl.textContent !== css) styleEl.textContent = css;
 
     const xlPill = document.getElementById('XLPILL');
     if (xlPill) {

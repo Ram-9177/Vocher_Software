@@ -92,11 +92,14 @@
   }
 
   async function cloud(action, payload){
-    const body = Object.assign({}, payload || {}, { action: action, token: token() });
+    const requestToken=token();
+    const body = Object.assign({}, payload || {}, { action: action, token: requestToken });
     const res = await fetch(API_URL, { method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' }, body:JSON.stringify(body) });
     const json = await res.json().catch(function(){ return { error:'Invalid server response' }; });
-    if(json && json.token) setToken(json.token);
-    if(json && json.user) setAuthUser(json.user);
+    if(token()===requestToken){
+      if(json && json.token) setToken(json.token);
+      if(json && json.user) setAuthUser(json.user);
+    }
     if(!res.ok || json.error) throw new Error(json.error || ('HTTP '+res.status));
     return json;
   }
@@ -167,7 +170,7 @@
     HOME_COLLEGE=CURRENT_COLLEGE || college;
     updateCollegeSwitchPill();
     await _loadVouchersFromCloud();
-    setupRole();initApp();_updateXLPill();
+    setupRole(true);initApp();_updateXLPill();
     if(typeof window.installAdminUsers==='function')window.installAdminUsers();
     if(typeof window.applyPermissionVisibility==='function')window.applyPermissionVisibility();
     const cs=document.getElementById('f_college'); if(cs){ cs.value=CURRENT_COLLEGE||'smgg'; cs.disabled=true; }
@@ -270,6 +273,8 @@
   window._startLiveSync=function(){
     _stopLiveSync();
     _LIVE_SIG=_vsSignature();
+    // A hash belongs to this session and college only.
+    window._VOUCHERS_SERVER_HASH='';
     let headsSig='', blocksSig='', usersSig='', userSig='', syncing=false;
     function syncNamedList(response,key,target,datalistId){
       const rows=Array.isArray(response&&response[key])?response[key]:[];
@@ -300,24 +305,33 @@
       syncing=true;
       try{
         const college=CURRENT_COLLEGE;
+        const sessionToken=token();
         const userBody=document.getElementById('LIVE_USERS_BODY');
         let auth={};try{auth=JSON.parse(localStorage.getItem('smv_auth_user')||'{}');}catch(e){}
         const permissions=Array.isArray(auth.permissions)?auth.permissions:String(auth.permissions||'').split(',');
         const userSyncPermissions=['create_users','create_admin','manage_permissions','reset_passwords','block_users','manage_colleges','change_admin_key','view_audit'];
         const canSyncUsers=isMainAdminUser(auth)||permissions.indexOf('*')!==-1||userSyncPermissions.some(function(permission){return permissions.indexOf(permission)!==-1;});
         const j=await cloud('syncData',{college:college,includeUsers:!!(userBody&&canSyncUsers),vouchersHash:window._VOUCHERS_SERVER_HASH||''});
+        if(!CU||college!==CURRENT_COLLEGE||sessionToken!==token())return;
         if (j.newVouchersHash) window._VOUCHERS_SERVER_HASH = j.newVouchersHash;
-        
+        let vouchersChanged=false, vendorsChanged=false;
         if (!j.vouchersNotModified) {
           const next=Array.isArray(j.vouchers)?j.vouchers:[];
           const nextSig=next.length+'|'+next.map(function(v){return v.id+':'+(v._u||v.dateISO||'');}).join(',');
           if(nextSig!==_LIVE_SIG){
             VS=next; window.VS=VS; _LIVE_SIG=nextSig;
-            try{ if(typeof renderVT==='function') renderVT(); }catch(e){}
-            try{ if(typeof renderDash==='function') renderDash(); }catch(e){}
-            try{ if(typeof renderMyDash==='function') renderMyDash(); }catch(e){}
-            try{ if(typeof renderMyVT==='function') renderMyVT(); }catch(e){}
-            try{ if(typeof reloadVendorModule==='function') reloadVendorModule(); }catch(e){}
+            vouchersChanged=true;
+            const active=document.querySelector('.sec.act');
+            try{
+              if(active){
+                if(active.id==='sec-vouchers')renderVT();
+                else if(active.id==='sec-dashboard')renderDash();
+                else if(active.id==='sec-mydashboard')renderMyDash();
+                else if(active.id==='sec-myvouchers')renderMyVT();
+                else if(active.id==='sec-analytics')renderAnalytics();
+              }
+            }catch(e){}
+            try{if(typeof updatePhoneSuggestions==='function')updatePhoneSuggestions();}catch(e){}
           }
         }
         syncNamedList(j,'heads',HEADS,'DL_HEADS');
@@ -325,17 +339,21 @@
         if(Array.isArray(j.vendors)){
           try{
             if(typeof window.applyServerVendors==='function'){
-              window.applyServerVendors(j.vendors);
+              vendorsChanged=window.applyServerVendors(j.vendors,{deferRender:true});
             }
           }catch(e){console.error('applyServerVendors error',e);}
+        }
+        if(vouchersChanged||vendorsChanged){
+          try{if(typeof window.refreshVendorViews==='function')window.refreshVendorViews();}catch(e){}
         }
         const currentUser=j.user;
         const nextUserSig=JSON.stringify(currentUser||{});
         if(currentUser&&nextUserSig!==userSig){
           userSig=nextUserSig;setAuthUser(currentUser);
           if(typeof uiUserCode==='function') {
-            window.CU = uiUserCode(currentUser);
-            try{setSess('smv_sess_user', window.CU);}catch(e){}
+            CU = uiUserCode(currentUser);
+            window.CU = CU;
+            try{setSess('smv_sess_user', CU);}catch(e){}
           }
           const ub = document.getElementById('UB');
           if(ub && typeof userLabel==='function') {
