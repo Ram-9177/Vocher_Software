@@ -315,6 +315,24 @@
     });
   }
 
+  // Quoted JS string literal, HTML-escaped, for use as an argument inside a double-quoted
+  // inline event handler attribute, e.g. onclick="fn(' + jsArg(id) + ')".
+  function jsArg(val) {
+    return sanitize(JSON.stringify(String(val == null ? '' : val)));
+  }
+
+  // Allow only safe URL schemes for href/src built from stored data (blocks javascript:, vbscript:,
+  // and script-capable data: types). Relative URLs, http(s):, blob: and other data: types are kept.
+  function safeUrl(url) {
+    var u = String(url || '').trim();
+    var compact = u.replace(/[\u0000-\u0020]+/g, '').toLowerCase();
+    if (/^(javascript|vbscript):/.test(compact)) return '';
+    if (/^data:/.test(compact) && /^data:(text\/html|application\/xhtml|text\/xml|application\/xml|image\/svg|text\/javascript|application\/javascript)/.test(compact)) return '';
+    var m = /^([a-z][a-z0-9+.\-]*):/.exec(compact);
+    if (m && ['http', 'https', 'data', 'blob'].indexOf(m[1]) === -1) return '';
+    return u;
+  }
+
   function formatCurrency(num) {
     var n = parseFloat(num) || 0;
     return '₹ ' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -430,18 +448,19 @@
     var bodyEl = document.getElementById('VFM_BODY');
 
     titleEl.textContent = fileName || 'Document Preview';
-    dlEl.href = dataUrl;
+    var safeDataUrl = safeUrl(dataUrl);
+    dlEl.href = safeDataUrl;
     dlEl.download = fileName || 'vendor_document';
 
     if (fileType.indexOf('pdf') > -1) {
-      bodyEl.innerHTML = '<iframe src="' + dataUrl + '" style="width:100%;height:100%;border:none;border-radius:6px;background:#fff;"></iframe>';
+      bodyEl.innerHTML = '<iframe src="' + sanitize(safeDataUrl) + '" style="width:100%;height:100%;border:none;border-radius:6px;background:#fff;"></iframe>';
     } else if (fileType.indexOf('image') > -1) {
-      bodyEl.innerHTML = '<img src="' + dataUrl + '" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;" alt="Preview">';
+      bodyEl.innerHTML = '<img src="' + sanitize(safeDataUrl) + '" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;" alt="Preview">';
     } else {
       bodyEl.innerHTML = '<div style="color:#fff;text-align:center;">' +
         '<p style="font-size:16px;margin-bottom:12px;">📄 Document: ' + sanitize(fileName) + '</p>' +
         '<p style="color:#aaa;font-size:13px;margin-bottom:16px;">Preview is ready for download.</p>' +
-        '<a href="' + dataUrl + '" download="' + sanitize(fileName) + '" class="btn bp">Click here to Download &amp; Open</a>' +
+        '<a href="' + sanitize(safeDataUrl) + '" download="' + sanitize(fileName) + '" class="btn bp">Click here to Download &amp; Open</a>' +
       '</div>';
     }
 
@@ -704,7 +723,7 @@
     }
 
     var saveBtn = document.getElementById('BTN_SAVE_VENDOR');
-    if (saveBtn) saveBtn.innerHTML = '💾 Update Vendor (' + vendorEditId + ')';
+    if (saveBtn) saveBtn.innerHTML = '💾 Update Vendor (' + sanitize(vendorEditId) + ')';
 
     renderFileSlots();
 
@@ -1206,13 +1225,13 @@
         '<span class="badge-paid">✓ Fully Paid (100%)</span>' :
         (fin.status === 'partial' ? '<span class="badge-partial">⏳ ' + fin.paidPercent + '% Paid</span>' : '<span class="badge-unpaid">Pending Payment</span>');
 
-      var pStart = typeof isoToDMY === 'function' ? (isoToDMY(v.periodStart || v.agreementDate) || '—') : (v.periodStart || v.agreementDate || '—');
-      var pEnd = typeof isoToDMY === 'function' ? (isoToDMY(v.periodEnd) || '—') : (v.periodEnd || '—');
+      var pStart = sanitize(typeof isoToDMY === 'function' ? (isoToDMY(v.periodStart || v.agreementDate) || '—') : (v.periodStart || v.agreementDate || '—'));
+      var pEnd = sanitize(typeof isoToDMY === 'function' ? (isoToDMY(v.periodEnd) || '—') : (v.periodEnd || '—'));
 
       var agSt = fin.agStatus || window.getAgreementAutomaticStatus(v);
       var agBadgeHtml = '<span class="' + agSt.badgeClass + '">' + agSt.icon + ' ' + agSt.label + (agSt.detail ? ' <span style="font-size:9.5px;opacity:0.9;">(' + agSt.detail + ')</span>' : '') + '</span>';
 
-      html += '<tr style="cursor:pointer;" onclick="openVendorLedgerModal(\'' + vid + '\')">' +
+      html += '<tr style="cursor:pointer;" onclick="openVendorLedgerModal(' + jsArg(vid) + ')">' +
         '<td>' +
           '<div style="display:flex;align-items:center;gap:6px;">' +
             '<span style="font-family:monospace;font-weight:800;color:#002D72;font-size:13px;">' + sanitize(vid) + '</span> ' + collegeBadge +
@@ -1253,10 +1272,10 @@
         '</td>' +
         '<td onclick="event.stopPropagation()">' +
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;min-width:180px;">' +
-            '<button class="btn bp bsm" style="padding:4px 8px;font-size:11px;justify-content:center;" onclick="openVendorLedgerModal(\'' + vid + '\')" title="View Complete Ledger">📂 View Ledger</button>' +
-            '<button class="btn bs bsm" style="padding:4px 8px;font-size:11px;justify-content:center;" onclick="previewVendorAgreement(\'' + vid + '\')" title="Print Agreement">🖨 Agreement</button>' +
-            '<button class="btn bg bsm" style="padding:4px 8px;font-size:11px;justify-content:center;" onclick="createVoucherForVendor(\'' + vid + '\')" title="+ Debit Voucher">+ Voucher</button>' +
-            '<button class="btn br bsm" style="padding:4px 8px;font-size:11px;justify-content:center;" onclick="deleteVendor(\'' + vid + '\')" title="Delete Vendor">🗑 Delete</button>' +
+            '<button class="btn bp bsm" style="padding:4px 8px;font-size:11px;justify-content:center;" onclick="openVendorLedgerModal(' + jsArg(vid) + ')" title="View Complete Ledger">📂 View Ledger</button>' +
+            '<button class="btn bs bsm" style="padding:4px 8px;font-size:11px;justify-content:center;" onclick="previewVendorAgreement(' + jsArg(vid) + ')" title="Print Agreement">🖨 Agreement</button>' +
+            '<button class="btn bg bsm" style="padding:4px 8px;font-size:11px;justify-content:center;" onclick="createVoucherForVendor(' + jsArg(vid) + ')" title="+ Debit Voucher">+ Voucher</button>' +
+            '<button class="btn br bsm" style="padding:4px 8px;font-size:11px;justify-content:center;" onclick="deleteVendor(' + jsArg(vid) + ')" title="Delete Vendor">🗑 Delete</button>' +
           '</div>' +
         '</td>' +
       '</tr>';
@@ -1290,7 +1309,7 @@
 
     if (titleEl) titleEl.textContent = (v.companyName || v.company || 'Vendor') + ' — Ledger Statement';
     if (badgeEl) badgeEl.textContent = vendorId;
-    if (subEl) subEl.innerHTML = 'Contact: <b>' + sanitize(v.vendorName || v.name || '—') + '</b> &bull; Phone: <b>' + sanitize(v.phone || '—') + '</b> &bull; PAN: <b>' + sanitize(v.pan || '—') + '</b>' + (v.aadhaar ? ' &bull; Aadhaar: <b>' + sanitize(v.aadhaar) + '</b>' : '') + ' &bull; College: <b>' + (v.college ? v.college.toUpperCase() : 'SMGG') + '</b> &bull; ' + modalAgBadge;
+    if (subEl) subEl.innerHTML = 'Contact: <b>' + sanitize(v.vendorName || v.name || '—') + '</b> &bull; Phone: <b>' + sanitize(v.phone || '—') + '</b> &bull; PAN: <b>' + sanitize(v.pan || '—') + '</b>' + (v.aadhaar ? ' &bull; Aadhaar: <b>' + sanitize(v.aadhaar) + '</b>' : '') + ' &bull; College: <b>' + sanitize(v.college ? v.college.toUpperCase() : 'SMGG') + '</b> &bull; ' + modalAgBadge;
 
     // Financial metrics ribbon
     var agreedEl = document.getElementById('VLM_DETAIL_AGREED');
@@ -1323,7 +1342,7 @@
       if (vEmpty) vEmpty.style.display = 'none';
       var vHtml = '';
       fin.linkedVouchers.forEach(function(item) {
-        var dmy = typeof isoToDMY === 'function' ? (isoToDMY(item.date) || item.date) : item.date;
+        var dmy = sanitize(typeof isoToDMY === 'function' ? (isoToDMY(item.date) || item.date) : item.date);
         var modeRef = sanitize(item.mode || 'Cash') + (item.cheque ? ' (Ref: ' + sanitize(item.cheque) + ')' : '');
 
         vHtml += '<tr>' +
@@ -1334,7 +1353,7 @@
           '<td style="font-weight:700;color:#15803d;font-size:13px;">' + formatCurrency(item.amount) + '</td>' +
           '<td style="font-size:11.5px;color:var(--G600);">' + sanitize(item.by || 'admin1') + '</td>' +
           '<td>' +
-            '<button type="button" class="btn bs bsm" style="padding:2px 7px;font-size:11px;" onclick="if(typeof printV===\'function\'){printV(\'' + (item.id || item.vno) + '\');}else if(typeof previewV===\'function\'){previewV(\'' + (item.id || item.vno) + '\');}" title="View / Print Voucher">🖨 View</button>' +
+            '<button type="button" class="btn bs bsm" style="padding:2px 7px;font-size:11px;" onclick="if(typeof printV===\'function\'){printV(' + jsArg(item.id || item.vno) + ');}else if(typeof previewV===\'function\'){previewV(' + jsArg(item.id || item.vno) + ');}" title="View / Print Voucher">🖨 View</button>' +
           '</td>' +
         '</tr>';
       });
@@ -1391,7 +1410,7 @@
             '<p style="margin:4px 0;font-size:12.5px;"><b>Designation:</b> ' + sanitize(v.authRole || '—') + '</p>' +
             '<p style="margin:4px 0;font-size:12.5px;"><b>Place:</b> ' + sanitize(v.authPlace || 'Chebrolu / Guntur') + '</p>' +
             '<p style="margin:4px 0;font-size:12.5px;"><b>Remarks:</b> ' + sanitize(v.remarks || '—') + '</p>' +
-            '<p style="margin:4px 0;font-size:12.5px;"><b>Created Date:</b> ' + (v.createdAt ? v.createdAt.slice(0,10) : '—') + '</p>' +
+            '<p style="margin:4px 0;font-size:12.5px;"><b>Created Date:</b> ' + sanitize(v.createdAt ? String(v.createdAt).slice(0,10) : '—') + '</p>' +
           '</div>' +
         '</div>';
     }
@@ -1457,14 +1476,14 @@
             '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
               '<span style="font-weight:700;color:#002D72;">🔗 Linked Agreement:</span>' +
               '<span><b>' + sanitize(v.companyName || v.company || v.vendorName || v.name) + '</b></span>' +
-              '<span style="font-family:monospace;background:#002D72;color:#fff;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;">' + vid + '</span>' +
+              '<span style="font-family:monospace;background:#002D72;color:#fff;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;">' + sanitize(vid) + '</span>' +
               '<span class="' + agSt.badgeClass + '">' + agSt.icon + ' ' + agSt.label + '</span>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
               '<span>Contract: <b style="color:#b91c1c;">' + formatCurrency(fin.agreedAmount) + '</b></span>' +
               '<span>Paid: <b style="color:#0284c7;">' + formatCurrency(fin.totalPaid) + '</b></span>' +
               '<span>Balance: <b style="color:' + (fin.balance <= 0 ? '#15803d' : '#b45309') + ';">' + formatCurrency(fin.balance) + '</b></span>' +
-              '<button type="button" class="btn bs bsm" style="padding:2px 8px;font-size:11px;" onclick="openVendorLedgerModal(\'' + vid + '\')">📂 Statement</button>' +
+              '<button type="button" class="btn bs bsm" style="padding:2px 8px;font-size:11px;" onclick="openVendorLedgerModal(' + jsArg(vid) + ')">📂 Statement</button>' +
               '<button type="button" class="btn br bsm" style="padding:2px 8px;font-size:11px;" onclick="unlinkDebitAgreement()" title="Unlink this voucher from agreement">❌ Remove Link</button>' +
             '</div>' +
           '</div>' +
@@ -1582,7 +1601,7 @@
         files.forEach(function(f, fIdx) {
           var isPdf = f.type && f.type.indexOf('pdf') > -1;
           var label = isPdf ? '📄 Doc ' + (fIdx + 1) : '📎 File ' + (fIdx + 1);
-          fileBadgesHtml += '<button type="button" class="file-badge-pill" onclick="viewSavedVendorFile(\'' + (v.vendorId || v.id) + '\',' + fIdx + ')" title="' + sanitize(f.name) + ' (' + formatFileSize(f.size) + ')">' + label + '</button> ';
+          fileBadgesHtml += '<button type="button" class="file-badge-pill" onclick="viewSavedVendorFile(' + jsArg(v.vendorId || v.id) + ',' + fIdx + ')" title="' + sanitize(f.name) + ' (' + formatFileSize(f.size) + ')">' + label + '</button> ';
         });
       }
 
@@ -1594,7 +1613,7 @@
 
       var vid = v.vendorId || v.id || '—';
       var agDate = v.periodStart || (v.agreement && v.agreement.periodStart) || v.agreementDate || '—';
-      var formattedDate = typeof isoToDMY === 'function' ? isoToDMY(agDate) : agDate;
+      var formattedDate = sanitize(typeof isoToDMY === 'function' ? isoToDMY(agDate) : agDate);
       var agSt = window.getAgreementAutomaticStatus(v);
       var agBadgeHtml = '<span class="' + agSt.badgeClass + '">' + agSt.icon + ' ' + agSt.label + (agSt.detail ? ' <span style="font-size:9.5px;opacity:0.9;">(' + agSt.detail + ')</span>' : '') + '</span>';
 
@@ -1627,10 +1646,10 @@
         '<td>' + fileBadgesHtml + '</td>' +
         '<td>' +
           '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
-            '<button class="btn bp bsm" style="padding:4px 8px;font-size:11px;" onclick="openVendorLedgerModal(\'' + vid + '\')" title="View Ledger">📂 Ledger</button>' +
-            '<button class="btn bs bsm" style="padding:4px 8px;font-size:11px;" onclick="previewVendorAgreement(\'' + vid + '\')" title="Print Agreement">🖨 Agreement</button>' +
-            '<button class="btn bs bsm" style="padding:4px 8px;font-size:11px;" onclick="editVendor(\'' + vid + '\')" title="Edit Vendor">✏️ Edit</button>' +
-            '<button class="btn bd bsm" style="padding:4px 8px;font-size:11px;" onclick="deleteVendor(\'' + vid + '\')" title="Delete Vendor">🗑</button>' +
+            '<button class="btn bp bsm" style="padding:4px 8px;font-size:11px;" onclick="openVendorLedgerModal(' + jsArg(vid) + ')" title="View Ledger">📂 Ledger</button>' +
+            '<button class="btn bs bsm" style="padding:4px 8px;font-size:11px;" onclick="previewVendorAgreement(' + jsArg(vid) + ')" title="Print Agreement">🖨 Agreement</button>' +
+            '<button class="btn bs bsm" style="padding:4px 8px;font-size:11px;" onclick="editVendor(' + jsArg(vid) + ')" title="Edit Vendor">✏️ Edit</button>' +
+            '<button class="btn bd bsm" style="padding:4px 8px;font-size:11px;" onclick="deleteVendor(' + jsArg(vid) + ')" title="Delete Vendor">🗑</button>' +
           '</div>' +
         '</td>' +
       '</tr>';
@@ -1653,8 +1672,8 @@
       '</div>';
     }
 
-    var pStartFormatted = typeof isoToDMY === 'function' ? (isoToDMY(v.periodStart || v.agreementDate) || '—') : (v.periodStart || v.agreementDate || '—');
-    var pEndFormatted = typeof isoToDMY === 'function' ? (isoToDMY(v.periodEnd) || '—') : (v.periodEnd || '—');
+    var pStartFormatted = sanitize(typeof isoToDMY === 'function' ? (isoToDMY(v.periodStart || v.agreementDate) || '—') : (v.periodStart || v.agreementDate || '—'));
+    var pEndFormatted = sanitize(typeof isoToDMY === 'function' ? (isoToDMY(v.periodEnd) || '—') : (v.periodEnd || '—'));
 
     var collegeName = (v.college === 'smwec')
       ? "ST. MARY'S WOMEN'S ENGINEERING COLLEGE, BUDAMPADU"
@@ -1906,12 +1925,12 @@
         "ST. MARY'S ENGINEERING COLLEGE, HYDERABAD" :
         "ST. MARY'S GROUP OF INSTITUTIONS GUNTUR (CHEBROLU)");
 
-    var pStart = typeof isoToDMY === 'function' ? (isoToDMY(v.periodStart || v.agreementDate) || '—') : (v.periodStart || v.agreementDate || '—');
-    var pEnd = typeof isoToDMY === 'function' ? (isoToDMY(v.periodEnd) || '—') : (v.periodEnd || '—');
+    var pStart = sanitize(typeof isoToDMY === 'function' ? (isoToDMY(v.periodStart || v.agreementDate) || '—') : (v.periodStart || v.agreementDate || '—'));
+    var pEnd = sanitize(typeof isoToDMY === 'function' ? (isoToDMY(v.periodEnd) || '—') : (v.periodEnd || '—'));
 
     var rowsHtml = '';
     fin.linkedVouchers.forEach(function(item, idx) {
-      var dmy = typeof isoToDMY === 'function' ? (isoToDMY(item.date) || item.date) : item.date;
+      var dmy = sanitize(typeof isoToDMY === 'function' ? (isoToDMY(item.date) || item.date) : item.date);
       var modeRef = sanitize(item.mode || 'Cash') + (item.cheque ? ' (Ref: ' + sanitize(item.cheque) + ')' : '');
 
       rowsHtml += '<tr>' +

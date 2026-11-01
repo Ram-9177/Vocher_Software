@@ -197,7 +197,7 @@
     const se=document.getElementById('SE');
     se.style.display='none';
     if(!u){se.textContent='Please select a username.';se.style.display='block';return;}
-    if(p.length<6){se.textContent='Password must be at least 6 characters.';se.style.display='block';return;}
+    if(p.length<8){se.textContent='Password must be at least 8 characters.';se.style.display='block';return;}
     if(p!==p2){se.textContent='Passwords do not match.';se.style.display='block';return;}
     const college=CURRENT_COLLEGE||'smgg';
     const hash=await _hashPassword(p);
@@ -224,7 +224,7 @@
     if(!creds['admin1']){ re.textContent='No admin1 account exists at this institution. admin1 must sign up first before resetting any passwords.'; re.style.display='block';return; }
     if(!ADMIN_ROLES[u]){ re.textContent='Please select a valid admin username to reset.'; re.style.display='block';return; }
     if(!creds[u]){ re.textContent='No account for '+u+' at this institution. Please sign up first.'; re.style.display='block'; return; }
-    if(p.length<6){ re.textContent='Password must be at least 6 characters.'; re.style.display='block'; return; }
+    if(p.length<8){ re.textContent='Password must be at least 8 characters.'; re.style.display='block'; return; }
     if(p!==p2){ re.textContent='Passwords do not match.'; re.style.display='block'; return; }
     const hash=await _hashPassword(p);
     const payload={college,username:u,password:p,passwordHash:hash};

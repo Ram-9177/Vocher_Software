@@ -1,6 +1,8 @@
 const HEADS=['Building Maintenance','Garden Maintenance','Aquarium Maintenance','Staff Welfare Account','Guest Lecture Account','Workshop Account','Training & Placements Account','Transportation Account','Bank Deposits Account','Salary Account','Repairs & Maintenance','Hostel Mess Maintenance','Furniture Maintenance','Electricity Bill','Vehicle Maintenance','Electrical Expenses','Xerox Machine Maintenance','Transfer Account','Library Maintenance Account','Sports Maintenance Account','Function Celebration Account','Printing & Stationery Account','Office Maintenance Account','Professional Tax','Postage & Telegram','Admission & Promotion Account','On Account','Marketing','Advertisement','Loan Account','Audit Expenses Account','Diesel Account','Bank Charges Account','Courier Expenses','Telephone Expenses','Legal Expenses','Internet Expenses','Lab Maintenance','Conveyance Expenses','Computer Maintenance','Donation Account'];
 const DEFAULT_HEADS=[...HEADS];
 const BLOCKS=[];
+// HTML-escape helper for values interpolated into innerHTML / HTML strings (global; also used by cash book).
+function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);});}
 // ===== AUTH SYSTEM (no hardcoded passwords) =====
 // Credentials stored in localStorage as hashed passwords.
 // Up to 3 accounts: admin1, admin2, admin3
@@ -92,7 +94,7 @@ async function restoreLinkedExcel(){
     const perm=await h.queryPermission?.({mode:'readwrite'});
     if(perm==='granted'){ _toast('🔗 Auto-relinked: '+XLName,'ok'); return; }
     const p=document.getElementById('XLPILL');
-    if(p){ p.classList.add('linked'); p.classList.add('needs-grant'); p.innerHTML='🔓 Click to restore: '+XLName; p.title='Click and approve to re-enable auto-save'; }
+    if(p){ p.classList.add('linked'); p.classList.add('needs-grant'); p.innerHTML='🔓 Click to restore: '+esc(XLName); p.title='Click and approve to re-enable auto-save'; }
   }catch(e){}
 }
 function _toast(msg, kind){
@@ -105,7 +107,7 @@ function _toast(msg, kind){
 }
 function _updateXLPill(){
   const p=document.getElementById('XLPILL'); if(!p) return;
-  if(XLHandle){p.classList.add('linked'); p.innerHTML='✅ '+(XLName||'Excel linked'); p.title='Click to unlink. Saves write to this file.';}
+  if(XLHandle){p.classList.add('linked'); p.innerHTML='✅ '+esc(XLName||'Excel linked'); p.title='Click to unlink. Saves write to this file.';}
   else{p.classList.remove('linked'); p.innerHTML='📎 Link Excel'; p.title='Pick an Excel file — saves will update it directly.';}
 }
 async function linkExcelFile(){
@@ -256,7 +258,7 @@ async function doResetPassword(){
     re.style.display='block';
     return;
   }
-  if(p.length<6){re.textContent='Password must be at least 6 characters.';re.style.display='block';return;}
+  if(p.length<8){re.textContent='Password must be at least 8 characters.';re.style.display='block';return;}
   if(p!==p2){re.textContent='Passwords do not match.';re.style.display='block';return;}
   const hash=await _hashPassword(p);
   const payload={college,username:u,passwordHash:hash};
@@ -295,7 +297,7 @@ async function doSignup(){
   const se=document.getElementById('SE');
   se.style.display='none';
   if(!u){se.textContent='Please select a username.';se.style.display='block';return;}
-  if(p.length<6){se.textContent='Password must be at least 6 characters.';se.style.display='block';return;}
+  if(p.length<8){se.textContent='Password must be at least 8 characters.';se.style.display='block';return;}
   if(p!==p2){se.textContent='Passwords do not match.';se.style.display='block';return;}
   const college=CURRENT_COLLEGE||'smgg';
   const hash=await _hashPassword(p);
@@ -573,7 +575,7 @@ function updatePhoneSuggestions(){
       if(p)phones.add(p);
     });
   }
-  const html=Array.from(phones,p=>`<option value="${p}"></option>`).join('');
+  const html=Array.from(phones,p=>`<option value="${String(p).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}"></option>`).join('');
   if(dl!==_phoneSuggestionsTarget||html!==_phoneSuggestionsHTML){
     dl.innerHTML=html;
     _phoneSuggestionsTarget=dl;
@@ -708,7 +710,7 @@ function parseDMY(s){
 function populateHeads(){
   const el=document.getElementById('FH');if(!el)return;
   el.innerHTML='<option value="">All Heads</option>';
-  HEADS.forEach(h=>el.innerHTML+=`<option>${h}</option>`);
+  HEADS.forEach(h=>el.innerHTML+=`<option>${esc(h)}</option>`);
 }
 function populateUsersFilter(){
   const el=document.getElementById('FU');if(!el)return;
@@ -763,7 +765,7 @@ async function addNewHead(type) {
       HEADS.push(cleanName);
     }
     const dl = document.getElementById('DL_HEADS');
-    if (dl) dl.innerHTML += `<option>${cleanName}</option>`;
+    if (dl) dl.innerHTML += `<option>${esc(cleanName)}</option>`;
     
     populateHeads();
     if(typeof populateMyHeads === 'function') populateMyHeads();
@@ -805,7 +807,7 @@ async function addNewBlock(type) {
       BLOCKS.push(cleanName);
     }
     const dl = document.getElementById('DL_BLOCKS');
-    if (dl) dl.innerHTML += `<option>${cleanName}</option>`;
+    if (dl) dl.innerHTML += `<option>${esc(cleanName)}</option>`;
     
     if (type === 'credit') {
       const el = document.getElementById('fc_block');
@@ -1029,11 +1031,11 @@ function renderMyDash(){
     const isCash = !isCredit && mode === 'cash';
     const isCheque = !isCredit && !isCash;
     return `<tr>
-    <td><strong>${isoToDMY(v.date||v.dateISO||'')}</strong></td>
-    <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
-    <td>${v.party||v.paidTo||v.receivedFrom||'–'}${typeof getVendorBadgeHtml==='function'?getVendorBadgeHtml(v):''}</td>
-    <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
-    <td>${v.mode||'Cash'}</td>
+    <td><strong>${esc(isoToDMY(v.date||v.dateISO||''))}</strong></td>
+    <td><span class="badge ${bc[v.type]||'bc'}">${esc(v.type.toUpperCase())}</span></td>
+    <td>${esc(v.party||v.paidTo||v.receivedFrom||'–')}${typeof getVendorBadgeHtml==='function'?getVendorBadgeHtml(v):''}</td>
+    <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v.head||'–')}</td>
+    <td>${esc(v.mode||'Cash')}</td>
     <td style="font-weight:600">${isCash?'₹'+amount:'–'}</td>
     <td style="font-weight:600">${isCheque?'₹'+amount:'–'}</td>
     <td style="font-weight:600">${isCredit?'₹'+amount:'–'}</td>
@@ -1094,24 +1096,24 @@ function renderMyVT(){
     const cleared=v.type==='onaccount'&&Boolean(v.reversalDateISO||v.reversalDate);
     const revDateISO = v.reversalDateISO || (v.reversalDate ? dmyToISO(v.reversalDate) : '');
     const vDateISO = v.dateISO || (v.date ? dmyToISO(v.date) : '');
-    const phoneHtml = v.recipientPhone ? `<div style="font-size:11px;color:#555;margin-top:2px;white-space:nowrap;font-weight:500;">☎ ${v.recipientPhone}</div>` : '';
+    const phoneHtml = v.recipientPhone ? `<div style="font-size:11px;color:#555;margin-top:2px;white-space:nowrap;font-weight:500;">☎ ${esc(v.recipientPhone)}</div>` : '';
     const status = v.type !== 'onaccount' ? '–' : `
       <div class="oa-status-cell" style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
           <span class="oa-status ${cleared?'oa-cleared':'oa-pending'}">${cleared?'CLEAR':'PENDING'}</span>
           <div class="oa-rev-date-wrap" style="position:relative;display:inline-flex;align-items:center;">
-            <input type="text" value="${revDateISO ? isoToDMY(revDateISO) : ''}" placeholder="DD/MM/YYYY" readonly onclick="openOADatePicker(this)" style="padding:2px 4px;font-size:11px;border:1.5px solid #d0d5dd;border-radius:5px;background:#fff;color:#333;cursor:pointer;width:105px;text-align:center;box-sizing:border-box;">
-            <input type="date" class="oa-rev-date-picker" value="${revDateISO}" min="${vDateISO}" onchange="updateOAReverseDate(${v.id}, this.value)" title="Select Reverse Date to set status as Clear" style="position:absolute;right:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;">
+            <input type="text" value="${revDateISO ? esc(isoToDMY(revDateISO)) : ''}" placeholder="DD/MM/YYYY" readonly onclick="openOADatePicker(this)" style="padding:2px 4px;font-size:11px;border:1.5px solid #d0d5dd;border-radius:5px;background:#fff;color:#333;cursor:pointer;width:105px;text-align:center;box-sizing:border-box;">
+            <input type="date" class="oa-rev-date-picker" value="${esc(revDateISO)}" min="${esc(vDateISO)}" onchange="updateOAReverseDate(${v.id}, this.value)" title="Select Reverse Date to set status as Clear" style="position:absolute;right:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;">
           </div>
         </div>
       </div>`;
     return `<tr class="${cleared?'oa-cleared-row':''}">
-    <td><strong>${isoToDMY(v.date||v.dateISO||'')}</strong></td>
-    <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
+    <td><strong>${esc(isoToDMY(v.date||v.dateISO||''))}</strong></td>
+    <td><span class="badge ${bc[v.type]||'bc'}">${esc(v.type.toUpperCase())}</span></td>
     <td>${status}</td>
-    <td>${v.party||v.paidTo||v.receivedFrom||'–'}${phoneHtml}${typeof getVendorBadgeHtml==='function'?getVendorBadgeHtml(v):''}</td>
-    <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
-    <td>${v.mode||'Cash'}</td>
+    <td>${esc(v.party||v.paidTo||v.receivedFrom||'–')}${phoneHtml}${typeof getVendorBadgeHtml==='function'?getVendorBadgeHtml(v):''}</td>
+    <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v.head||'–')}</td>
+    <td>${esc(v.mode||'Cash')}</td>
     <td style="font-weight:600">${isCash?'₹'+amount:'–'}</td>
     <td style="font-weight:600">${isCheque?'₹'+amount:'–'}</td>
     <td style="font-weight:600">${isCredit?'₹'+amount:'–'}</td>
@@ -1147,7 +1149,7 @@ function renderMyVT(){
 function populateMyHeads(){
   const el=document.getElementById('MFH');if(!el)return;
   el.innerHTML='<option value="">All Heads</option>';
-  HEADS.forEach(h=>el.innerHTML+=`<option>${h}</option>`);
+  HEADS.forEach(h=>el.innerHTML+=`<option>${esc(h)}</option>`);
 }
 
 function doExcelMine(){
@@ -1225,7 +1227,7 @@ function buildPrint(v){
   const ROW = (lbl,val,lw='90px') =>
     `<div style="display:flex;align-items:flex-end;margin-bottom:5px">
        <span style="${S};min-width:${lw};flex-shrink:0">${lbl}</span>
-       <span style="${LINE}">${val||''}</span>
+       <span style="${LINE}">${esc(val||'')}</span>
      </div>`;
 
   // Towards — exactly 3 dotted lines; text fills line 1 fully before spilling to line 2, then line 3
@@ -1248,9 +1250,9 @@ function buildPrint(v){
     return `<div style="display:flex;align-items:flex-start;margin-bottom:5px">
        <span style="${S};min-width:${lw};flex-shrink:0;padding-top:2px">${lbl}</span>
        <div style="flex:1;display:flex;flex-direction:column;gap:4px">
-         <div style="${LINE}">${lines[0]||'&nbsp;'}</div>
-         <div style="${LINE}">${lines[1]||'&nbsp;'}</div>
-         <div style="${LINE}">${lines[2]||'&nbsp;'}</div>
+         <div style="${LINE}">${lines[0]?esc(lines[0]):'&nbsp;'}</div>
+         <div style="${LINE}">${lines[1]?esc(lines[1]):'&nbsp;'}</div>
+         <div style="${LINE}">${lines[2]?esc(lines[2]):'&nbsp;'}</div>
        </div>
      </div>`;
   };
@@ -1298,7 +1300,7 @@ function buildPrint(v){
     </div>
     <div style="width:200px;flex-shrink:0;display:flex;justify-content:flex-start;align-items:center;padding:4px 8px;border-left:2px solid #111">
       <span style="font-size:10pt;font-weight:700;letter-spacing:0.5px;font-family:Arial,sans-serif;margin-right:8px">Date :</span>
-      <span style="font-size:10pt;font-weight:400;font-family:Arial,sans-serif;border-bottom:1.5px dotted #555;flex:1;text-align:center">${isoToDMY(v.date||v.dateISO||'')}</span>
+      <span style="font-size:10pt;font-weight:400;font-family:Arial,sans-serif;border-bottom:1.5px dotted #555;flex:1;text-align:center">${esc(isoToDMY(v.date||v.dateISO||''))}</span>
     </div>
   </div>
 
@@ -1311,7 +1313,7 @@ function buildPrint(v){
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-top:2px solid #111;background:${BG}">
    
     <div style="padding:5px 8px;display:flex;flex-direction:column;justify-content:flex-end;min-height:55px">
-      <div style="font-size:8.5pt;font-weight:700;font-family:Arial,sans-serif;border-top:1px solid #444;padding-top:3px;margin-top:32px">Checked by${v.checkedBy?' : '+v.checkedBy:''}</div>
+      <div style="font-size:8.5pt;font-weight:700;font-family:Arial,sans-serif;border-top:1px solid #444;padding-top:3px;margin-top:32px">Checked by${v.checkedBy?' : '+esc(v.checkedBy):''}</div>
     </div>
      <div style="padding:6px 8px;display:flex;flex-direction:column;justify-content:flex-start;min-height:55px">
       <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
@@ -1327,7 +1329,7 @@ function buildPrint(v){
   <!-- FOOTER -->
   <div style="border-top:1px solid #aaa;padding:2px 8px;font-size:7.5pt;color:#444;background:${BG};display:flex;justify-content:space-between;font-family:Arial,sans-serif">
     <span></span>
-    <span>Mode: ${v.mode||'Cash'}${v.cheque?' | Ref: '+v.cheque:''}</span>
+    <span>Mode: ${esc(v.mode||'Cash')}${v.cheque?' | Ref: '+esc(v.cheque):''}</span>
   </div>
 </div>`;
 }
@@ -1827,11 +1829,11 @@ function renderDash(){
   const rec=[...fvs].sort((a,b)=>(Date.parse(b.createdAt||b.created_at||'')||Number(b.id||0))-(Date.parse(a.createdAt||a.created_at||'')||Number(a.id||0))).slice(0,10);
   const bc={credit:'bc',debit:'bd',onaccount:'bo'};
   document.getElementById('RB').innerHTML=rec.map(v=>`<tr>
-    <td><strong>${isoToDMY(v.date||v.dateISO||'')}</strong></td>
-    <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
-    <td>${v.party||v.paidTo||v.receivedFrom||'–'}${typeof getVendorBadgeHtml==='function'?getVendorBadgeHtml(v):''}</td>
-    <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
-    <td>${v.mode||'Cash'}</td>
+    <td><strong>${esc(isoToDMY(v.date||v.dateISO||''))}</strong></td>
+    <td><span class="badge ${bc[v.type]||'bc'}">${esc(v.type.toUpperCase())}</span></td>
+    <td>${esc(v.party||v.paidTo||v.receivedFrom||'–')}${typeof getVendorBadgeHtml==='function'?getVendorBadgeHtml(v):''}</td>
+    <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v.head||'–')}</td>
+    <td>${esc(v.mode||'Cash')}</td>
     <td style="font-weight:600">₹${Math.round(v.amount)}</td>
     <td><button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="Print">🖨</button></td>
   </tr>`).join('');
@@ -1841,7 +1843,7 @@ function getVendorBadgeHtml(v) {
   if (!v) return '';
   const vid = String(v.vendorId || v.vendor_id || '').trim();
   if (!vid) return '';
-  return ` <span onclick="event.stopPropagation();if(typeof openVendorLedgerModal==='function')openVendorLedgerModal('${vid}')" style="cursor:pointer;font-family:monospace;font-size:10px;background:#002D72;color:#fff;padding:2px 6px;border-radius:4px;margin-left:4px;font-weight:700;display:inline-block;" title="Click to view Vendor Ledger statement for ${vid}">🏢 ${vid}</span>`;
+  return ` <span onclick="event.stopPropagation();if(typeof openVendorLedgerModal==='function')openVendorLedgerModal(${esc(JSON.stringify(vid))})" style="cursor:pointer;font-family:monospace;font-size:10px;background:#002D72;color:#fff;padding:2px 6px;border-radius:4px;margin-left:4px;font-weight:700;display:inline-block;" title="Click to view Vendor Ledger statement for ${esc(vid)}">🏢 ${esc(vid)}</span>`;
 }
 
 // VOUCHER TABLE
@@ -1934,30 +1936,30 @@ function renderVT(){
       const cleared=v.type==='onaccount'&&Boolean(v.reversalDateISO||v.reversalDate);
       const revDateISO = v.reversalDateISO || (v.reversalDate ? dmyToISO(v.reversalDate) : '');
       const vDateISO = v.dateISO || (v.date ? dmyToISO(v.date) : '');
-      const phoneHtml = v.recipientPhone ? `<div style="font-size:11px;color:#555;margin-top:2px;white-space:nowrap;font-weight:500;">☎ ${v.recipientPhone}</div>` : '';
+      const phoneHtml = v.recipientPhone ? `<div style="font-size:11px;color:#555;margin-top:2px;white-space:nowrap;font-weight:500;">☎ ${esc(v.recipientPhone)}</div>` : '';
       const status = v.type !== 'onaccount' ? '–' : `
         <div class="oa-status-cell" style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;">
           <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
             <span class="oa-status ${cleared?'oa-cleared':'oa-pending'}">${cleared?'CLEAR':'PENDING'}</span>
             <div class="oa-rev-date-wrap" style="position:relative;display:inline-flex;align-items:center;">
-              <input type="text" value="${revDateISO ? isoToDMY(revDateISO) : ''}" placeholder="DD/MM/YYYY" readonly onclick="openOADatePicker(this)" style="padding:2px 4px;font-size:11px;border:1.5px solid #d0d5dd;border-radius:5px;background:#fff;color:#333;cursor:pointer;width:105px;text-align:center;box-sizing:border-box;">
-              <input type="date" class="oa-rev-date-picker" value="${revDateISO}" min="${vDateISO}" onchange="updateOAReverseDate(${v.id}, this.value)" title="Select Reverse Date to set status as Clear" style="position:absolute;right:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;">
+              <input type="text" value="${revDateISO ? esc(isoToDMY(revDateISO)) : ''}" placeholder="DD/MM/YYYY" readonly onclick="openOADatePicker(this)" style="padding:2px 4px;font-size:11px;border:1.5px solid #d0d5dd;border-radius:5px;background:#fff;color:#333;cursor:pointer;width:105px;text-align:center;box-sizing:border-box;">
+              <input type="date" class="oa-rev-date-picker" value="${esc(revDateISO)}" min="${esc(vDateISO)}" onchange="updateOAReverseDate(${v.id}, this.value)" title="Select Reverse Date to set status as Clear" style="position:absolute;right:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;">
             </div>
           </div>
         </div>`;
       html += `<tr class="${cleared?'oa-cleared-row':''}">
-    <td><strong>${isoToDMY(v.date||v.dateISO||'')}</strong></td>
-    <td><span class="badge ${bc[v.type]||'bc'}">${v.type.toUpperCase()}</span></td>
+    <td><strong>${esc(isoToDMY(v.date||v.dateISO||''))}</strong></td>
+    <td><span class="badge ${bc[v.type]||'bc'}">${esc(v.type.toUpperCase())}</span></td>
     <td>${status}</td>
-    <td>${v.party||v.paidTo||v.receivedFrom||'–'}${phoneHtml}${typeof getVendorBadgeHtml==='function'?getVendorBadgeHtml(v):''}</td>
-    <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.head||'–'}</td>
-    <td><span style="font-size:10px;background:#eef;padding:2px 4px;border-radius:3px;font-weight:600;color:#333;">${colName}</span></td>
-    <td>${v.mode||'Cash'}</td>
+    <td>${esc(v.party||v.paidTo||v.receivedFrom||'–')}${phoneHtml}${typeof getVendorBadgeHtml==='function'?getVendorBadgeHtml(v):''}</td>
+    <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v.head||'–')}</td>
+    <td><span style="font-size:10px;background:#eef;padding:2px 4px;border-radius:3px;font-weight:600;color:#333;">${esc(colName)}</span></td>
+    <td>${esc(v.mode||'Cash')}</td>
     <td style="font-weight:600">${isCash?'₹'+amount:'–'}</td>
     <td style="font-weight:600">${isCheque?'₹'+amount:'–'}</td>
     <td style="font-weight:600">${isCredit?'₹'+amount:'–'}</td>
-    <td style="font-size:11px">${v.createdBy||'–'}</td>
-    <td style="font-size:10px;color:#666">${ts}</td>
+    <td style="font-size:11px">${esc(v.createdBy||'–')}</td>
+    <td style="font-size:10px;color:#666">${esc(ts)}</td>
     <td><div style="display:flex;gap:4px">
       <button class="btn bp bsm" onclick="quickPrint(${v.id})" title="Print">🖨</button>
       <button class="btn bs bsm" onclick="openPM(VS.find(x=>x.id===${v.id}))" title="View">👁</button>
@@ -2092,7 +2094,7 @@ function renderAnalytics(){
   const mx=sorted[0]?sorted[0][1]:1;
   document.getElementById('HC').innerHTML=sorted.map(([h,a])=>`
     <div class="bar-row">
-      <div class="bar-lbl" title="${h}">${h.length>18?h.substring(0,18)+'…':h}</div>
+      <div class="bar-lbl" title="${esc(h)}">${esc(h.length>18?h.substring(0,18)+'…':h)}</div>
       <div class="bar-trk"><div class="bar-fill" style="width:${Math.round(a/mx*100)}%;background:#7B1D2E">₹${Math.round(a)}</div></div>
     </div>`).join('')||'<p style="color:#9A9488;font-size:12px">No data yet</p>';
   const types={debit:0,onaccount:0,credit:0};
@@ -2104,7 +2106,7 @@ function renderAnalytics(){
   const months={};VS.forEach(v=>{let m='?'; const iso = v.dateISO || dmyToISO(v.date||''); if(iso && iso.length >= 7){ m=iso.substring(0,7); } months[m]=(months[m]||0)+1;});
   const ms=Object.entries(months).sort((a,b)=>a[0].localeCompare(b[0])).slice(-8);
   const mm=ms[0]?Math.max(...ms.map(e=>e[1])):1;
-  document.getElementById('MC').innerHTML=ms.map(([m,c])=>`<div class="bar-row"><div class="bar-lbl">${m}</div><div class="bar-trk"><div class="bar-fill" style="width:${Math.round(c/mm*100)}%;background:#B8960C">${c}</div></div></div>`).join('')||'<p style="color:#9A9488;font-size:12px">No data yet</p>';
+  document.getElementById('MC').innerHTML=ms.map(([m,c])=>`<div class="bar-row"><div class="bar-lbl">${esc(m)}</div><div class="bar-trk"><div class="bar-fill" style="width:${Math.round(c/mm*100)}%;background:#B8960C">${c}</div></div></div>`).join('')||'<p style="color:#9A9488;font-size:12px">No data yet</p>';
 }
 
 // EXCEL EXPORT
@@ -2925,7 +2927,7 @@ function printCashBook() {
   printWindow.document.write(`<!DOCTYPE html>
   <html>
   <head>
-    <title>Cash Book - ${colObj.label}</title>
+    <title>Cash Book - ${esc(colObj.label)}</title>
     <style>
       @page { size: A4 landscape; margin: 10mm; }
       body { font-family: Arial, sans-serif; margin: 0; color: #111; font-size: 10pt; }
@@ -2944,8 +2946,8 @@ function printCashBook() {
     </style>
   </head>
   <body>
-    <h1>${colObj.label}</h1>
-    <div class="sub"><strong>CASH BOOK</strong> &bull; Period: ${periodText}</div>
+    <h1>${esc(colObj.label)}</h1>
+    <div class="sub"><strong>CASH BOOK</strong> &bull; Period: ${esc(periodText)}</div>
     <div style="margin-bottom:8px;font-size:8.5pt;"><strong>Daily Transaction Summary:</strong></div>
     <div class="breakdown">${dateBreakdown}</div>
     <table style="margin-top:6px;">

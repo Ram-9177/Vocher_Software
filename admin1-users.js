@@ -49,6 +49,8 @@
   ];
 
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);});}
+  // JS string literal safe for use inside a double-quoted inline event handler attribute.
+  function jsq(v){return esc(JSON.stringify(String(v==null?'':v)));}
   function tok(){return localStorage.getItem('smv_token')||'';}
   function setTok(t){if(t)localStorage.setItem('smv_token',t);else localStorage.removeItem('smv_token');}
   function uiCode(u){const n=String((u&&u.username)||u||'').toLowerCase();if((u&&u.role==='admin')||n==='admin'||n==='admin1')return'admin1';if(n==='user3'||n==='admin3')return'admin3';return'admin2';}
@@ -165,8 +167,8 @@
     if (!container) return;
     container.innerHTML = (colleges || []).filter(c => c.status !== 'inactive').map(c => `
       <label style="display:inline-flex; align-items:center; margin-right:15px; margin-bottom:5px; font-weight:normal; font-size:13px; cursor:pointer;">
-        <input type="checkbox" class="${prefix}-college-cb" value="${c.code}" style="margin-right:5px;">
-        ${c.code.toUpperCase()}
+        <input type="checkbox" class="${prefix}-college-cb" value="${esc(c.code)}" style="margin-right:5px;">
+        ${esc(String(c.code||'').toUpperCase())}
       </label>
     `).join('') || '<span style="font-size:12px;color:var(--G600)">No active colleges</span>';
   };
@@ -190,7 +192,7 @@
       sec.innerHTML='<div class="ph"><h1>User Management</h1><p>Admin manages users, colleges and controls access</p></div>' +
         '<div class="card" id="CARD_ADMIN_KEY"><div class="ch"><span class="ct">Admin Key</span></div><div class="fr"><div class="fi"><label>New Admin Key</label><input id="LIVE_ADMIN_KEY" type="password" placeholder="Minimum 6 characters"></div><div class="fi"><label>Confirm Key</label><input id="LIVE_ADMIN_KEY2" type="password" placeholder="Repeat key"></div></div><div class="bg-btn"><button class="btn bp" onclick="changeAdminKeyLive()" title="Update Admin Key">Update Admin Key</button></div></div>' +
         '<div class="card" id="CARD_COLLEGE_MGMT"><div class="ch"><span class="ct">College Management</span></div><div class="fr t"><div class="fi"><label>College Name</label><input id="LIVE_COLLEGE_NAME" placeholder="College full name"></div><div class="fi"><label>Short Code</label><input id="LIVE_COLLEGE_CODE" placeholder="ex: smpharmacy"></div><div class="fi"><label>Location</label><input id="LIVE_COLLEGE_LOCATION" placeholder="City / campus"></div></div><div class="bg-btn"><button class="btn bp" onclick="createCollegeLive()" title="Create College">Create College</button><button class="btn bs" onclick="renderCollegesLive()" title="↺ Refresh Colleges">↺ Refresh Colleges</button></div><div class="twrap" style="margin-top:10px"><table><thead><tr><th>Code</th><th>College</th><th>Location</th><th>Status</th><th>Action</th></tr></thead><tbody id="LIVE_COLLEGES_BODY"></tbody></table></div></div>' +
-        '<div class="card" id="CARD_CREATE_USER"><div class="ch"><span class="ct">Create Admin / User</span></div><div class="fr t"><div class="fi"><label>Full Name</label><input id="LIVE_NEW_FULLNAME" placeholder="Full name"></div><div class="fi"><label>Username</label><input id="LIVE_NEW_USER" placeholder="123 / cashier / staff1"></div><div class="fi"><label>Password</label><input id="LIVE_NEW_PASS" type="password" placeholder="Default: Stmarys@1234"></div><div class="fi"><label>User Type</label><select id="LIVE_NEW_ROLE" onchange="applyRoleDefaults(\'LIVE_NEW\', this.value)"><option value="user">User</option><option value="admin">Admin</option><option value="head">Head</option></select></div><div class="fi"><label>Primary College</label><select id="LIVE_NEW_COLLEGE" onchange="ensurePrimaryCollegeAccess(\'LIVE_NEW\', this.value)"><option value="smgg">SMGG</option><option value="smwec">SMWEC</option><option value="smhyd">SMHYD</option></select></div></div><div style="padding: 10px 15px;"><label style="font-weight:bold; font-size:13px; color:var(--G800); display:block; margin-bottom:5px;">College Access</label><div id="LIVE_NEW_COLLEGE_ACCESS" style="display:flex; flex-wrap:wrap; gap:10px; padding: 5px; border: 1px solid var(--G150); border-radius: 4px;"></div></div><div style="padding: 10px 15px;"><label style="font-weight:bold; font-size:13px; color:var(--G800); display:block; margin-bottom:5px;">Permissions</label><div id="LIVE_NEW_PERMS" style="display:flex; flex-wrap:wrap; gap:10px; padding: 5px; border: 1px solid var(--G150); border-radius: 4px;"></div></div><div class="bg-btn"><button class="btn bp" onclick="createUserLive()" title="Create User">Create User</button><button class="btn bs" onclick="renderUsersLive()" title="↺ Refresh Users">↺ Refresh Users</button></div></div>' +
+        '<div class="card" id="CARD_CREATE_USER"><div class="ch"><span class="ct">Create Admin / User</span></div><div class="fr t"><div class="fi"><label>Full Name</label><input id="LIVE_NEW_FULLNAME" placeholder="Full name"></div><div class="fi"><label>Username</label><input id="LIVE_NEW_USER" placeholder="123 / cashier / staff1"></div><div class="fi"><label>Password</label><input id="LIVE_NEW_PASS" type="password" placeholder="Initial password (min 8 chars)"></div><div class="fi"><label>User Type</label><select id="LIVE_NEW_ROLE" onchange="applyRoleDefaults(\'LIVE_NEW\', this.value)"><option value="user">User</option><option value="admin">Admin</option><option value="head">Head</option></select></div><div class="fi"><label>Primary College</label><select id="LIVE_NEW_COLLEGE" onchange="ensurePrimaryCollegeAccess(\'LIVE_NEW\', this.value)"><option value="smgg">SMGG</option><option value="smwec">SMWEC</option><option value="smhyd">SMHYD</option></select></div></div><div style="padding: 10px 15px;"><label style="font-weight:bold; font-size:13px; color:var(--G800); display:block; margin-bottom:5px;">College Access</label><div id="LIVE_NEW_COLLEGE_ACCESS" style="display:flex; flex-wrap:wrap; gap:10px; padding: 5px; border: 1px solid var(--G150); border-radius: 4px;"></div></div><div style="padding: 10px 15px;"><label style="font-weight:bold; font-size:13px; color:var(--G800); display:block; margin-bottom:5px;">Permissions</label><div id="LIVE_NEW_PERMS" style="display:flex; flex-wrap:wrap; gap:10px; padding: 5px; border: 1px solid var(--G150); border-radius: 4px;"></div></div><div class="bg-btn"><button class="btn bp" onclick="createUserLive()" title="Create User">Create User</button><button class="btn bs" onclick="renderUsersLive()" title="↺ Refresh Users">↺ Refresh Users</button></div></div>' +
         '<div class="card" id="CARD_EDIT_PERMS"><div class="ch"><span class="ct">Edit Role & Permissions</span></div><div class="fr t"><div class="fi"><label>Select User</label><select id="LIVE_EDIT_USER" onchange="loadUserToEdit(this.value)"></select></div><div class="fi"><label>Full Name</label><input id="LIVE_EDIT_FULLNAME" placeholder="Full name"></div><div class="fi"><label>Role</label><select id="LIVE_EDIT_ROLE"><option value="user">User</option><option value="admin">Admin</option><option value="head">Head</option></select></div><div class="fi"><label>Primary College</label><select id="LIVE_EDIT_COLLEGE"></select></div></div><div style="padding: 10px 15px;"><label style="font-weight:bold; font-size:13px; color:var(--G800); display:block; margin-bottom:5px;">College Access</label><div id="LIVE_EDIT_COLLEGE_ACCESS" style="display:flex; flex-wrap:wrap; gap:10px; padding: 5px; border: 1px solid var(--G150); border-radius: 4px;"></div></div><div style="padding: 10px 15px;"><label style="font-weight:bold; font-size:13px; color:var(--G800); display:block; margin-bottom:5px;">Permissions</label><div id="LIVE_EDIT_PERMS" style="display:flex; flex-wrap:wrap; gap:10px; padding: 5px; border: 1px solid var(--G150); border-radius: 4px;"></div></div><div class="bg-btn"><button class="btn bp" onclick="saveEditAccess()" title="Save Permissions">Save Permissions</button></div></div>' +
         '<div class="card"><div class="ch"><span class="ct">Users</span></div><div class="bg-btn" style="border-bottom:1px solid var(--G100); border-top:none; margin-top:0"><input id="LIVE_USERS_SEARCH" placeholder="Filter users..." style="padding:5px 10px; width:250px; border:1px solid var(--G200); border-radius:4px" onkeyup="renderUsersTableOnly()"><button class="btn bs bsm" style="margin-left:8px" onclick="renderUsersLive()" title="↺ Refresh">↺ Refresh</button></div><div class="twrap" style="max-height:480px;overflow-y:auto"><table><thead><tr style="position:sticky;top:0;z-index:2;background:var(--W)"><th>Username</th><th>Full Name</th><th>Role</th><th>Status</th><th>Primary College</th><th>College Access</th><th>Permissions Summary</th><th>Last Login</th><th>Actions</th></tr></thead><tbody id="LIVE_USERS_BODY"></tbody></table></div></div>' +
         '<div class="card" id="CARD_AUDIT_LOGS"><div class="ch"><span class="ct">Audit & Activity Logs</span></div><div class="bg-btn" style="border-bottom:1px solid var(--G100); border-top:none; margin-top:0"><button class="btn bs" onclick="renderAuditLive()" title="↺ Refresh">↺ Refresh</button><input id="LIVE_AUDIT_SEARCH" placeholder="Search logs..." style="margin-left:10px; padding:5px 10px; width:250px; border:1px solid var(--G200); border-radius:4px" onkeyup="renderAuditTableOnly()"></div><div class="twrap" style="max-height:400px;overflow-y:auto"><table><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Entity</th><th>Details</th><th>IP</th></tr></thead><tbody id="LIVE_AUDIT_BODY"></tbody></table></div></div>';
@@ -326,8 +328,8 @@
       const j=await collegeApi('listColleges',{});const colleges=Array.isArray(j.colleges)?j.colleges:[];fillCollegeSelect(colleges);
       body.innerHTML=colleges.map(function(c){
         const code=esc(c.code), status=String(c.status||'active'), next=status==='active'?'inactive':'active';
-        const action=code==='smgg'?'<span style="font-size:11px;color:var(--G600)">Main</span>':'<button class="btn '+(status==='active'?'br':'bp')+' bsm" onclick="toggleCollegeLive(\''+code+'\',\''+next+'\')" title="'+(status==='active'?'Disable':'Activate')+'">'+(status==='active'?'Disable':'Activate')+'</button>';
-        return '<tr><td><strong>'+code.toUpperCase()+'</strong></td><td>'+esc(c.name||'')+'</td><td>'+esc(c.location||'')+'</td><td><span class="badge '+(status==='active'?'bj':'br')+'">'+esc(status)+'</span></td><td>'+action+'</td></tr>';
+        const action=code==='smgg'?'<span style="font-size:11px;color:var(--G600)">Main</span>':'<button class="btn '+(status==='active'?'br':'bp')+' bsm" onclick="toggleCollegeLive('+jsq(c.code)+',\''+next+'\')" title="'+(status==='active'?'Disable':'Activate')+'">'+(status==='active'?'Disable':'Activate')+'</button>';
+        return '<tr><td><strong>'+esc(String(c.code||'').toUpperCase())+'</strong></td><td>'+esc(c.name||'')+'</td><td>'+esc(c.location||'')+'</td><td><span class="badge '+(status==='active'?'bj':'br')+'">'+esc(status)+'</span></td><td>'+action+'</td></tr>';
       }).join('')||'<tr><td colspan="5">No colleges found</td></tr>';
     }catch(e){body.innerHTML='<tr><td colspan="5">'+esc(e.message||'Unable to load colleges')+'</td></tr>';}
   };
@@ -391,16 +393,16 @@
         const college = esc(String(u.college || '').toUpperCase());
         const collegeAccess = isMainAdmin ? 'All' : esc(String(u.college_access || '').toUpperCase() || 'None');
         const permsSummary = isMainAdmin ? 'All' : (u.permissions ? esc(u.permissions.split(',').join(', ')) : 'None');
-        const lastLogin = u.last_login ? fmtDt(u.last_login) : '—';
+        const lastLogin = u.last_login ? esc(fmtDt(u.last_login)) : '—';
         
         let acts = '';
         if (isMainAdmin) {
           acts = '<span style="font-size:11px;color:var(--G600)">Main admin</span>';
         } else {
-          if (canReset) acts += '<button class="btn bs bsm" onclick="resetUserLive(\''+name+'\')" title="Reset">Reset</button>';
-          if (canBlock) acts += '<button class="btn '+(status==='active'?'br':'bp')+' bsm" style="margin-left:5px" onclick="toggleUserLive(\''+name+'\',\''+next+'\')" title="'+(status==='active'?'Block':'Activate')+'">'+(status==='active'?'Block':'Activate')+'</button>';
-          if (canEditPerms) acts += '<button class="btn bp bsm" style="margin-left:5px" onclick="document.getElementById(\'LIVE_EDIT_USER\').value=\''+name+'\';loadUserToEdit(\''+name+'\');document.getElementById(\'CARD_EDIT_PERMS\').scrollIntoView();" title="Edit">Edit</button>';
-          if (canBlock) acts += '<button class="btn br bsm" style="margin-left:5px" onclick="deleteUserLive(\''+name+'\')" title="Delete">Delete</button>';
+          if (canReset) acts += '<button class="btn bs bsm" onclick="resetUserLive('+jsq(u.username)+')" title="Reset">Reset</button>';
+          if (canBlock) acts += '<button class="btn '+(status==='active'?'br':'bp')+' bsm" style="margin-left:5px" onclick="toggleUserLive('+jsq(u.username)+',\''+next+'\')" title="'+(status==='active'?'Block':'Activate')+'">'+(status==='active'?'Block':'Activate')+'</button>';
+          if (canEditPerms) acts += '<button class="btn bp bsm" style="margin-left:5px" onclick="document.getElementById(\'LIVE_EDIT_USER\').value='+jsq(u.username)+';loadUserToEdit('+jsq(u.username)+');document.getElementById(\'CARD_EDIT_PERMS\').scrollIntoView();" title="Edit">Edit</button>';
+          if (canBlock) acts += '<button class="btn br bsm" style="margin-left:5px" onclick="deleteUserLive('+jsq(u.username)+')" title="Delete">Delete</button>';
         }
         const actions = acts;
 
@@ -457,12 +459,13 @@
 
   window.createUserLive=async function(){
     const u=document.getElementById('LIVE_NEW_USER').value.trim().toLowerCase();
-    const p=document.getElementById('LIVE_NEW_PASS').value || 'Stmarys@1234';
+    const p=document.getElementById('LIVE_NEW_PASS').value;
     const fullName=document.getElementById('LIVE_NEW_FULLNAME').value.trim();
     const role=document.getElementById('LIVE_NEW_ROLE').value;
     const college=document.getElementById('LIVE_NEW_COLLEGE').value;
 
     if(!u){alert('Enter username.');return;}
+    if(!p||p.length<8){alert('Enter an initial password of at least 8 characters.');return;}
 
     const collegeCbs = document.querySelectorAll('.LIVE_NEW-college-cb');
     const collegeAccess = Array.from(collegeCbs).filter(cb => cb.checked).map(cb => cb.value).join(',');
@@ -493,7 +496,7 @@
   window.changeAdminKeyLive=async function(){
     const p=document.getElementById('LIVE_ADMIN_KEY').value;
     const p2=document.getElementById('LIVE_ADMIN_KEY2').value;
-    if(!p||p.length<6){alert('Admin key must be at least 6 characters.');return;}
+    if(!p||p.length<8){alert('Admin key must be at least 8 characters.');return;}
     if(p!==p2){alert('Keys do not match.');return;}
     if(!confirm('Update admin1 login key now?'))return;
     const currentUser=getCurrentUser();

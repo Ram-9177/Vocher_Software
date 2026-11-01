@@ -19,3 +19,11 @@ yarn-error.log*
 node_modules/
 .wrangler/
 scratch/
+
+# Secrets - never commit
+.env
+.env.*
+.dev.vars
+.dev.vars.*
+*.pem
+*.key

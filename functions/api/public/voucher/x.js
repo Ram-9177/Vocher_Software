@@ -1,4 +1,9 @@
-const SESSION_DAYS = 3650;
+const SESSION_DAYS = 14;
+const MIN_PASSWORD_LENGTH = 8;
+const RESERVED_USERNAMES = ['admin', 'admin1', 'admin_stmw', 'admin_smhyd', 'baji', 'superadmin'];
+const MAX_VENDOR_JSON_BYTES = 1900000; // D1 rows are limited to ~2MB
+const MAX_BULK_VENDORS = 500;
+const ALLOWED_FILE_TYPES = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/png', 'image/jpeg'];
 const PBKDF2_ITERATIONS = 100000;
 const LEGACY_SHA256 = 'legacy-sha256';
 const API_VERSION = 'voucher-api-ddmmyyyy-slash-v16';
@@ -34,16 +39,26 @@ export async function onRequest(context) {
   const request = context.request;
   if (request.method === 'OPTIONS') return new Response('', { status: 204 });
   if (request.method !== 'POST') return send({ error: 'Method not allowed', version: API_VERSION }, 405);
+  if (!sameOrigin(request)) return send({ error: 'Cross-origin request rejected', version: API_VERSION }, 403);
   try {
     return await handle(context);
   } catch (err) {
+    const status = err && err.expose ? safeStatus(err.status) : 500;
+    // Only messages we threw on purpose reach the client; internal errors
+    // (SQL, runtime) are logged server-side and replaced with a generic message.
+    if (status >= 500) console.error('voucher api error', err && err.stack ? err.stack : err);
     return send({
-      error: err && err.message ? String(err.message) : 'Server error',
-      name: err && err.name ? String(err.name) : 'Error',
-      status: safeStatus(err && (err.status || err.statusCode) ? (err.status || err.statusCode) : 500),
+      error: err && err.expose ? String(err.message) : 'Server error. Please try again.',
+      status: status,
       version: API_VERSION
-    }, err && (err.status || err.statusCode) ? (err.status || err.statusCode) : 500);
+    }, status);
   }
+}
+
+function sameOrigin(request) {
+  const origin = request.headers.get('origin');
+  if (!origin) return true; // non-browser clients / same-origin requests in some browsers
+  try { return new URL(origin).host === new URL(request.url).host; } catch (e) { return false; }
 }
 
 async function handle(context) {
@@ -59,7 +74,10 @@ async function handle(context) {
   await ensureSchema(env.DB, env);
 
   if (action === 'listAdmins') return await listAdmins(env.DB, body);
-  if (action === 'signup' || action === 'bootstrapAdmin') return await bootstrapAdmin(env.DB, body, ip);
+  if (action === 'signup' || action === 'bootstrapAdmin') {
+    await rateLimit(env.DB, 'bootstrap:' + ip, 5, 3600);
+    return await bootstrapAdmin(env.DB, body, ip);
+  }
   if (action === 'login') return await login(env.DB, request, body, ip);
   if (action === 'logout') return await logout(env.DB, request, body.token);
 
@@ -68,7 +86,10 @@ async function handle(context) {
   const isAdmin1 = isSuperAdmin(user);
 
   if (action === 'validateSession') return await validateSession(env.DB, session);
-  if (action === 'changeOwnPassword') return await changeOwnPassword(env.DB, user, body, ip);
+  if (action === 'changeOwnPassword') {
+    await rateLimit(env.DB, 'pwchange:' + user.username, 10, 3600);
+    return await changeOwnPassword(env.DB, session, body, ip);
+  }
   if (Number(user.must_change_password || 0) === 1) {
     throwError('Password change required before continuing.', 403);
   }
@@ -111,6 +132,7 @@ async function handle(context) {
     if (!isAdmin1 && !hasPermission(user, 'manage_vendors')) {
       throwError('Access denied. Missing manage_vendors permission.', 403);
     }
+    await rateLimit(env.DB, 'vendorbulk:' + user.username, 20, 3600);
     return await saveVendorsBulk(env.DB, user, body, ip);
   }
   if (action === 'deleteVendor') {
@@ -151,6 +173,7 @@ async function handle(context) {
         }
       }
     }
+    await rateLimit(env.DB, 'createuser:' + user.username, 60, 3600);
     return await createUser(env.DB, user, body, ip);
   }
   if (action === 'updateUserPermissions') {
@@ -187,6 +210,7 @@ async function handle(context) {
         throwError('Access denied. Missing reset_passwords permission.', 403);
       }
     }
+    await rateLimit(env.DB, 'pwreset:' + user.username, 30, 3600);
     return await resetUserPassword(env.DB, user, body, ip);
   }
   if (action === 'listAudit') {
@@ -206,7 +230,7 @@ function send(data, status, headers) {
   });
 }
 function safeStatus(status) { const n = Number(status); return Number.isInteger(n) && n >= 200 && n <= 599 ? n : 500; }
-function throwError(message, status) { const e = new Error(message); e.status = status || 400; throw e; }
+function throwError(message, status) { const e = new Error(message); e.status = status || 400; e.expose = true; throw e; }
 async function adminOnly(user, fn) { if (!user || user.role !== 'admin') throwError('Access denied. Only admin1 can do this.', 403); return await fn(); }
 function now() { return new Date().toISOString(); }
 function clean(v, max) { return String(v == null ? '' : v).trim().replace(/\s+/g, ' ').slice(0, max || 2000); }
@@ -304,9 +328,12 @@ function normalizeCollegeAccess(college, value) {
   return Array.from(new Set([clean(college || 'smgg', 20).toLowerCase()].concat(csvList(value).map(function(c){return c.toLowerCase();})))).join(',');
 }
 function assertPassword(password) {
-  if (String(password || '').length < 6) throwError('Password must be at least 6 characters', 400);
+  const p = String(password || '');
+  if (p.length < MIN_PASSWORD_LENGTH) throwError('Password must be at least ' + MIN_PASSWORD_LENGTH + ' characters', 400);
+  if (p.length > 256) throwError('Password is too long', 400);
+  if (/^stmarys@1234$/i.test(p)) throwError('This default password is not allowed. Choose a unique password.', 400);
 }
-function assertAssignableAccess(actor, role, college, collegeAccess, permissions) {
+function assertAssignableAccess(actor, role, college, collegeAccess, permissions, customRole) {
   if (isSuperAdmin(actor)) return;
   const actorPerms = parsePerms(actor);
   const actorColleges = parseCollegeAccess(actor);
@@ -318,6 +345,9 @@ function assertAssignableAccess(actor, role, college, collegeAccess, permissions
   }
   if (role === 'admin' && !actorPerms.includes('create_admin')) {
     throwError('Access denied. Missing create_admin permission.', 403);
+  }
+  if (customRole === 'head' && actor.custom_role !== 'head') {
+    throwError('Access denied. Only a main administrator or Head can assign the Head role.', 403);
   }
   csvList(permissions).forEach(function (p) {
     if (p === VIEW_OWN_VOUCHERS || p === VIEW_ALL_VOUCHERS) return;
@@ -342,6 +372,18 @@ function assertManageTarget(actor, target) {
   if (!canManageTarget(actor, target)) {
     throwError('Access denied. User is outside your college access.', 403);
   }
+  assertNotMorePrivileged(actor, target);
+}
+
+// A non-super admin must never be able to take over (reset, block, edit,
+// delete) an account that holds permissions or roles they do not have.
+function assertNotMorePrivileged(actor, target) {
+  if (isSuperAdmin(actor)) return;
+  if (isSuperAdmin(target)) throwError('Access denied. Main administrators can only be managed by a main administrator.', 403);
+  if (target.role === 'admin' && !hasPerm(actor, CREATE_ADMIN)) throwError('Access denied. Missing create_admin permission to manage admins.', 403);
+  const actorPerms = parsePerms(actor);
+  const extra = parsePerms(target).filter(function (p) { return p !== VIEW_OWN_VOUCHERS && p !== VIEW_ALL_VOUCHERS && !actorPerms.includes(p); });
+  if (extra.length) throwError('Access denied. Target user has permissions you do not have: ' + extra.join(', '), 403);
 }
 
 function assertResetTarget(actor, target) {
@@ -355,6 +397,11 @@ function assertResetTarget(actor, target) {
   if (!actorColleges.includes('*') && !actorColleges.includes(targetCollege)) {
     throwError('Access denied. User is outside your college access.', 403);
   }
+  if (isSuperAdmin(target)) {
+    if (!hasPerm(actor, CHANGE_ADMIN_KEY)) throwError('Access denied. Missing change_admin_key permission.', 403);
+    return;
+  }
+  assertNotMorePrivileged(actor, target);
 }
 
 function userListRow(row) {
@@ -398,6 +445,7 @@ async function initializeSchema(DB, env) {
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vouchers_created_by ON vouchers(created_by)').run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vendors_college ON vendors(college,deleted_at)').run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at)').run();
+  await DB.prepare('CREATE TABLE IF NOT EXISTS rate_limits (key TEXT PRIMARY KEY,count INTEGER NOT NULL,window_start INTEGER NOT NULL)').run();
   await DB.prepare('CREATE INDEX IF NOT EXISTS idx_vouchers_college_updated ON vouchers(college,updated_at)').run();
   const initialPassword = env && (env.ADMIN1_INITIAL_PASSWORD || env.ADMIN_BOOTSTRAP_PASSWORD);
   const admin = await DB.prepare('SELECT username FROM users WHERE username=?').bind('admin').first();
@@ -447,7 +495,8 @@ async function bootstrapAdmin(DB, body, ip) {
   if (Number((countRow && countRow.c) || 0) > 0) throwError('Public sign up is disabled. Only admin1 can create users.',403);
   const username = actualUsername(body.username);
   if (username !== 'admin') throwError('First account must be admin1.',400);
-  return await createInitialAdmin(DB, String(body.password || ''), clean(body.passwordHash || '',200), body.college || 'smgg', 'first-run', ip);
+  assertPassword(body.password);
+  return await createInitialAdmin(DB, String(body.password || ''), '', body.college || 'smgg', 'first-run', ip);
 }
 
 async function listAdmins(DB, body) {
@@ -465,17 +514,34 @@ async function listAdmins(DB, body) {
 }
 async function login(DB, request, body, ip) {
   const requested = norm(body.username);
+  // Throttle by IP and by account before doing any work.
+  const ipKey = 'login-ip:' + ip, userKey = 'login-user:' + requested;
+  const hits = await readHitsMany(DB, [ipKey, userKey], 900);
+  if (hits[ipKey] >= 30 || hits[userKey] >= 10) throwError('Too many failed login attempts. Please wait 15 minutes and try again.', 429);
   const rootLogin = requested === 'superadmin';
-  if (['admin','admin1','admin_stmw','admin_smhyd'].indexOf(requested) !== -1) throwError('No such account', 401);
-  const candidates = rootLogin
-    ? [clean(body.college,20) === 'smwec' ? 'admin_stmw' : (clean(body.college,20) === 'smhyd' ? 'admin_smhyd' : 'admin')]
-    : Array.from(new Set([actualUsername(requested), requested]));
   let user = null;
-  for (const c of candidates) { user = await DB.prepare('SELECT * FROM users WHERE username=?').bind(c).first(); if (user) break; }
-  if (!user) throwError('No such account', 401);
+  if (['admin','admin1','admin_stmw','admin_smhyd'].indexOf(requested) === -1) {
+    const candidates = rootLogin
+      ? [clean(body.college,20) === 'smwec' ? 'admin_stmw' : (clean(body.college,20) === 'smhyd' ? 'admin_smhyd' : 'admin')]
+      : Array.from(new Set([actualUsername(requested), requested]));
+    for (const c of candidates) { user = await DB.prepare('SELECT * FROM users WHERE username=?').bind(c).first(); if (user) break; }
+  }
+  // Always run the password check so response time and message do not reveal
+  // whether the account exists.
+  const ok = user ? await verifyLogin(body, user) : (await hashPassword(String(body.password || 'x')), false);
+  if (!ok) {
+    await recordHit(DB, ipKey, 900);
+    await recordHit(DB, userKey, 900);
+    await audit(DB, requested || 'unknown', 'login_failed', 'user', requested, 'Invalid credentials', ip);
+    throwError('Invalid username or password', 401);
+  }
   if (user.status !== 'active') throwError('User is blocked. Contact admin1.', 403);
-  const ok = await verifyLogin(body, user);
-  if (!ok) throwError('Invalid credentials', 401);
+  if (hits[userKey] > 0) await clearHits(DB, userKey);
+  if (user.password_salt === LEGACY_SHA256) {
+    // Upgrade legacy unsalted SHA-256 hashes to PBKDF2 on successful login.
+    const hp = await hashPassword(String(body.password));
+    await DB.prepare('UPDATE users SET password_salt=?,password_hash=? WHERE username=?').bind(hp.salt, hp.hash, user.username).run();
+  }
   const token = randomHex(32);
   const exp = new Date(Date.now() + SESSION_DAYS * 86400000).toISOString();
   await DB.prepare('INSERT INTO sessions(token,username,expires_at,created_at) VALUES(?,?,?,?)').bind(token, user.username, exp, now()).run();
@@ -483,8 +549,10 @@ async function login(DB, request, body, ip) {
   await audit(DB, user.username, 'login', 'user', user.username, 'Login successful', ip);
   return send({ token: token, user: publicUser(user), version: API_VERSION }, 200, { 'set-cookie': sessionCookie(token, SESSION_DAYS * 86400) });
 }
-async function verifyLogin(body, user) { const password = String(body.password || ''); const passwordHash = clean(body.passwordHash || '', 200); if (user.password_salt === LEGACY_SHA256) { if (passwordHash && safeEqual(passwordHash, user.password_hash)) return true; if (password) return safeEqual(await sha256Hex(password), user.password_hash); return false; } if (!password) return false; return await verifyPassword(password, user.password_salt, user.password_hash); }
-async function logout(DB, request, bodyToken) { const token = cookieToken(request, bodyToken); if (token) await DB.prepare('DELETE FROM sessions WHERE token=?').bind(token).run(); return send({ ok: true, version: API_VERSION }, 200, { 'set-cookie': sessionCookie('', 0) }); }
+// Legacy accounts: only the plaintext password is accepted (a client-sent hash
+// would let anyone holding a leaked hash log in without knowing the password).
+async function verifyLogin(body, user) { const password = String(body.password || ''); if (!password || password.length > 256) return false; if (user.password_salt === LEGACY_SHA256) return safeEqual(await sha256Hex(password), user.password_hash); return await verifyPassword(password, user.password_salt, user.password_hash); }
+async function logout(DB, request, bodyToken) { const token = cookieToken(request, bodyToken); if (token) await DB.prepare('DELETE FROM sessions WHERE token=? OR expires_at<?').bind(token, now()).run(); return send({ ok: true, version: API_VERSION }, 200, { 'set-cookie': sessionCookie('', 0) }); }
 async function requireSession(DB, request, bodyToken) { const token = cookieToken(request, bodyToken); if (!token) throwError('Login required', 401); const row = await DB.prepare('SELECT u.* FROM sessions s JOIN users u ON u.username=s.username WHERE s.token=? AND s.expires_at>?').bind(token, now()).first(); if (!row) throwError('Session expired. Login again.', 401); if (row.status !== 'active') throwError('User is blocked. Contact admin1.', 403); return { user: row, token: token }; }
 async function validateSession(DB, session){const exp=new Date(Date.now()+SESSION_DAYS*86400000).toISOString();await DB.prepare('UPDATE sessions SET expires_at=? WHERE token=?').bind(exp,session.token).run();return send({user:publicUser(session.user),version:API_VERSION},200,{'set-cookie':sessionCookie(session.token,SESSION_DAYS*86400)});}
 
@@ -526,7 +594,7 @@ async function syncData(DB,user,body){
     voucherRequest,
     DB.prepare('SELECT * FROM account_heads WHERE active=1 AND college=? ORDER BY name').bind(college).all(),
     DB.prepare('SELECT * FROM blocks WHERE active=1 AND college=? ORDER BY name').bind(college).all(),
-    DB.prepare('SELECT * FROM vendors WHERE deleted_at IS NULL AND college=? ORDER BY vendor_id ASC, created_at DESC').bind(college).all()
+    canViewVendors(user) ? DB.prepare('SELECT * FROM vendors WHERE deleted_at IS NULL AND college=? ORDER BY vendor_id ASC, created_at DESC').bind(college).all() : Promise.resolve({results:[]})
   ]);
   let users;
   if(body.includeUsers&&(user.username==='admin'||['create_users','create_admin','manage_permissions','reset_passwords','block_users','manage_colleges','change_admin_key','view_audit'].some(function(permission){return hasPermission(user,permission);}))){
@@ -553,12 +621,17 @@ async function saveVoucher(DB,user,v,ip) {
   if(!v||typeof v!=='object') throwError('Invalid voucher',400);
   const row=normalizeVoucher(v,user);
   if(!row.date||!row.head||!row.towards||!row.amount) throwError('Date, head, towards and amount are required',400);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(row.date)||isNaN(Date.parse(row.date))) throwError('Invalid voucher date',400);
+  if(row.reversal_date&&(!/^\d{4}-\d{2}-\d{2}$/.test(row.reversal_date)||isNaN(Date.parse(row.reversal_date)))) throwError('Invalid reverse / cleared date',400);
+  if(!Number.isFinite(row.amount)||row.amount<=0||row.amount>10000000000) throwError('Amount must be a positive number',400);
   if(row.type==='onaccount'&&!row.recipient_phone) throwError('Receiver phone number is required for On Account vouchers',400);
   if(row.reversal_date&&row.reversal_date<row.date) throwError('Reverse / cleared date cannot be before the voucher date',400);
   const id=Number(v.id||0), canUpdate=id>0&&id<100000000000;
   if(canUpdate){
     const existing=await getActiveVoucher(DB,id);
-    if(user.username!=='admin' && !hasPermission(user,'edit_voucher') && existing.type!=='onaccount') throwError('Only authorized users can edit vouchers',403);
+    const canEdit=hasPermission(user,'edit_voucher');
+    if(!canEdit && existing.type!=='onaccount') throwError('Only authorized users can edit vouchers',403);
+    if(!canEdit && row.type!=='onaccount') throwError('Only authorized users can change the voucher type',403);
     ensureVoucherMutationAccess(user,existing);
     await DB.prepare('UPDATE vouchers SET college=?,type=?,date=?,head=?,ac_name=?,received_from=?,paid_to=?,vendor_id=?,recipient_phone=?,reversal_date=?,towards=?,block=?,amount=?,amt_words=?,mode=?,cheque=?,prep_by=?,checked_by=?,remarks=?,updated_by=?,updated_at=? WHERE id=? AND deleted_at IS NULL AND college=?').bind(row.college,row.type,row.date,row.head,row.ac_name,row.received_from,row.paid_to,row.vendor_id,row.recipient_phone,row.reversal_date,row.towards,row.block,row.amount,row.amt_words,row.mode,row.cheque,row.prep_by,row.checked_by,row.remarks,user.username,now(),id,existing.college).run();
     await audit(DB,user.username,'update_voucher','voucher',String(id),JSON.stringify({amount:row.amount,head:row.head}),ip);
@@ -574,10 +647,10 @@ function voucherNumber(college,type,id){const p={debit:'DV',onaccount:'OA',credi
 async function getActiveVoucher(DB,id){const row=await DB.prepare('SELECT id,college,created_by,type FROM vouchers WHERE id=? AND deleted_at IS NULL').bind(id).first();if(!row)throwError('Voucher not found',404);return row;}
 function ensureVoucherMutationAccess(user,v){const college=clean(v.college||'smgg',20);if(allowedCollege(user,college)!==college)throwError('Access denied. Voucher is outside your college access.',403);if(!isVoucherAdmin(user)&&v.created_by!==user.username&&v.type!=='onaccount')throwError('Access denied. You can only modify your own vouchers.',403);}
 async function deleteVoucher(DB,user,id,ip){id=Number(id||0);if(!id)throwError('Invalid voucher id',400);const existing=await getActiveVoucher(DB,id);ensureVoucherMutationAccess(user,existing);await DB.prepare('UPDATE vouchers SET deleted_at=?,deleted_by=?,updated_by=?,updated_at=? WHERE id=? AND deleted_at IS NULL AND college=?').bind(now(),user.username,user.username,now(),id,existing.college).run();await audit(DB,user.username,'delete_voucher','voucher',String(id),'Soft delete',ip);return send({ok:true,version:API_VERSION});}
-async function listHeads(DB,user,body){const r=await DB.prepare('SELECT * FROM account_heads WHERE active=1 ORDER BY name').all();return send({heads:r.results||[],version:API_VERSION});}
+async function listHeads(DB,user,body){const college=allowedCollege(user,body.college);const r=await DB.prepare('SELECT * FROM account_heads WHERE active=1 AND college=? ORDER BY name').bind(college).all();return send({heads:r.results||[],version:API_VERSION});}
 async function addHead(DB,user,body,ip){const name=clean(body.name,250);if(!name)throwError('Head name required',400);const type=['debit','onaccount','credit','common'].indexOf(body.type)!==-1?body.type:'common';const college=allowedCollege(user,body.college);await DB.prepare('INSERT OR IGNORE INTO account_heads(name,name_norm,type,college,created_by,created_at,active) VALUES(?,?,?,?,?,?,1)').bind(name,norm(name),type,college,user.username,now()).run();await audit(DB,user.username,'add_account_head','account_head',name,JSON.stringify({type:type,college:college}),ip);return await listHeads(DB,user,body);}
 
-async function listBlocks(DB,user,body){const r=await DB.prepare('SELECT * FROM blocks WHERE active=1 ORDER BY name').all();return send({blocks:r.results||[],version:API_VERSION});}
+async function listBlocks(DB,user,body){const college=allowedCollege(user,body.college);const r=await DB.prepare('SELECT * FROM blocks WHERE active=1 AND college=? ORDER BY name').bind(college).all();return send({blocks:r.results||[],version:API_VERSION});}
 async function addBlock(DB,user,body,ip){const name=clean(body.name,250);if(!name)throwError('Block name required',400);const college=allowedCollege(user,body.college);await DB.prepare('INSERT OR IGNORE INTO blocks(name,name_norm,college,created_by,created_at,active) VALUES(?,?,?,?,?,1)').bind(name,norm(name),college,user.username,now()).run();await audit(DB,user.username,'add_block','block',name,JSON.stringify({college:college}),ip);return await listBlocks(DB,user,body);}
 
 async function listUsers(DB,actor){
@@ -589,7 +662,9 @@ async function createUser(DB,actor,body,ip){
   const username=actualUsername(body.username);
   if(!USERNAME_RE.test(username))throwError('Username must be 1-64 letters/numbers or . _ - @',400);
   if(username==='admin')throwError('admin1 already exists as the main admin.',400);
-  const password=String(body.password||'Stmarys@1234');
+  if(isSuperAdmin(username)||RESERVED_USERNAMES.indexOf(username)!==-1)throwError('This username is reserved.',400);
+  const password=String(body.password||'');
+  if(!password)throwError('Enter an initial password for the new user.',400);
   assertPassword(password);
   const existing=await DB.prepare('SELECT username FROM users WHERE username=?').bind(username).first();
   if(existing)throwError('Username already exists',409);
@@ -608,7 +683,7 @@ async function createUser(DB,actor,body,ip){
       'create_voucher,view_own_vouchers,print_voucher';
   }
   permissions = voucherScopedPermissions(role, permissions);
-  assertAssignableAccess(actor, role, college, collegeAccess, permissions);
+  assertAssignableAccess(actor, role, college, collegeAccess, permissions, customRole);
 
   await DB.prepare('INSERT INTO users(username,password_salt,password_hash,role,status,college,full_name,permissions,college_access,must_change_password,created_at,updated_at,custom_role) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(username,hp.salt,hp.hash,role,'active',college,fullName,permissions,collegeAccess,1,now(),now(),customRole).run();
   await audit(DB,actor.username,'create_user','user',username,JSON.stringify({role:body.role,college:college}),ip);
@@ -619,7 +694,7 @@ async function updateUserPermissions(DB,actor,body,ip){
   const username=actualUsername(body.username);
   if(!username)throwError('Username required',400);
   if(isSuperAdmin(username))throwError('Super administrators cannot be permission-reduced or modified.',400);
-  const target=await DB.prepare('SELECT username,role,college,custom_role FROM users WHERE username=?').bind(username).first();
+  const target=await DB.prepare('SELECT username,role,college,custom_role,permissions FROM users WHERE username=?').bind(username).first();
   assertManageTarget(actor,target);
   
   const customRole = body.role === 'head' ? 'head' : '';
@@ -631,7 +706,7 @@ async function updateUserPermissions(DB,actor,body,ip){
   const college=clean(body.college||'smgg',20);
   const collegeAccess=normalizeCollegeAccess(college,body.collegeAccess||body.college_access||'');
   const permissions=voucherScopedPermissions(role, clean(body.permissions||'',2000));
-  assertAssignableAccess(actor, role, college, collegeAccess || college, permissions);
+  assertAssignableAccess(actor, role, college, collegeAccess || college, permissions, customRole);
   
   await DB.prepare('UPDATE users SET role=?,custom_role=?,full_name=?,college=?,college_access=?,permissions=?,updated_at=? WHERE username=?').bind(role,customRole,fullName,college,collegeAccess,permissions,now(),username).run();
   await audit(DB,actor.username,'update_user_permissions','user',username,JSON.stringify({role,college,permissions}),ip);
@@ -643,7 +718,7 @@ async function resetUserPassword(DB,actor,body,ip){
   if(!username)throwError('Username required',400);
   const password=String(body.password||'');
   assertPassword(password);
-  const target=await DB.prepare('SELECT username,college,custom_role FROM users WHERE username=?').bind(username).first();
+  const target=await DB.prepare('SELECT username,role,college,custom_role,permissions FROM users WHERE username=?').bind(username).first();
   assertResetTarget(actor,target);
   const hp=await hashPassword(password);
   const mustChange = isSuperAdmin(username) ? 0 : 1;
@@ -652,11 +727,15 @@ async function resetUserPassword(DB,actor,body,ip){
   await audit(DB,actor.username,'reset_user_password','user',username,'Password reset and sessions revoked',ip);
   return send({ok:true,version:API_VERSION});
 }
-async function changeOwnPassword(DB,user,body,ip){
+async function changeOwnPassword(DB,session,body,ip){
+  const user=session.user;
   const password=String(body.password||body.newPassword||'');
   assertPassword(password);
+  if(user.password_salt!==LEGACY_SHA256&&await verifyPassword(password,user.password_salt,user.password_hash))throwError('New password must be different from the current password.',400);
   const hp=await hashPassword(password);
   await DB.prepare('UPDATE users SET password_salt=?,password_hash=?,must_change_password=0,updated_at=? WHERE username=?').bind(hp.salt,hp.hash,now(),user.username).run();
+  // Sign out every other device that was using the old password.
+  await DB.prepare('DELETE FROM sessions WHERE username=? AND token<>?').bind(user.username,session.token).run();
   await audit(DB,user.username,'change_own_password','user',user.username,'Password changed by user',ip);
   const fresh=await DB.prepare('SELECT * FROM users WHERE username=?').bind(user.username).first();
   return send({ok:true,user:publicUser(fresh||Object.assign({},user,{must_change_password:0})),version:API_VERSION});
@@ -664,7 +743,7 @@ async function changeOwnPassword(DB,user,body,ip){
 async function setUserStatus(DB,actor,body,ip){
   const username=actualUsername(body.username),status=body.status==='blocked'?'blocked':'active';
   if(isSuperAdmin(username) && status==='blocked')throwError('Main admins cannot be blocked',400);
-  const target=await DB.prepare('SELECT username,college,custom_role FROM users WHERE username=?').bind(username).first();
+  const target=await DB.prepare('SELECT username,role,college,custom_role,permissions FROM users WHERE username=?').bind(username).first();
   assertManageTarget(actor,target);
   await DB.prepare('UPDATE users SET status=?,updated_at=? WHERE username=?').bind(status,now(),username).run();
   if(status==='blocked')await DB.prepare('DELETE FROM sessions WHERE username=?').bind(username).run();
@@ -675,7 +754,7 @@ async function deleteUser(DB,actor,body,ip){
   const username=actualUsername(body.username);
   if(isSuperAdmin(username)||username==='admin1')throwError('Main admins cannot be deleted',400);
   if(username===actor.username)throwError('You cannot delete yourself',400);
-  const target=await DB.prepare('SELECT username,college,custom_role FROM users WHERE username=?').bind(username).first();
+  const target=await DB.prepare('SELECT username,role,college,custom_role,permissions FROM users WHERE username=?').bind(username).first();
   assertManageTarget(actor,target);
   await DB.prepare('DELETE FROM users WHERE username=?').bind(username).run();
   await DB.prepare('DELETE FROM sessions WHERE username=?').bind(username).run();
@@ -732,7 +811,12 @@ function vendorFromDb(row) {
   });
 }
 
+function canViewVendors(user) {
+  return isVoucherAdmin(user) || hasPermission(user, VIEW_VENDOR_LEDGER) || hasPermission(user, MANAGE_VENDORS);
+}
+
 async function listVendors(DB, user, body) {
+  if (!canViewVendors(user)) throwError('Access denied. Missing view_vendor_ledger permission.', 403);
   const college = allowedCollege(user, body.college);
   const rows = await DB.prepare('SELECT * FROM vendors WHERE deleted_at IS NULL AND college=? ORDER BY vendor_id ASC, created_at DESC').bind(college).all();
   return send({ vendors: (rows.results || []).map(vendorFromDb), version: API_VERSION });
@@ -755,6 +839,7 @@ async function saveVendor(DB, user, body, ip) {
   const bankAccountDetails = clean(v.bankAccountDetails || '', 500);
   const workDescription = clean(v.workDescription || v.workDesc || '', 1000);
   const agreedAmount = Number(v.agreedAmount || v.amount || 0) || 0;
+  if (agreedAmount < 0 || agreedAmount > 10000000000) throwError('Agreed amount is out of range', 400);
   const amountInWords = clean(v.amountInWords || v.amtWords || '', 500);
   const periodStart = clean(v.periodStart || v.agreementDate || '', 30);
   const periodEnd = clean(v.periodEnd || '', 30);
@@ -762,8 +847,12 @@ async function saveVendor(DB, user, body, ip) {
   const authRole = clean(v.authRole || '', 120);
   const authPlace = clean(v.authPlace || 'Chebrolu / Guntur', 120);
   const remarks = clean(v.remarks || '', 1000);
-  const dataJson = JSON.stringify(v);
-  const createdAt = v.createdAt || now();
+  const files = sanitizeVendorFiles(v);
+  const stored = Object.assign({}, v, { files: files });
+  if (stored.agreement && typeof stored.agreement === 'object') stored.agreement = Object.assign({}, stored.agreement, { files: files });
+  const dataJson = JSON.stringify(stored);
+  if (dataJson.length > MAX_VENDOR_JSON_BYTES) throwError('Vendor record is too large. Attached files must total under about 1.4MB.', 413);
+  const createdAt = /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(String(v.createdAt || '')) ? String(v.createdAt) : now();
   const updatedAt = now();
 
   const existing = await DB.prepare('SELECT id, college FROM vendors WHERE (id=? OR vendor_id=?) AND college=? AND deleted_at IS NULL').bind(vid, vid, college).first();
@@ -782,8 +871,33 @@ async function saveVendor(DB, user, body, ip) {
   }
 }
 
+const FILE_TYPE_BY_EXT = { pdf: 'application/pdf', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
+function sanitizeVendorFiles(v) {
+  const raw = (v.agreement && Array.isArray(v.agreement.files)) ? v.agreement.files : (Array.isArray(v.files) ? v.files : []);
+  if (raw.length > 3) throwError('A vendor can have at most 3 attached files', 400);
+  return raw.filter(function (f) { return f && typeof f === 'object'; }).map(function (f) {
+    const name = clean(f.name, 200);
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    const extType = FILE_TYPE_BY_EXT[ext];
+    if (!extType) throwError('Only PDF, Word (.doc/.docx), PNG and JPEG files can be attached', 400);
+    const dataUrl = String(f.dataUrl || '');
+    if (dataUrl) {
+      const m = /^data:([a-z0-9.+\/-]*);base64,[A-Za-z0-9+\/=]*$/i.exec(dataUrl);
+      const declared = m ? m[1].toLowerCase() : '';
+      if (!m || (declared !== extType && declared !== 'application/octet-stream' && declared !== '')) {
+        throwError('Attached file "' + name + '" does not match an allowed file type', 400);
+      }
+    }
+    // Re-label the stored data with the type implied by the extension so it is
+    // never rendered as HTML/SVG/script when previewed.
+    const safeDataUrl = dataUrl ? dataUrl.replace(/^data:[^;]*;/i, 'data:' + extType + ';') : '';
+    return { name: name, size: Math.max(0, Math.round(Number(f.size) || 0)), type: extType, dataUrl: safeDataUrl };
+  });
+}
+
 async function saveVendorsBulk(DB, user, body, ip) {
   const vendors = Array.isArray(body.vendors) ? body.vendors : [];
+  if (vendors.length > MAX_BULK_VENDORS) throwError('At most ' + MAX_BULK_VENDORS + ' vendors can be saved at once', 400);
   const college = allowedCollege(user, body.college);
   for (const v of vendors) {
     try {
@@ -803,7 +917,7 @@ async function deleteVendor(DB, user, body, ip) {
   await audit(DB, user.username, 'delete_vendor', 'vendor', id, 'Deleted vendor ' + id, ip);
   return send({ ok: true, id: id, version: API_VERSION });
 }
-async function listAudit(DB){const r=await DB.prepare('SELECT * FROM audit_logs ORDER BY created_at DESC,id DESC').all();return send({logs:r.results||[],version:API_VERSION});}
+async function listAudit(DB){const r=await DB.prepare('SELECT * FROM audit_logs ORDER BY created_at DESC,id DESC LIMIT 2000').all();return send({logs:r.results||[],version:API_VERSION});}
 async function audit(DB,actor,action,entityType,entityId,details,ip){await DB.prepare('INSERT INTO audit_logs(actor,action,entity_type,entity_id,details,ip,created_at) VALUES(?,?,?,?,?,?,?)').bind(actor||'system',action,entityType,entityId||'',details||'',ip||'',now()).run();}
 async function hashPassword(password,saltB64){const enc=new TextEncoder();const salt=saltB64?fromB64(saltB64):crypto.getRandomValues(new Uint8Array(16));const key=await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveBits']);const bits=await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:salt,iterations:PBKDF2_ITERATIONS},key,256);return{salt:toB64(salt),hash:toB64(new Uint8Array(bits))};}
 async function verifyPassword(password,salt,expected){const hp=await hashPassword(password,salt);return safeEqual(hp.hash,expected);}
@@ -812,3 +926,35 @@ function safeEqual(a,b){a=String(a||'');b=String(b||'');if(a.length!==b.length)r
 function randomHex(bytes){const a=crypto.getRandomValues(new Uint8Array(bytes));return Array.from(a).map(function(b){return b.toString(16).padStart(2,'0');}).join('');}
 function toB64(bytes){let s='';bytes.forEach(function(b){s+=String.fromCharCode(b);});return btoa(s);}
 function fromB64(str){const bin=atob(str);const out=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);return out;}
+
+// ---- Rate limiting (D1-backed, fixed window) ----
+async function readHits(DB, key, windowSeconds) {
+  const row = await DB.prepare('SELECT count,window_start FROM rate_limits WHERE key=?').bind(key).first();
+  const nowS = Math.floor(Date.now() / 1000);
+  if (!row || nowS - Number(row.window_start) >= windowSeconds) return 0;
+  return Number(row.count) || 0;
+}
+async function readHitsMany(DB, keys, windowSeconds) {
+  const out = {}; keys.forEach(function (k) { out[k] = 0; });
+  const placeholders = keys.map(function () { return '?'; }).join(',');
+  const stmt = DB.prepare('SELECT key,count,window_start FROM rate_limits WHERE key IN (' + placeholders + ')');
+  const r = await stmt.bind.apply(stmt, keys).all();
+  const nowS = Math.floor(Date.now() / 1000);
+  (r.results || []).forEach(function (row) {
+    if (nowS - Number(row.window_start) < windowSeconds) out[row.key] = Number(row.count) || 0;
+  });
+  return out;
+}
+async function recordHit(DB, key, windowSeconds) {
+  const nowS = Math.floor(Date.now() / 1000);
+  await DB.prepare('INSERT INTO rate_limits(key,count,window_start) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN ?-window_start>=? THEN 1 ELSE count+1 END, window_start=CASE WHEN ?-window_start>=? THEN ? ELSE window_start END')
+    .bind(key, nowS, nowS, windowSeconds, nowS, windowSeconds, nowS).run();
+}
+async function clearHits(DB, key) { await DB.prepare('DELETE FROM rate_limits WHERE key=?').bind(key).run(); }
+async function assertNotThrottled(DB, key, limit, windowSeconds) {
+  if (await readHits(DB, key, windowSeconds) >= limit) throwError('Too many attempts. Please wait ' + Math.ceil(windowSeconds / 60) + ' minutes and try again.', 429);
+}
+async function rateLimit(DB, key, limit, windowSeconds) {
+  await assertNotThrottled(DB, key, limit, windowSeconds);
+  await recordHit(DB, key, windowSeconds);
+}

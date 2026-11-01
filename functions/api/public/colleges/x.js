@@ -5,7 +5,13 @@ export async function onRequest(context){
   const request=context.request;
   if(request.method==='OPTIONS')return new Response('',{status:204});
   if(request.method!=='POST')return send({error:'Method not allowed',version:API_VERSION},405);
-  try{return await handle(context);}catch(err){return send({error:err&&err.message?String(err.message):'Server error',version:API_VERSION},err&&err.status?err.status:500);}
+  const origin=request.headers.get('origin');
+  if(origin){try{if(new URL(origin).host!==new URL(request.url).host)return send({error:'Cross-origin request rejected',version:API_VERSION},403);}catch(e){return send({error:'Cross-origin request rejected',version:API_VERSION},403);}}
+  try{return await handle(context);}catch(err){
+    const status=err&&err.expose?err.status:500;
+    if(status>=500)console.error('colleges api error',err&&err.stack?err.stack:err);
+    return send({error:err&&err.expose?String(err.message):'Server error. Please try again.',version:API_VERSION},status);
+  }
 }
 
 async function handle(context){
@@ -23,6 +29,7 @@ async function handle(context){
   const isAdmin1 = isSuperAdmin(user);
 
   if(action==='listColleges')return await listColleges(env.DB);
+  if(Number(user.must_change_password||0)===1)throwError('Password change required before continuing.',403);
   if(action==='createCollege') {
     if (!isAdmin1 && !hasPermission(user, 'manage_colleges')) {
       throwError('Access denied. Missing manage_colleges permission.', 403);
@@ -39,11 +46,11 @@ async function handle(context){
 }
 
 function send(data,status){return new Response(JSON.stringify(data),{status:status||200,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});}
-function throwError(message,status){const e=new Error(message);e.status=status||400;throw e;}
+function throwError(message,status){const e=new Error(message);e.status=status||400;e.expose=true;throw e;}
 function now(){return new Date().toISOString();}
 function clean(v,max){return String(v==null?'':v).trim().replace(/\s+/g,' ').slice(0,max||1000);}
 function norm(v){return clean(v,80).toLowerCase().replace(/[^a-z0-9_-]/g,'');}
-function isSuperAdmin(user){const username=String(typeof user==='string'?user:user&&user.username||'').toLowerCase();return username==='admin'||username==='admin_stmw'||username==='baji';}
+function isSuperAdmin(user){const username=String(typeof user==='string'?user:user&&user.username||'').toLowerCase();return username==='admin'||username==='admin_stmw'||username==='admin_smhyd'||username==='baji';}
 function uiUsername(name){const u=String(name||'').toLowerCase();if(u==='admin'||u==='admin_stmw')return'admin1';if(u==='user2')return'admin2';if(u==='user3')return'admin3';return u;}
 function cookieToken(request,bodyToken){if(bodyToken)return String(bodyToken);const c=request.headers.get('cookie')||'';const m=c.match(/(?:^|;\s*)SMV_SESSION=([^;]+)/);return m?decodeURIComponent(m[1]):'';}
 
@@ -93,6 +100,7 @@ async function createCollege(DB,user,body,ip){
   let code=norm(body.code||name);
   const location=clean(body.location,160);
   const logoUrl=clean(body.logoUrl||body.logo_url,500);
+  if(logoUrl&&!/^(https:\/\/|\/|assets\/)/i.test(logoUrl))throwError('Logo URL must be an https:// link or a site path',400);
   if(!name)throwError('College name required',400);
   if(!code)throwError('College code required',400);
   if(code.length<2||code.length>20)throwError('College code must be 2-20 characters',400);
