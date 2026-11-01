@@ -44,7 +44,7 @@ Legend: ✅ fixed in this branch · ☑️ already OK · ⚠️ needs an owner d
 **A6 — Voucher permission bypass (Medium).** A user without `edit_voucher` could edit an on-account voucher and change its type to debit or credit. The type is now locked unless the user has `edit_voucher`. Amounts must be positive and dates must be valid.
 
 **A7 — No rate limiting (Medium).** New D1 table `rate_limits`:
-- Login: 10 failures per username or 30 per IP in 15 minutes, then HTTP 429.
+- Login: 10 failures per username or 200 per IP in 15 minutes (high, because a campus shares one public IP), then HTTP 429.
 - Bootstrap: 5 per hour.
 - Password change: 10 per hour.
 - Password reset: 30 per hour.

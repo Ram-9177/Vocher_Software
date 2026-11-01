@@ -517,7 +517,7 @@ async function login(DB, request, body, ip) {
   // Throttle by IP and by account before doing any work.
   const ipKey = 'login-ip:' + ip, userKey = 'login-user:' + requested;
   const hits = await readHitsMany(DB, [ipKey, userKey], 900);
-  if (hits[ipKey] >= 30 || hits[userKey] >= 10) throwError('Too many failed login attempts. Please wait 15 minutes and try again.', 429);
+  if (hits[ipKey] >= 200 || hits[userKey] >= 10) throwError('Too many failed login attempts. Please wait 15 minutes and try again.', 429);
   const rootLogin = requested === 'superadmin';
   let user = null;
   if (['admin','admin1','admin_stmw','admin_smhyd'].indexOf(requested) === -1) {
